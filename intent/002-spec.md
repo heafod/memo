@@ -1,6 +1,6 @@
 # 规格：Memo 后端服务与持久化存储
 
-来源：[002-backend-persistence.md](002-backend-persistence.md)（tony，产品发起人）。状态：待产品负责人评审。
+来源：[002-backend-persistence.md](002-backend-persistence.md)（tony，产品发起人）。状态：已接受（2026-10-11）。
 
 应用的技能包：writing-for-agents（文档结构）、security-and-hardening（认证与 API 安全基线）。
 
@@ -72,3 +72,5 @@
 * 2026-10-11・产品负责人：服务结构参考 fastapi/full-stack-fastapi-template——`backend/` + `frontend/` 平级，后端按 `app/api`、`app/core`、`app/models.py`、`app/crud.py`、`app/alembic` 组织，根级 `compose.yml` 与 `.env`（修订「设计」节，替代原 `server/` 方案）。
 
 * 2026-10-11・产品负责人：确认关注点 3——存量演示数据不做导入工具，直接重新种子化。产品侧关注点全部闭环，规格待正式接受。
+
+* 2026-10-11・产品负责人：接受本规格，进入构建阶段；计划阶段产出 002-plan.md，关注点 1、2、4、5 由计划与实施闭环。
