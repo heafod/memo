@@ -18,6 +18,7 @@
 - Node.js 18+（`.nvmrc` 固定 22）。
 - 提交前 `lint` 与 `format:check` 必须通过。
 - 产品变更从 `intent/` 出发：新想法先写意图文件（`intent/TEMPLATE.md`），接受后再进入设计与实现，流程见 `intent/README.md`。
+- 进入构建阶段的变更以计划为起点：规格接受后先产出 `intent/NNN-plan.md`（变更的文件、工作顺序、风险、证明），计划经人批准后才开始实施；实施偏离计划时，计划与代码在同一提交中更新。
 - 技能选型、检索、「某技能是做什么的」类问题，走 `skills/skill-discovery/` 的响应协议（知识库命中 → skills.sh + 联网 → 未找到）。
 - 设计 token 权威源是 `src/frontend/src/styles/tokens.css`；机器可读的设计系统在仓库根 `DESIGN.md`（design.md 规范），两者修改后运行 `npx @google/design.md lint DESIGN.md` 保持 0 警告。
 - 提交信息使用中文 Conventional Commits（`feat:` / `fix:` / `docs:` …）。
