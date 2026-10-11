@@ -1,6 +1,6 @@
-# .agents/skills/ · 第三方技能池
+# .agents/skills/ · 宿主技能池
 
-引入的外部通用能力技能，统一放在本目录并纳入版本管理。每个子目录一个技能（`SKILL.md` + 自带资源），来源、版本与用途见下表。是否在具体 Agent 工具中启用、以及与自建工程流程的取舍，在后续课程落地时逐项评估。
+宿主工具从本目录发现并加载技能：第三方工程技能 + 自建流程技能（自建技能若需被调用必须放在本目录；`skills/` 下的内容不经宿主发现）。每个子目录一个技能（`SKILL.md` + 自带资源），来源、版本与用途见下表。
 
 ## 清单
 
@@ -20,7 +20,6 @@
 | code-review | mattpocock/skills | 对 diff 做标准轴 + 规格轴双轴评审 | 暂缓评估（对应 PR 评审回路） |
 | tdd | mattpocock/skills | 红绿重构 TDD，一次一个垂直切片 | 暂缓评估（对应反馈回路，需先建测试） |
 | pr | mattpocock/skills | PR 描述规范与合并风险判定 | 暂缓评估 |
-| to-spec | mattpocock/skills | 把会话转成 spec 发布到 issue tracker | 暂缓评估 |
 | to-tickets | mattpocock/skills | 把计划/spec 拆成 tracer-bullet tickets | 暂缓评估 |
 | diagnosing-bugs | mattpocock/skills | 纪律化排障循环：红反馈环→最小化→假设→修复 | 暂缓评估（对应反馈回路） |
 | beautify-github-readme | oil-oil/beautify-github-readme | README 视觉设计与素材制作（含 Python 脚本） | 暂缓评估（开源发布时用） |
@@ -33,6 +32,8 @@
 | oss-license-strategy | samber/developer-relations-skills | 开源许可证选择与合规策略：传染性对比、CLA/DCO、双许可 | 启用候选 |
 | copywriting-tone-of-voice-creator | samber/cc-skills | 为本产品生成品牌语调指南 TONE.md（需联网调研） | 启用候选 |
 | extract-design-md | google-labs-code/stitch-skills | 从前端源码提取设计系统产出 DESIGN.md（零依赖） | 已启用（已用于生成仓库根目录 DESIGN.md） |
+| capture-intent | 自建（本仓库） | 意图捕获入口：与发起人头脑风暴产出 `intent/NNN-*.md` | 已启用 |
+| intent-to-spec | 自建（本仓库） | 意图转规格：产出 `NNN-spec.md`（R#、三节结构、合成→讨论→归位协议） | 已启用 |
 
 ## 来源版本
 
@@ -55,6 +56,7 @@
 
 ## 已知事项
 
+- **to-spec 已移除**（2026-10-12）：依赖 issue tracker 与本管道不符，其「合成不重问」姿态已吸收进自建 intent-to-spec。
 - **同名冲突**：tw93/Waza 的 `check`（别名 code-review）与 mattpocock 的 `code-review` 功能重叠，两者并存仅供对比，正式启用时二选一。
 - 评估未采纳（不装）的：prompt-master、ui-ux-pro-max-skill、Waza read / health / learn / write、hengmu，原因见安装评估记录。
 - `skills/claude-academy-course-fetcher/`（仓库根）是业务技能，与本目录的工程技能分属不同场景，勿混用。

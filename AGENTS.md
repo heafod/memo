@@ -34,7 +34,7 @@
   - `src/data/seed.js` 演示种子数据（原型定位：UX 参考与设计稿转换源；后端与生产前端均为 001 意图链的阶段产物，见 `intent/001-spec.md`）
   - `src/styles/` 按层叠顺序引入的 CSS
 - `intent/` 意图仓库：每个产品变更的意图文件及其模板与流程说明
-- `skills/` 自建技能与知识沉淀：`capture-intent`（意图捕获入口）、`intent-to-spec`（意图转规格流程）、`fastapi-fullstack-scaffold`（FastAPI 全栈脚手架，锁定模板版本）、`claude-academy-course-fetcher`（业务技能）、`skill-discovery`（技能选型 SOP，**临时沉淀，非项目长期工程技能**）；`.agents/skills/` 第三方工程技能池（来源与状态清单见其 README.md）；`docs/` 参考资料与课程译文（只读）
+- `.agents/skills/` 宿主技能池（宿主工具从这里发现技能）：第三方工程技能 + 自建 `capture-intent`（意图捕获入口）、`intent-to-spec`（意图转规格），清单见其 README.md；`skills/` 自建知识与 SOP（不经宿主发现）：`fastapi-fullstack-scaffold`（FastAPI 全栈脚手架，锁定模板版本）、`claude-academy-course-fetcher`（业务技能）、`skill-discovery`（技能选型 SOP，**临时沉淀，非项目长期工程技能**）；`docs/` 参考资料与课程译文（只读）
 
 ## Agent 易错事项
 
