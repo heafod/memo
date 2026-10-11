@@ -42,4 +42,5 @@
 - GitHub Actions 只执行仓库根目录 `.github/workflows/` 下的工作流；现有的 `prototype/.github/workflows/ci.yml` 在本仓库中不会被触发，调整 CI 时需在根目录重建。
 - 不要提交 `dist/`、`node_modules/`（已在忽略清单）。
 - 不要改动 `docs/ai-native-sdlc-zh/` 的译文内容。
+- 临时与交接文件统一存放于仓库根 `.tmp/`（已在忽略清单）；任何文件不写入项目之外的位置（包括系统临时目录）——技能自带的路径默认以本约定为准。
 - 本文件是活文档：Agent 第二次犯同一错误时，把纠正写进这里，并保持一页以内。
