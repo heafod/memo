@@ -1,10 +1,10 @@
 # Memo
 
-一个仓库，两件事：`src/frontend/` 是 Memo 项目管理工作台前端；`intent/`、`skills/` 与本文件构成 Agent 协作的工程体系。
+一个仓库，两件事：`prototype/` 是 Memo 前端原型（UX 参考与设计稿转换源，见 `intent/002-design.md`）；`intent/`、`skills/` 与本文件构成 Agent 协作的工程体系。
 
 ## 命令
 
-前端命令都在 `src/frontend/` 下执行（仓库根目录没有 package.json）：
+前端命令都在 `prototype/` 下执行（仓库根目录没有 package.json）：
 
 - 开发：`npm run dev`（http://localhost:5173，热更新）
 - 构建：`npm run build`（产物在 `dist/`，已忽略）
@@ -20,13 +20,13 @@
 - 产品变更从 `intent/` 出发：新想法先写意图文件（`intent/TEMPLATE.md`），接受后再进入设计与实现，流程见 `intent/README.md`。
 - 进入构建阶段的变更以计划为起点：规格接受后先产出 `intent/NNN-plan.md`（变更的文件、工作顺序、风险、证明），计划经人批准后才开始实施；实施偏离计划时，计划与代码在同一提交中更新。
 - 技能选型、检索、「某技能是做什么的」类问题，走 `skills/skill-discovery/` 的响应协议（知识库命中 → skills.sh + 联网 → 未找到）。
-- 设计 token 权威源是 `src/frontend/src/styles/tokens.css`；机器可读的设计系统在仓库根 `DESIGN.md`（design.md 规范），两者修改后运行 `npx @google/design.md lint DESIGN.md` 保持 0 警告。
+- 设计 token 权威源是 `prototype/src/styles/tokens.css`；机器可读的设计系统在仓库根 `DESIGN.md`（design.md 规范），两者修改后运行 `npx @google/design.md lint DESIGN.md` 保持 0 警告。
 - 提交信息使用中文 Conventional Commits（`feat:` / `fix:` / `docs:` …）。
-- UI 文案经 `src/frontend/src/core/i18n.js` 与 `core/zh/` 管理，不在页面模块里硬编码双份文案；界面默认语言为中文（产品决策）。
+- UI 文案经 `prototype/src/core/i18n.js` 与 `core/zh/` 管理，不在页面模块里硬编码双份文案；界面默认语言为中文（产品决策）。
 
 ## 架构
 
-- `src/frontend/` 前端应用（Vite 构建，无框架）：
+- `prototype/` 前端原型（Vite 构建，无框架；定位：UX 参考与设计稿转换源，localStorage 演示模式）：
   - `src/core/` 基础设施：`store.js`（localStorage，键 `memo.v2`，损坏时回退种子数据）、`i18n.js`、`theme.js`、`constants.js`
   - `src/shell/` 应用骨架：布局、视图引擎、渲染、骨架屏
   - `src/pages/` 路由页面；`src/views/` 项目视图渲染器（看板 / 列表 / 表格 / 日历 / 时间线 / 文件）
@@ -38,8 +38,8 @@
 
 ## Agent 易错事项
 
-- 所有 npm 命令在 `src/frontend/` 执行，不是仓库根目录。
-- GitHub Actions 只执行仓库根目录 `.github/workflows/` 下的工作流；现有的 `src/frontend/.github/workflows/ci.yml` 在本仓库中不会被触发，调整 CI 时需在根目录重建。
+- 所有 npm 命令在 `prototype/` 执行，不是仓库根目录。
+- GitHub Actions 只执行仓库根目录 `.github/workflows/` 下的工作流；现有的 `prototype/.github/workflows/ci.yml` 在本仓库中不会被触发，调整 CI 时需在根目录重建。
 - 不要提交 `dist/`、`node_modules/`（已在忽略清单）。
 - 不要改动 `docs/ai-native-sdlc-zh/` 的译文内容。
 - 本文件是活文档：Agent 第二次犯同一错误时，把纠正写进这里，并保持一页以内。

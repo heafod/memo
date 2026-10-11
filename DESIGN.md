@@ -1,7 +1,7 @@
 ---
 version: alpha
 name: Memo
-description: 清爽宁静、结构清晰的项目管理工作台视觉识别。从前端原型提取；token 权威来源为 src/frontend/src/styles/tokens.css（QUIRE 命名体系）。
+description: 清爽宁静、结构清晰的项目管理工作台视觉识别。从前端原型提取；token 权威来源为 prototype/src/styles/tokens.css（QUIRE 命名体系）。
 colors:
   primary: '#4b5bd6'
   on-primary: '#ffffff'
@@ -147,7 +147,7 @@ components:
 
 Memo 是一个「清爽宁静、结构清晰」的项目管理工作台。视觉气质接近一张考究的纸面：暖白底色（`#fbfaf8`）、极细的发丝边线、几乎察觉不到的阴影，让信息本身而非装饰成为主角。色彩温度偏暖（米白、暖灰），与冷调的 SaaS 灰蓝刻意拉开距离。
 
-整个系统建立在单一 token 文件（`src/frontend/src/styles/tokens.css`）之上：4pt 间距网格、五档圆角、四层文本层级、八种语义色与五种任务状态色。强调色可整体替换（indigo 默认，另有 blue / violet / teal / rose / graphite 变体），暗色模式是逐值重新调校的平行调色板，而非简单反转。信息密度紧凑但不局促，并提供 comfortable / compact 两档密度切换。
+整个系统建立在单一 token 文件（`prototype/src/styles/tokens.css`）之上：4pt 间距网格、五档圆角、四层文本层级、八种语义色与五种任务状态色。强调色可整体替换（indigo 默认，另有 blue / violet / teal / rose / graphite 变体），暗色模式是逐值重新调校的平行调色板，而非简单反转。信息密度紧凑但不局促，并提供 comfortable / compact 两档密度切换。
 
 ## Colors
 
