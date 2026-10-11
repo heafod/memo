@@ -34,6 +34,7 @@
 | extract-design-md | google-labs-code/stitch-skills | 从前端源码提取设计系统产出 DESIGN.md（零依赖） | 已启用（已用于生成仓库根目录 DESIGN.md） |
 | capture-intent | 自建（本仓库） | 意图捕获入口：与发起人头脑风暴产出 `intent/NNN-*.md` | 已启用 |
 | intent-to-spec | 自建（本仓库） | 意图转规格：产出 `NNN-spec.md`（R#、三节结构、合成→讨论→归位协议） | 已启用 |
+| fastapi-fullstack-scaffold | 自建（本仓库） | 用 full-stack-fastapi-template 锁定版本初始化全栈脚手架（引用不复制，含维护 SOP） | 已启用 |
 
 ## 来源版本
 
