@@ -19,7 +19,7 @@
 - 提交前 `lint` 与 `format:check` 必须通过。
 - 产品变更从 `intent/` 出发：新想法先写意图文件（`intent/TEMPLATE.md`），接受后再进入设计与实现，流程见 `intent/README.md`。
 - 提交信息使用中文 Conventional Commits（`feat:` / `fix:` / `docs:` …）。
-- UI 文案经 `src/frontend/src/core/i18n.js` 与 `core/zh/` 管理，不在页面模块里硬编码双份文案。
+- UI 文案经 `src/frontend/src/core/i18n.js` 与 `core/zh/` 管理，不在页面模块里硬编码双份文案；界面默认语言为中文（产品决策）。
 
 ## 架构
 
@@ -28,7 +28,7 @@
   - `src/shell/` 应用骨架：布局、视图引擎、渲染、骨架屏
   - `src/pages/` 路由页面；`src/views/` 项目视图渲染器（看板 / 列表 / 表格 / 日历 / 时间线 / 文件）
   - `src/overlays/` `src/ui/` `src/components/` 弹层与通用 UI；`src/actions/` 行为；`src/features/` 功能模块
-  - `src/data/seed.js` 演示种子数据（当前无后端，数据仅存于浏览器）
+  - `src/data/seed.js` 演示种子数据（原型阶段无后端，数据暂存浏览器 localStorage，属临时方案；后端与持久化数据库为产品方向，见 `intent/002-backend-persistence.md`）
   - `src/styles/` 按层叠顺序引入的 CSS
 - `intent/` 意图仓库：每个产品变更的意图文件及其模板与流程说明
 - `skills/` 业务技能包；`.agents/skills/` 第三方工程技能池（来源与状态清单见其 README.md）；`docs/` 参考资料与课程译文（只读）

@@ -1,6 +1,6 @@
 # 规格：Memo 项目管理工作台
 
-来源：[001-memo-workbench.md](001-memo-workbench.md)（tony，产品发起人）。状态：待产品负责人评审。
+来源：[001-memo-workbench.md](001-memo-workbench.md)（tony，产品发起人）。状态：评审中（关注点 3、4 已决策，见文末决策记录；关注点 1、2 随测试与 CI 策略闭环）。
 应用的技能包：writing-for-agents（文档结构）、frontend-design（UX 品质基准）。
 
 ## 需求
@@ -13,7 +13,7 @@
 - R6. 全局搜索与命令面板（`pages/search.js`、`overlays/palette.js`）。
 - R7. 偏好设置：主题、强调色、密度、语言等（`pages/settings.js`、`core/theme.js`）。
 - R8. 数据持久化：浏览器 localStorage（键 `memo.v2`），损坏或为空时回退种子数据（`core/store.js`）。
-- R9. 双语界面：英文源文为键、中文词典切换（`core/i18n.js` 与 `core/zh/`）。
+- R9. 双语界面：默认中文；英文为源文键、中文词典切换（`core/i18n.js` 与 `core/zh/`）。
 
 ## 设计
 
@@ -29,11 +29,11 @@
 | 不引入 UI 框架与运行时依赖 | `package.json` 仅含 devDependencies（构建期工具），运行时零依赖。 |
 | Node.js 18+（.nvmrc 固定 22） | `engines: >=18`；`.nvmrc` 为 22。 |
 | lint 与格式化遵循现有配置 | ESLint / Prettier 配置就绪并作为提交前置（CI 有效性见关注点 2）。 |
-| 当前阶段为前端演示，后端不在范围 | 设计仅覆盖浏览器内数据（R8），无任何网络层。 |
+| 前端先行，数据持久化最终由后端交付 | 原型阶段以浏览器内数据交付（R8），localStorage 为临时方案；后端与持久化数据库为产品方向，另行立项（见 [002-backend-persistence.md](002-backend-persistence.md)）。 |
 
 ## 意图中的未决问题
 
-- 数据持久化方案何时引入服务端？——本规格以 localStorage 为当前答案（R8），服务端方案仍开放，需要时另立新意图。
+- 数据持久化方案何时引入服务端？——已决策：产品要求交付后端与持久化数据库（如 MySQL、PostgreSQL），localStorage 仅为原型临时方案，已立 [002-backend-persistence.md](002-backend-persistence.md)。
 - 是否需要多人协作能力？——未回答，随本规格带出（见关注点 4）。
 - 移动端适配优先级？——未回答，带入后续迭代评估。
 
@@ -41,5 +41,10 @@
 
 1. **无自动化测试**：全部功能仅靠人工验证，反馈回路策略缺失前提。负责人：工程。
 2. **CI 未实际运行**：工作流位于 `src/frontend/.github/workflows/`，而 GitHub 只执行仓库根目录 `.github/workflows/`，lint / format / build 检查目前是空转。负责人：工程。
-3. **界面默认语言为 English (US)**：i18n 已支持中文切换，但默认值与中文优先的产品 / 文档约定不一致，需要产品决策。负责人：产品负责人。
-4. **单机存储与「工作台」定位的矛盾**：localStorage 数据不跨设备、清理浏览器即丢失；作为演示可接受，作为产品需在引入服务端前向用户明示数据边界。负责人：产品负责人。
+3. **界面默认语言为 English (US)**——已决策：默认语言严格为中文。已实施：默认偏好、设置页选项与两处切换入口全部对齐（提交 `0dcdfa2`）。
+4. **单机存储与「工作台」定位的矛盾**——已决策：后端与持久化数据库为产品交付要求，localStorage 定性为原型临时方案，已立 002 意图。
+
+## 决策记录
+
+- 2026-10-11 · 产品负责人：界面默认语言严格为中文（关注点 3）。
+- 2026-10-11 · 产品负责人：产品需交付后端并由持久化数据库（如 MySQL、PostgreSQL）存储，localStorage 仅为原型临时方案（关注点 4、未决问题 1，立项 002）。
