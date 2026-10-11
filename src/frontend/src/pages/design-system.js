@@ -99,7 +99,10 @@ export function pageSystem() {
       ${[
         ['Text', `<input class="input" placeholder="${t('Task name')}" id="ds-1">`],
         ['Focus', `<input class="input" value="Homepage wireframes" style="border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)" id="ds-2">`],
-        ['Error', `<input class="input is-error" value="alex@" id="ds-3"><span class="err">${ic('circle-alert', 12)}${t('Enter a valid email address')}</span>`],
+        [
+          'Error',
+          `<input class="input is-error" value="alex@" id="ds-3"><span class="err">${ic('circle-alert', 12)}${t('Enter a valid email address')}</span>`,
+        ],
         ['Disabled', `<input class="input" value="hello@memo.app" disabled id="ds-4">`],
         ['Search', `<div class="inwrap">${ic('search', 13)}<input class="input" placeholder="${t('Search tasks')}" id="ds-5"><span class="kbd">/</span></div>`],
         ['Select', `<select class="select" id="ds-6"><option>${t('In Progress')}</option><option>${t('Review')}</option></select>`],

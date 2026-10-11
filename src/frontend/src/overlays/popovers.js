@@ -393,6 +393,8 @@ export function filterBuilder(p) {
   return `<div class="mh fb-h">${t('Filter by')}${v.filters.length ? `<button class="btn btn-sm btn-ghost" data-a="clearFilters" data-key="${p.key}">${t('Clear all')}</button>` : ''}</div>
     ${rows ? `<div class="fb-rows">${rows}</div>` : `<p class="fb-empty">${t('No filters applied. Combine filters to narrow the task list, e.g. Status is In Progress and Assignee is Sarah.')}</p>`}
     <div class="msep"></div><div class="fb-add"><span class="faint">${t('Add filter:')}</span>${Object.entries(FIELDS)
-      .map(([k, x]) => `<button class="badge" style="cursor:pointer" data-a="addFilter" data-key="${p.key}" data-f="${k}">${ic(x.icon, 11)}${t(x.name)}</button>`)
+      .map(
+        ([k, x]) => `<button class="badge" style="cursor:pointer" data-a="addFilter" data-key="${p.key}" data-f="${k}">${ic(x.icon, 11)}${t(x.name)}</button>`,
+      )
       .join('')}</div>`;
 }

@@ -97,16 +97,8 @@ A.delTeam = el => {
   const t = team(el.dataset.id);
   const n = D().members.filter(x => x.team === t.id).length;
   const np = D().projects.filter(p => p.team === t.id).length;
-  const memberTxt = n
-    ? n > 1
-      ? tr('<b>{n} members</b> will have no team', { n })
-      : tr('<b>1 member</b> will have no team')
-    : tr('The team has no members');
-  const projTxt = np
-    ? np > 1
-      ? tr('<b>{n} projects</b> will need a new team', { n: np })
-      : tr('<b>1 project</b> will need a new team')
-    : '';
+  const memberTxt = n ? (n > 1 ? tr('<b>{n} members</b> will have no team', { n }) : tr('<b>1 member</b> will have no team')) : tr('The team has no members');
+  const projTxt = np ? (np > 1 ? tr('<b>{n} projects</b> will need a new team', { n: np }) : tr('<b>1 project</b> will need a new team')) : '';
   S.ui.modals.pop();
   confirmDlg({
     title: tr('Delete {name}?', { name: t.name }),

@@ -164,9 +164,12 @@ export function paletteItems() {
   if (sc === 'all' || sc === 'comments')
     groups.push({
       name: t('Comments'),
-      items: r.comments
-        .slice(0, lim)
-        .map(c => ({ html: av(c.by, 'sm', false), name: c.text, sub: t('on {task}', { task: task(c.task).title }), run: () => A.openTask({ dataset: { id: c.task } }) })),
+      items: r.comments.slice(0, lim).map(c => ({
+        html: av(c.by, 'sm', false),
+        name: c.text,
+        sub: t('on {task}', { task: task(c.task).title }),
+        run: () => A.openTask({ dataset: { id: c.task } }),
+      })),
     });
   const out = groups.filter(g => g.items.length);
   out.push({
@@ -195,7 +198,8 @@ export function paletteHtml() {
   pl._flat = flat;
   pl.hl = clamp(pl.hl, 0, Math.max(flat.length - 1, 0));
   let idx = 0;
-  const ph = pl.mode === 'search' ? t('Search tasks, projects, people, files, comments…') : pl.mode === 'ws' ? t('Find a workspace…') : t('Type a command or search…');
+  const ph =
+    pl.mode === 'search' ? t('Search tasks, projects, people, files, comments…') : pl.mode === 'ws' ? t('Find a workspace…') : t('Type a command or search…');
   return `<div class="palette" role="dialog" aria-modal="true" aria-label="${t('Command menu')}">
     <div class="pal-in">${ic(pl.mode === 'search' ? 'search' : 'command', 17)}${pl.mode !== 'cmd' ? `<span class="badge" style="flex-shrink:0">${pl.mode === 'search' ? t('Search') : t('Workspace')}</span>` : ''}<input id="pal-in" data-in="palQ" value="${esc(pl.q)}" placeholder="${ph}" autocomplete="off" role="combobox" aria-expanded="true" aria-controls="pal-list" aria-activedescendant="pi-${pl.hl}"><kbd>Esc</kbd></div>
     ${

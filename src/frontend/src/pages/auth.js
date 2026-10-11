@@ -116,7 +116,9 @@ export function renderOnboarding() {
       .join('')}</div>
     <div class="field"><span class="label">${t('Team size')}</span><div class="seg" style="width:fit-content">${['Just me', '2-10', '11-50', '51-200', '200+'].map(s => `<button class="${o.size === s ? 'on' : ''}" data-a="onbSet" data-k="size" data-v="${s}">${s === 'Just me' ? t('Just me') : s}</button>`).join('')}</div></div>${nav()}`;
   if (st === 3)
-    body = `<h1>${t('Create your first project')}</h1><p class="sub">${t('Start from a template or a blank project.')}</p><div class="field"><label class="label" for="o-proj">${t('Project name')}</label><input class="input input-lg" id="o-proj" data-in="onbProj" value="${esc(o.proj)}" autofocus></div><div class="tmpls" role="radiogroup">${TEMPLATES.filter(tpl => tpl.id !== 'blank')
+    body = `<h1>${t('Create your first project')}</h1><p class="sub">${t('Start from a template or a blank project.')}</p><div class="field"><label class="label" for="o-proj">${t('Project name')}</label><input class="input input-lg" id="o-proj" data-in="onbProj" value="${esc(o.proj)}" autofocus></div><div class="tmpls" role="radiogroup">${TEMPLATES.filter(
+      tpl => tpl.id !== 'blank',
+    )
       .map(tpl => opt('tmpl', tpl.id, tpl.icon, tpl.name, t('{n} starter tasks', { n: tpl.tasks.length })))
       .join('')}</div>${nav()}`;
   if (st === 4)

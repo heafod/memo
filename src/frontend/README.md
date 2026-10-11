@@ -4,15 +4,11 @@
 
 基于原生 JavaScript ES 模块和 CSS 构建，由 [Vite](https://vite.dev) 打包。没有使用任何 UI 框架，也没有运行时依赖。
 
-
-
 ![Memo 首页仪表盘](docs/preview.png)
 
 ## 快速开始
 
 需要 Node.js 18 或更高版本（`.nvmrc` 固定为 22）。
-
-
 
 ```
 npm install
@@ -24,8 +20,6 @@ npm run format    # Prettier 代码格式化
 ```
 
 ## 项目结构
-
-
 
 ```
 index.html              HTML 入口，加载 src/main.js
@@ -58,8 +52,6 @@ src/
 
 依赖方向自上而下：
 
-
-
 1. `core/` 和 `data/` 不依赖应用中的任何其他部分。
 
 2. `ui/`、`shell/`、`components/`、`pages/`、`views/`、`overlays/` 和 `features/` 根据状态渲染 HTML。
@@ -70,25 +62,23 @@ src/
 
 ## 编码约定
 
-
-
-* **渲染：** 每个页面或视图都是一个函数，从 store（`S`）生成并返回 HTML 字符串。
+- **渲染：** 每个页面或视图都是一个函数，从 store（`S`）生成并返回 HTML 字符串。
 
   `render()` 会重建外壳（shell），并保持焦点和滚动位置。
 
-* **交互：** 元素通过 `data-a="actionName"` 声明行为。`actions/events.js` 会把点击事件
+- **交互：** 元素通过 `data-a="actionName"` 声明行为。`actions/events.js` 会把点击事件
 
   委托给对应的 `A.actionName`。输入框使用 `data-in`，失焦处理使用 `data-blur`。
 
-* **布局：** 所有页面边缘统一使用 `var(--gutter)`，保证面包屑、页头、工具栏、列表、
+- **布局：** 所有页面边缘统一使用 `var(--gutter)`，保证面包屑、页头、工具栏、列表、
 
   表格和看板从同一条竖线开始对齐。
 
-* **下拉框：** 直接写普通的 `<select class="select">`。`ui/select.js` 会把它渲染成
+- **下拉框：** 直接写普通的 `<select class="select">`。`ui/select.js` 会把它渲染成
 
   设计系统样式的菜单，同时保持原生元素作为唯一数据源。
 
-* **图标：** 调用 `ic('name')` 并传入任意 [Lucide](https://lucide.dev) 图标名。
+- **图标：** 调用 `ic('name')` 并传入任意 [Lucide](https://lucide.dev) 图标名。
 
   `virtual:icons` 插件只打包源码中实际用到的图标。
 

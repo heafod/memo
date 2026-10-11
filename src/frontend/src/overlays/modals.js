@@ -224,7 +224,7 @@ export function inviteModal(m, H) {
     <div class="field grow"><label class="label" for="inv-team">${t('Team')}</label><select class="select" id="inv-team">${teamsList()
       .map(tm => `<option value="${tm.id}">${tm.name}</option>`)
       .join('')}</select></div></div>
-    <div class="alert info">${ic('info', 14)}<span>${t('{role} can only see projects they\'re added to and can\'t create projects.', { role: `<b>${t('Guests')}</b>` })}</span></div>
+    <div class="alert info">${ic('info', 14)}<span>${t("{role} can only see projects they're added to and can't create projects.", { role: `<b>${t('Guests')}</b>` })}</span></div>
   </form>
   <div class="modal-f"><button class="btn btn-ghost" data-a="copyInviteLink">${ic('link', 14)}${t('Copy invite link')}</button><span class="sp"></span><button class="btn btn-secondary" data-a="closeModal">${t('Cancel')}</button><button class="btn btn-primary" data-a="submitInvite" id="inv-submit">${t('Send invites')}</button></div>`;
 }

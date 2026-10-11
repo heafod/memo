@@ -34,7 +34,10 @@ export function filesHtml(pid) {
         ['grid', 'layout-grid'],
         ['list', 'list'],
       ]
-        .map(([k, i]) => `<button class="${view === k ? 'on' : ''}" data-a="set" data-k="fileView" data-v="${k}" aria-label="${t(k === 'grid' ? 'Grid view' : 'List view')}">${ic(i, 13)}</button>`)
+        .map(
+          ([k, i]) =>
+            `<button class="${view === k ? 'on' : ''}" data-a="set" data-k="fileView" data-v="${k}" aria-label="${t(k === 'grid' ? 'Grid view' : 'List view')}">${ic(i, 13)}</button>`,
+        )
         .join('')}</div>
       <label class="btn btn-primary btn-sm" style="cursor:pointer">${ic('upload', 13)}${t('Upload')}<input type="file" multiple hidden data-in="uploadFiles" data-project="${pid}"></label>
     </div>

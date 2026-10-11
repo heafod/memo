@@ -268,7 +268,7 @@ document.addEventListener('pointerdown', e => {
       n > 1
         ? tr(days > 0 ? 'Moved “{title}” {n} days later' : 'Moved “{title}” {n} days earlier', { title: t.title, n })
         : tr(days > 0 ? 'Moved “{title}” 1 day later' : 'Moved “{title}” 1 day earlier', { title: t.title }),
-      { ms: 2200 }
+      { ms: 2200 },
     );
   };
   addEventListener('pointermove', mv);

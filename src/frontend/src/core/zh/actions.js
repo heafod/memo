@@ -1,8 +1,8 @@
 /* zh dictionary for: actions — keys must match English source strings exactly */
 export default {
   /* shared buttons & labels */
-  'Open': '打开',
-  'Undo': '撤销',
+  Open: '打开',
+  Undo: '撤销',
   'Try again': '重试',
   'Delete task': '删除任务',
   'Delete project': '删除项目',
@@ -11,7 +11,7 @@ export default {
   'Archive project': '归档项目',
   'Remove member': '移除成员',
   'Reset data': '重置数据',
-  'Downgrade': '降级',
+  Downgrade: '降级',
   'Turn off': '关闭',
   'Rename view': '重命名视图',
   'View name': '视图名称',
@@ -19,17 +19,17 @@ export default {
   'File name': '文件名',
 
   /* constants vocab rendered via tr(...) in action toasts */
-  'Planning': '规划中',
+  Planning: '规划中',
   'In Progress': '进行中',
-  'Review': '审核中',
+  Review: '审核中',
   'At Risk': '有风险',
   'On Hold': '已暂停',
-  'Completed': '已完成',
-  'Free': '免费版',
-  'Team': '团队',
-  'Business': '商业版',
-  'Guest': '访客',
-  'Member': '成员',
+  Completed: '已完成',
+  Free: '免费版',
+  Team: '团队',
+  Business: '商业版',
+  Guest: '访客',
+  Member: '成员',
   'Can view': '可查看',
   'Can comment': '可评论',
   'Can edit': '可编辑',
@@ -130,18 +130,17 @@ export default {
 
   /* demo controls */
   'Reset demo data?': '重置演示数据？',
-  'All projects, tasks, and settings in this browser go back to the original sample workspace.':
-    '此浏览器中的所有项目、任务和设置都将恢复为原始示例工作区。',
+  'All projects, tasks, and settings in this browser go back to the original sample workspace.': '此浏览器中的所有项目、任务和设置都将恢复为原始示例工作区。',
   'Demo data restored': '演示数据已恢复',
   "Your changes couldn't be saved.": '无法保存你的更改。',
-  'Saved': '已保存',
+  Saved: '已保存',
   'Retrying…': '正在重试…',
   'Loaded successfully': '加载成功',
   'Moved "{title}" to {status}': '已将「{title}」移至{status}',
-  'Undone': '已撤销',
+  Undone: '已撤销',
   'The project will be hidden from the sidebar. You can restore it any time.': '项目将从侧边栏中隐藏，你可以随时恢复。',
   'This was a preview — nothing was archived': '这只是预览，没有归档任何内容',
-  'Loaded': '已加载',
+  Loaded: '已加载',
 
   /* settings */
   'Notification preferences saved': '通知偏好设置已保存',

@@ -676,7 +676,10 @@ A.submitTask = () => {
   S.ui.modals.pop();
   fxSet({ added: t.id });
   render();
-  toast(tr('Created {key} in {name}', { key: t.key, name: proj(t.project).name }), { action: tr('Open'), onAction: () => A.openTask({ dataset: { id: t.id } }) });
+  toast(tr('Created {key} in {name}', { key: t.key, name: proj(t.project).name }), {
+    action: tr('Open'),
+    onAction: () => A.openTask({ dataset: { id: t.id } }),
+  });
 };
 
 /* inline composer */
@@ -1363,7 +1366,9 @@ A.archiveProject = el => {
   S.ui.pop = null;
   confirmDlg({
     title: tr('Archive {name}?', { name: p.name }),
-    body: tr('The project will be hidden from the sidebar and project lists. Tasks, files, and comments are kept, and you can restore it from Settings → Projects.'),
+    body: tr(
+      'The project will be hidden from the sidebar and project lists. Tasks, files, and comments are kept, and you can restore it from Settings → Projects.',
+    ),
     ok: tr('Archive project'),
     icon: 'archive',
     run: () => {

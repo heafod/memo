@@ -116,7 +116,8 @@ export function timelineHtml(ts, key, p) {
     .join('');
   const left = rows
     .map(r => {
-      if (r.type === 'ms') return `<div class="tl-row g">${ic('diamond', 12)}${t('Milestones')}<span class="faint" style="font-weight:500">${ms.length}</span></div>`;
+      if (r.type === 'ms')
+        return `<div class="tl-row g">${ic('diamond', 12)}${t('Milestones')}<span class="faint" style="font-weight:500">${ms.length}</span></div>`;
       if (r.type === 'g')
         return `<div class="tl-row g">${r.G.html || ''}${esc(t(r.G.name))}<span class="faint" style="font-weight:500">${r.G.tasks.length}</span></div>`;
       const tk = r.t;

@@ -21,7 +21,7 @@ export default {
   'need attention': '需要关注',
   'all on track': '一切正常',
   'My tasks': '我的任务',
-  'Upcoming': '即将到来',
+  Upcoming: '即将到来',
   'Open My Tasks': '打开我的任务',
   'Nothing overdue': '没有已逾期的任务',
   'Every task assigned to you is on schedule.': '分配给你的所有任务都在按计划进行。',
@@ -39,9 +39,9 @@ export default {
   'Completion rate': '完成率',
   'across all projects': '涵盖所有项目',
   '{n} pending invite': '{n} 个待接受邀请',
-  'Portfolio': '项目组合',
+  Portfolio: '项目组合',
   'Tasks by status': '任务状态分布',
-  'Workload': '工作负载',
+  Workload: '工作负载',
   'Open tasks per person': '每人未完成任务数',
   'Upcoming milestones': '即将到来的里程碑',
   'No upcoming milestones': '暂无即将到来的里程碑',
@@ -49,7 +49,7 @@ export default {
   /* ---------- pages/project.js ---------- */
   'Remove from favorites': '从收藏中移除',
   'Add to favorites': '添加到收藏',
-  'Favorite': '收藏',
+  Favorite: '收藏',
   'Project status': '项目状态',
   'Add member': '添加成员',
   'Project settings': '项目设置',
@@ -67,7 +67,7 @@ export default {
   'Filter by status': '按状态筛选',
   'All statuses': '全部状态',
   'Recently active': '最近活跃',
-  'Layout': '布局',
+  Layout: '布局',
 
   /* ---------- pages/members.js ---------- */
   '{a} people in {ws} · {b} pending': '{ws} 共 {a} 人 · {b} 人待接受',
@@ -75,17 +75,17 @@ export default {
   '{n} teams': '{n} 个团队',
   'Search by name or email': '按姓名或邮箱搜索',
   'Search members': '搜索成员',
-  'All': '全部',
-  'Role': '角色',
+  All: '全部',
+  Role: '角色',
   'Last active': '最近活跃',
   '(you)': '（我）',
-  'Online': '在线',
-  'Deactivated': '已停用',
-  'Active': '活跃',
+  Online: '在线',
+  Deactivated: '已停用',
+  Active: '活跃',
   'Member options': '成员操作',
   'No members match that search.': '没有符合该搜索的成员。',
-  'Permission': '权限',
-  'Allowed': '允许',
+  Permission: '权限',
+  Allowed: '允许',
   'Not allowed': '不允许',
   'View projects & tasks': '查看项目与任务',
   'Comment on tasks': '评论任务',
@@ -116,11 +116,11 @@ export default {
 
   /* ---------- pages/my-tasks.js ---------- */
   '{a} due today · {b} overdue · {c} upcoming': '今天到期 {a} · 已逾期 {b} · 即将到来 {c}',
-  'View': '视图',
+  View: '视图',
 
   /* ---------- pages/inbox.js ---------- */
-  'Updates': '更新',
-  'Unread': '未读',
+  Updates: '更新',
+  Unread: '未读',
   'Mark all as read': '全部标为已读',
   'No unread notifications in this category.': '此分类中没有未读通知。',
   'New mentions, assignments, and comments will show up here.': '新的提及、任务分配和评论会显示在这里。',
@@ -130,9 +130,9 @@ export default {
   'Mark as read': '标为已读',
   'Open project': '打开项目',
   'Open task': '打开任务',
-  'Conversation': '对话',
+  Conversation: '对话',
   'Reply… use @ to mention': '回复…使用 @ 提及他人',
-  'Reply': '回复',
+  Reply: '回复',
   '{mod}+Enter to send': '{mod}+Enter 发送',
 
   /* ---------- pages/favorites.js ---------- */
@@ -144,7 +144,7 @@ export default {
   'Open a task and click the star to add it here.': '打开任务并点击星标，即可将其添加到这里。',
 
   /* ---------- pages/search.js ---------- */
-  'People': '成员',
+  People: '成员',
   'Search tasks, projects, people, files, and comments': '搜索任务、项目、成员、文件和评论',
   'Recent:': '最近：',
   '{who} on {task}': '{who} 评论了 {task}',
@@ -162,7 +162,7 @@ export default {
   "Everything that's changed across the workspace.": '工作区中的所有变更动态。',
   'Status changes': '状态变更',
   'Filter by person': '按成员筛选',
-  'Everyone': '所有人',
+  Everyone: '所有人',
   'Changes to tasks and projects will appear here.': '任务和项目的变更将显示在这里。',
 
   /* ---------- pages/tasks.js ---------- */

@@ -6,28 +6,28 @@
    Activity-feed sentence frames in task-list.js use {who}/{obj}/{x}-style
    placeholders; verb/extra values are English data and are never keys here. */
 export default {
-  'Untitled': '未命名',
+  Untitled: '未命名',
   'No description yet.': '暂无描述',
   'Untitled view': '未命名视图',
   /* ---------- ui/helpers.js ---------- */
-  'Unassigned': '未分配',
+  Unassigned: '未分配',
 
   /* ---------- ui/select.js ---------- */
-  'Choose': '选择',
+  Choose: '选择',
 
   /* ---------- ui/toast.js ---------- */
-  'Dismiss': '关闭',
+  Dismiss: '关闭',
   "Your changes couldn't be saved. You're offline.": '无法保存你的更改。你已离线。',
 
   /* ---------- components/task-list.js — list cells, rows, bulk bar ---------- */
-  'Status': '状态',
-  'Assignee': '负责人',
-  'Priority': '优先级',
-  'Labels': '标签',
-  'Project': '项目',
+  Status: '状态',
+  Assignee: '负责人',
+  Priority: '优先级',
+  Labels: '标签',
+  Project: '项目',
   'Status: {s}': '状态：{s}',
   '{v} priority': '优先级：{v}',
-  'Task': '任务',
+  Task: '任务',
   'Task title': '任务标题',
   'Mark {title} complete': '将「{title}」标记为完成',
   'Complete {title}': '将「{title}」标记为完成',
@@ -51,15 +51,15 @@ export default {
   'Clear selection': '清除选择',
 
   /* ---------- components/task-list.js — activity feed (actHtml) ---------- */
-  'You': '你',
-  'Someone': '有人',
+  You: '你',
+  Someone: '有人',
   'in {p}': '于 {p}',
-  'none': '无',
-  'daily': '每天',
-  'weekly': '每周',
+  none: '无',
+  daily: '每天',
+  weekly: '每周',
   'every 2 weeks': '每两周',
-  'monthly': '每月',
-  'off': '不重复',
+  monthly: '每月',
+  off: '不重复',
   '{who} created {obj}': '{who} <span class="muted">创建了</span> {obj}',
   '{who} created project {obj}': '{who} <span class="muted">创建了项目</span> {obj}',
   '{who} completed {obj}': '{who} <span class="muted">完成了</span> {obj}',
@@ -97,14 +97,14 @@ export default {
   'Mark subtask not done': '标记子任务为未完成',
   'Subtask title': '子任务标题',
   'Subtask {i} of {n}': '子任务 {i}/{n}',
-  'Parent': '父任务',
-  'Notes': '备注',
+  Parent: '父任务',
+  Notes: '备注',
   'Add details, links, or acceptance criteria…': '添加详细信息、链接或验收标准…',
   'Convert to task': '转为任务',
   'Previous subtask': '上一个子任务',
-  'Previous': '上一个',
+  Previous: '上一个',
   'Next subtask': '下一个子任务',
-  'Next': '下一个',
+  Next: '下一个',
 
   /* ---------- features/teams.js ---------- */
   'Edit team': '编辑团队',
@@ -113,18 +113,17 @@ export default {
   'e.g. Growth': '例如：增长',
   'What does this team own?': '这个团队负责什么？',
   'e.g. Acquisition experiments and lifecycle email': '例如：获客实验与生命周期邮件',
-  'Icon': '图标',
-  'Color': '颜色',
-  'Everyone belongs to one primary team. Adding someone here moves them from their current team.':
-    '每个人只属于一个主团队。在此添加成员会将其从当前团队移出。',
+  Icon: '图标',
+  Color: '颜色',
+  'Everyone belongs to one primary team. Adding someone here moves them from their current team.': '每个人只属于一个主团队。在此添加成员会将其从当前团队移出。',
   'Delete team': '删除团队',
   'Save changes': '保存更改',
   'Create team': '创建团队',
 
   /* ---------- features/archive.js ---------- */
-  'Restore': '恢复',
+  Restore: '恢复',
   'Delete permanently': '永久删除',
-  'Archived': '已归档',
+  Archived: '已归档',
   'Archived {time}': '归档于 {time}',
   'No archived tasks': '没有已归档的任务',
   'Archive finished or abandoned tasks to keep boards focused. They wait here until you restore them.':
@@ -132,8 +131,7 @@ export default {
   'No archived projects': '没有已归档的项目',
   'Archived projects disappear from the sidebar and project lists but keep every task, file, and comment.':
     '已归档的项目会从侧边栏和项目列表中消失，但会保留全部任务、文件和评论。',
-  'Archived work is hidden everywhere else. Restore it any time, or delete it for good.':
-    '已归档的内容会在其他所有地方隐藏。你可以随时恢复，也可以彻底删除。',
+  'Archived work is hidden everywhere else. Restore it any time, or delete it for good.': '已归档的内容会在其他所有地方隐藏。你可以随时恢复，也可以彻底删除。',
   '{n} tasks': '{n} 个任务',
 
   /* ---------- overlays/modals.js — TEMPLATES (rendered via t() in the new-project modal) ---------- */
@@ -147,10 +145,10 @@ export default {
   'Design exploration': '设计探索',
   'Build MVP': '搭建 MVP',
   'Beta launch': 'Beta 发布',
-  'Website': '网站',
+  Website: '网站',
   'IA, design, build, launch': '信息架构、设计、开发、上线',
   'Sitemap & information architecture': '站点地图与信息架构',
-  'Wireframes': '线框图',
+  Wireframes: '线框图',
   'Visual design': '视觉设计',
   'Build page templates': '开发页面模板',
   'Content migration': '内容迁移',
@@ -166,9 +164,9 @@ export default {
   'Design Project': '设计项目',
   'Discovery to handoff': '从需求探索到交付',
   'Discovery workshop': '探索工作坊',
-  'Moodboard': '情绪板',
+  Moodboard: '情绪板',
   'Concept directions': '概念方向',
-  'Refinement': '细节打磨',
+  Refinement: '细节打磨',
   'Developer handoff': '开发交接',
   'Software Development': '软件开发',
   'Spec, build, ship': '规格、开发、发布',
@@ -190,7 +188,7 @@ export default {
   'assigned you': '将任务指派给你：',
   'commented on': '评论了：',
   'moved to Review': '将任务移至审核中：',
-  'completed': '完成了',
+  completed: '完成了',
   'is due today': '今天到期',
   'Product Launch is at risk': '「产品发布」项目有风险',
 
