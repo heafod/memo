@@ -26,6 +26,13 @@
 | beautify-github-readme | oil-oil/beautify-github-readme | README 视觉设计与素材制作（含 Python 脚本） | 暂缓评估（开源发布时用） |
 | ponytail | DietrichGebert/ponytail | 「最懒资深工程师」行为约束：最少代码、优先复用、最小 diff | 暂缓评估（全局行为约束，试用后决定） |
 | ponytail-review / -audit / -debt / -gain / -help | DietrichGebert/ponytail | ponytail 的辅助命令：diff 审查 / 全库审计 / 捷径台账 / 收益记分 / 帮助 | 暂缓评估（随 ponytail 一并评估） |
+| security-and-hardening | addyosmani/agent-skills | 安全加固开发指南：威胁建模优先、OWASP Top 10、认证 / secrets / 供应链审计，覆盖 GDPR/CCPA 隐私场景 | 启用候选 |
+| security-review | getsentry/skills | 基于 OWASP Cheat Sheet 的安全代码审查，按置信度分级只报高置信发现 | 启用候选 |
+| stride-analysis-patterns | wshobson/agents | STRIDE 六类威胁建模矩阵与控制措施家族（002 后端规格的安全输入） | 启用候选 |
+| gdpr-data-handling | wshobson/agents | GDPR 数据处理实现指南：同意管理、数据主体权利、privacy by design、敏感数据分级 | 启用候选 |
+| oss-license-strategy | samber/developer-relations-skills | 开源许可证选择与合规策略：传染性对比、CLA/DCO、双许可 | 启用候选 |
+| copywriting-tone-of-voice-creator | samber/cc-skills | 为本产品生成品牌语调指南 TONE.md（需联网调研） | 启用候选 |
+| extract-design-md | google-labs-code/stitch-skills | 从前端源码提取设计系统产出 DESIGN.md（零依赖） | 已启用（已用于生成仓库根目录 DESIGN.md） |
 
 ## 来源版本
 
@@ -37,8 +44,14 @@
 | op7418/humanizer-zh | f4518a8 | MIT |
 | oil-oil/beautify-github-readme | d6562a5 | MIT |
 | DietrichGebert/ponytail | 9b58c1f | MIT |
+| addyosmani/agent-skills | main（tarball，2026-10-11） | MIT |
+| getsentry/skills | main（tarball，2026-10-11） | Apache-2.0 |
+| wshobson/agents | main（tarball，2026-10-11） | MIT |
+| samber/developer-relations-skills | main（tarball，2026-10-11） | MIT |
+| samber/cc-skills | main（tarball，2026-10-11） | MIT |
+| google-labs-code/stitch-skills | main（tarball，2026-10-11） | Apache-2.0 |
 
-复制日期：2026-10-11（浅克隆后按目录复制，未含各仓库 .git）。
+复制日期：2026-10-11（浅克隆后按目录复制，未含各仓库 .git；第二批因 git 克隆超时改用 codeload tarball，故记录分支与日期而非提交 SHA）。
 
 ## 已知事项
 
