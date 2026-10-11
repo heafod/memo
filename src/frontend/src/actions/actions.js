@@ -248,6 +248,8 @@ A.toggleDark = () => {
 };
 A.toggleLang = () => {
   setLang(getLang() === 'zh' ? 'en' : 'zh');
+  S.prefs.lang = getLang() === 'zh' ? '中文（简体）' : 'English (US)';
+  save();
   render();
   toast(getLang() === 'zh' ? '已切换到中文' : 'Switched to English', { kind: 'info', ms: 1800 });
 };
@@ -1903,6 +1905,7 @@ IN.npToggle = el => {
 IN.prefSel = el => {
   const k = el.dataset.k;
   S.prefs[k] = k === 'weekStart' ? +el.value : el.value;
+  if (k === 'lang') setLang(el.value === 'English (US)' ? 'en' : 'zh');
   save();
   render();
   toast(tr('Preference saved'), { ms: 1500 });

@@ -11,7 +11,7 @@ export const DEFAULT_PREFS = {
   density: 'comfortable',
   weekStart: 1,
   dateFmt: 'MMM d',
-  lang: 'English (US)',
+  lang: '中文（简体）',
   tz: '(GMT+08:00) Singapore',
   motion: 'system',
   home: 'home',
@@ -32,9 +32,13 @@ export function load() {
   return null;
 }
 export const saved = load();
+/* prefs.lang is display-only; the real language state lives in core/utils.js
+   (memo.lang, defaults to zh), so always mirror it here. */
+const PREFS = Object.assign({}, DEFAULT_PREFS, saved?.prefs || {});
+PREFS.lang = localStorage.getItem('memo.lang') === 'en' ? 'English (US)' : '中文（简体）';
 export const S = {
   data: saved?.data || seed(),
-  prefs: Object.assign({}, DEFAULT_PREFS, saved?.prefs || {}),
+  prefs: PREFS,
   views: saved?.views || {},
   ui: {
     fx: {},
