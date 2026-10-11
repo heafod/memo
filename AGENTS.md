@@ -31,7 +31,7 @@
   - `src/data/seed.js` 演示种子数据（当前无后端，数据仅存于浏览器）
   - `src/styles/` 按层叠顺序引入的 CSS
 - `intent/` 意图仓库：每个产品变更的意图文件及其模板与流程说明
-- `skills/` Agent 技能包；`docs/` 参考资料与课程译文（只读）
+- `skills/` 业务技能包；`.agents/skills/` 第三方工程技能池（来源与状态清单见其 README.md）；`docs/` 参考资料与课程译文（只读）
 
 ## Agent 易错事项
 
