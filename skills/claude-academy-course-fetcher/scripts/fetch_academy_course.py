@@ -3,14 +3,20 @@
 """从 Claude Academy 抓取整门课程的学习资料。
 
 用法：
-    python3 fetch_academy_course.py --url <course_url> [--out <dir>] [--meta <meta.json>] [--keep-tmp]
+    python3 fetch_academy_course.py --url <course_url> [--out <dir>] [--meta <meta.json>] [--lessons 09,11] [--keep-tmp]
+
+--lessons 只抓指定课时（逗号分隔的两位编号或完整 slug），用于抽查或更新个别课时；
+README 会注明本次为部分抓取。
 
 流程（SOP）：
 1. 解析课程 URL -> locale + slug
 2. 抓课程主页 HTML -> 主 JS（/assets/v1/index-*.js）
 3. 下载主 JS -> 提取其引用的 courses chunk（./courses-*.js）与 contentAssets 映射表
-4. 在 courses chunk 中搜索本课程的全部课时内容路径
-   （assets/v1/content/courses/<slug>/lessons/<NN-slug>/index-<hash>.js）
+   locale != en 时，另经 locale-*.js -> <locale>-*.js 本地化内容清单发现译文 bundle
+   （courses chunk 只列英文源，译文在 assets/v1/content/<locale>/courses/… 下）
+4. 搜索本课程的全部课时内容路径：
+   en:      assets/v1/content/courses/<slug>/lessons/<NN-slug>/index-<hash>.js
+   其他语言: assets/v1/content/<locale>/courses/<slug>/lessons/<NN-slug>/index-<hash>.js
 5. 批量下载课时 JS
 6. 解析 contentAssets 映射表，找到本课程图片的真实 URL（/assets/v1/<file>-<hash>.<ext>）
 7. 逐课调用 mdx_jsx_to_markdown 把 JSX 还原为 Markdown，写入 <out>/<NN-slug>.md
@@ -102,14 +108,49 @@ def find_content_assets_chunks(main_js):
     return sorted(hits)
 
 
-def find_lesson_assets(js_text, slug):
+def content_courses_prefix(locale):
+    """课时内容 JS 的路径前缀：en 为 content/courses，其他语言为 content/<locale>/courses。"""
+    return f"content/{locale}/courses" if locale != "en" else "content/courses"
+
+
+def find_locale_manifest_url(main_js, chunks_js, locale):
+    """非 en 语言：经 locale-*.js 装载器找到 <locale>-<hash>.js 内容清单的下载 URL。
+
+    链路：主 JS / courses chunk -> "…/locale-<hash>.js" -> 清单 mapDeps 中的
+    "assets/v1/zh-CN-<hash>.js"（每种已发布语言一个清单文件）。
+    返回 None 表示链路断裂（站点结构变化或该语言未发布）。
+    """
+    pat_locale = re.compile(
+        r'["\'](?:\./)?(?:assets/v1/)?(' + re.escape(locale) + r'-[a-z0-9]+\.js)["\']'
+    )
+    # 1) 装载器 chunk（在主 JS 或 courses chunk 中引用）
+    m = re.search(r'["\'](?:\./)?(?:assets/v1/)?(locale-[a-z0-9]+\.js)["\']', main_js + "\n" + chunks_js)
+    if m:
+        try:
+            locale_js = http_get(f"{BASE}/assets/v1/{m.group(1)}")
+            hit = pat_locale.search(locale_js)
+            if hit:
+                return f"{BASE}/assets/v1/{hit.group(1)}"
+        except Exception:  # noqa: BLE001
+            pass
+    # 2) 兜底：清单文件也可能被主 JS / courses chunk 直接引用
+    hit = pat_locale.search(main_js + "\n" + chunks_js)
+    if hit:
+        return f"{BASE}/assets/v1/{hit.group(1)}"
+    return None
+
+
+def find_lesson_assets(js_text, slug, locale="en"):
     """在 JS 文本中搜索 <slug> 的课时内容路径。
 
     返回有序列表 [(NN-slug, index_hash)]：
-      assets/v1/content/courses/<slug>/lessons/<NN-slug>/index-<hash>.js
+      en:      assets/v1/content/courses/<slug>/lessons/<NN-slug>/index-<hash>.js
+      其他语言: assets/v1/content/<locale>/courses/<slug>/lessons/<NN-slug>/index-<hash>.js
+    （清单中以 assets/v1/… 或 ./content/… 两种形式出现，前缀按可选处理）
     """
     pat = re.compile(
-        r"assets/v1/content/courses/" + re.escape(slug) +
+        r'(?:assets/v1/|\./)?' + re.escape(content_courses_prefix(locale)) +
+        r"/" + re.escape(slug) +
         r"/lessons/([0-9]{2}-[a-z0-9-]+)/index-([a-z0-9]+)\.js"
     )
     found = {}
@@ -119,10 +160,11 @@ def find_lesson_assets(js_text, slug):
     return sorted(found.items(), key=lambda kv: int(kv[0].split("-")[0]))
 
 
-def find_course_intro_asset(js_text, slug):
-    """搜索课程介绍页内容路径 assets/v1/content/courses/<slug>/course-<hash>.js。"""
+def find_course_intro_asset(js_text, slug, locale="en"):
+    """搜索课程介绍页内容路径 content/[<locale>/]courses/<slug>/course-<hash>.js。"""
     m = re.search(
-        r"assets/v1/content/courses/" + re.escape(slug) + r"/course-([a-z0-9]+)\.js",
+        r'(?:assets/v1/|\./)?' + re.escape(content_courses_prefix(locale)) +
+        r"/" + re.escape(slug) + r"/course-([a-z0-9]+)\.js",
         js_text,
     )
     return m.group(1) if m else None
@@ -165,6 +207,8 @@ def main():
     ap.add_argument("--url", required=True, help="课程 URL，如 https://academy.claude.com/zh-CN/courses/ai-native-sdlc-playbook")
     ap.add_argument("--out", default=None, help="输出目录（默认：当前目录/<slug>）")
     ap.add_argument("--meta", default=None, help="课时元信息 JSON（可选）")
+    ap.add_argument("--lessons", default=None,
+                    help="只抓指定课时：逗号分隔的两位编号或完整 slug（如 09,11）")
     ap.add_argument("--keep-tmp", action="store_true", help="保留临时目录")
     args = ap.parse_args()
 
@@ -183,6 +227,13 @@ def main():
     course_url = (meta or {}).get("course", {}).get("url", args.url)
 
     tmpdir = tempfile.mkdtemp(prefix="academy_")
+
+    def fail(msg):
+        """报错退出前清理临时目录。"""
+        import shutil
+        shutil.rmtree(tmpdir, ignore_errors=True)
+        sys.exit(msg)
+
     print(f"[1/9] 解析课程: locale={locale} slug={slug}")
     print(f"[2/9] 抓取主页与主 JS…")
     html = http_get(args.url)
@@ -203,16 +254,43 @@ def main():
     # 主 JS 本身也可能含课程路径
     all_js = main_js + "\n" + chunks_js
 
+    if locale != "en":
+        print(f"  locale={locale}：解析本地化内容清单…")
+        manifest_url = find_locale_manifest_url(main_js, chunks_js, locale)
+        if not manifest_url:
+            fail(
+                f"错误：未找到 {locale} 的内容清单（locale-*.js -> {locale}-*.js 链路断裂）。\n"
+                f"站点可能尚未发布该语言的课程内容，或站点结构已变化。\n"
+                f"可改用英文源：--url {BASE}/courses/{slug}"
+            )
+        all_js += "\n" + http_get(manifest_url)
+
     print("[4/9] 发现课时资源…")
-    lessons = find_lesson_assets(all_js, slug)
+    lessons = find_lesson_assets(all_js, slug, locale)
     if not lessons:
+        if locale != "en":
+            fail(
+                f"错误：内容清单中没有 {locale} 版本的课程「{slug}」（可能未翻译成该语言）。\n"
+                f"可改用英文源：--url {BASE}/courses/{slug}"
+            )
         print("  警告：未在 JS 中找到课时资源路径；请检查 slug 是否正确，或站点结构已变化")
     print(f"  发现 {len(lessons)} 个课时: {[s for s, _ in lessons]}")
+    course_total = len(lessons)
+    if args.lessons:
+        want = [s.strip() for s in args.lessons.split(",") if s.strip()]
+        picked = [(s, h) for s, h in lessons if s in want or s.split("-")[0] in want]
+        matched = {s for s, _ in picked} | {s.split("-")[0] for s, _ in picked}
+        for w in want:
+            if w not in matched:
+                print(f"  警告：--lessons 中的「{w}」未匹配到任何课时")
+        print(f"  --lessons 过滤：本次抓取 {len(picked)}/{course_total} 课")
+        lessons = picked
 
     print("[5/9] 批量下载课时 JS…")
     lesson_files = []
+    courses_prefix = content_courses_prefix(locale)
     for lesson_slug, index_hash in lessons:
-        url = f"{BASE}/assets/v1/content/courses/{slug}/lessons/{lesson_slug}/index-{index_hash}.js"
+        url = f"{BASE}/assets/v1/{courses_prefix}/{slug}/lessons/{lesson_slug}/index-{index_hash}.js"
         try:
             text = http_get(url)
             path = os.path.join(tmpdir, f"{lesson_slug}.js")
@@ -240,7 +318,7 @@ def main():
     print("[7/9] 逐课生成 Markdown…")
     summary = []
     index_lines = []
-    total = len(lesson_files)
+    total = course_total  # 文件头「第 N 课 / 共 N 课」始终用课程总课时数
 
     def make_image_mapper(num):
         def _map(src):
@@ -281,9 +359,12 @@ def main():
         print(f"  生成 {lesson_slug}.md  images={images}")
 
     print("[8/9] 生成 README.md…")
-    note = ""
+    notes = []
     if not meta:
-        note = "\n> 注：未提供课时元信息，标题为从 slug 转换的占位名。\n"
+        notes.append("未提供课时元信息，标题为从 slug 转换的占位名")
+    if args.lessons:
+        notes.append(f"本次仅抓取部分课时（--lessons {args.lessons}），完整课程请去掉该参数重跑")
+    note = ("\n> 注：" + "；".join(notes) + "。\n") if notes else ""
     readme = (
         f"# {course_title} · 学习资料\n\n"
         f"> 来源：[Claude Academy]({course_url})（{locale}）\n"
@@ -311,6 +392,7 @@ def main():
         "course": {"slug": slug, "locale": locale, "title": course_title, "url": course_url},
         "outdir": outdir,
         "lessons": summary,
+        "validation": {"ok": not issues, "issues": issues},
     }
     print(json.dumps(result, ensure_ascii=False, indent=2))
 

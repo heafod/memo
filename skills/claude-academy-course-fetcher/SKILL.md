@@ -2,7 +2,7 @@
 
 name: claude-academy-course-fetcher
 
-description: 从 Claude Academy（[academy.claude.com](https://academy.claude.com)）抓取整门课程的学习资料，输出每课一个 Markdown 文件、统一的 images 目录（图片用相对路径引用）和 README 索引。当用户要求「下载 / 保存 / 抓取 Claude Academy 的某门课程」「把某某课程整理成本地学习资料」「课程转成 Markdown」时使用；也适用于用户给出 [academy.claude.com](https://academy.claude.com) 的课程链接并要求沉淀为本地文档的场景。
+description: 从 Claude Academy（[academy.claude.com](https://academy.claude.com)）抓取整门课程的学习资料，输出每课一个 Markdown 文件、统一的 images 目录（图片用相对路径引用）和 README 索引。按 URL 中的 locale 选择语言（en / zh-CN / zh-TW / ja / ko / de / es / fr），非英文语言直接抓官方译文，无需翻译。当用户要求「下载 / 保存 / 抓取 Claude Academy 的某门课程」「把某某课程整理成本地学习资料」「课程转成 Markdown」「获取某课原文/译文用于翻译、对照或审查」时使用；也适用于用户给出 [academy.claude.com](https://academy.claude.com) 的课程链接并要求沉淀为本地文档的场景。
 
 
 
@@ -20,7 +20,9 @@ Claude Academy 是 JS 渲染的 SPA：课程主页能渲染出课时列表，但
 
 
 
-* 课时正文：`assets/v1/content/courses/<slug>/lessons/<NN-slug>/index-<hash>.js`
+* 课时正文（英文源）：`assets/v1/content/courses/<slug>/lessons/<NN-slug>/index-<hash>.js`
+
+* 课时正文（非 en 语言）：`assets/v1/content/<locale>/courses/<slug>/lessons/<NN-slug>/index-<hash>.js`（另一组哈希，经 `locale-*.js → <locale>-*.js` 语言清单发现；courses chunk 只列英文源，**与 URL locale 无关**）
 
 * 图片真实地址：由 `assets/v1/contentAssets-<hash>.js` 的映射表给出
 
@@ -28,15 +30,15 @@ Claude Academy 是 JS 渲染的 SPA：课程主页能渲染出课时列表，但
 
 ## 工作流
 
-### 1. 准备课程 URL 与课时元信息
+### 1. 选择语言，准备课程 URL 与课时元信息
 
+1. **先确定目标语言**：脚本按 URL 中的 locale 抓对应语言的正文。要中文资料就直接用 `/zh-CN/` URL（抓到的是官方中文译文）——**不要抓英文版再翻译**。已发布语言：en、zh-CN、zh-TW、ja、ko、de、es、fr；课程未发布某语言时脚本会明确报错并建议改用英文源。
 
+2. 拿到课程 URL（形如 `https://academy.claude.com/zh-CN/courses/<slug>`）。
 
-1. 拿到课程 URL（形如 `https://academy.claude.com/zh-CN/courses/<slug>`）。
+3. 用 `web_fetch` 抓课程主页，从返回文本中提取课时列表（slug、标题、所属阶段）。
 
-2. 用 `web_fetch` 抓课程主页，从返回文本中提取课时列表（slug、标题、所属阶段）。
-
-3. 按下方格式写 `meta.json`（slug 必须是资源路径里的 `NN-英文名`，数字前缀按课程顺序）：
+4. 按下方格式写 `meta.json`（slug 必须是资源路径里的 `NN-英文名`，数字前缀按课程顺序）：
 
 
 
@@ -62,7 +64,9 @@ python3 scripts/fetch_academy_course.py \
   --meta meta.json
 ```
 
-脚本自动完成：发现课时资源 → 批量下载课时 JS → 解析图片映射 → JSX 还原为 Markdown → 下载图片到 `images/` → 生成 README → 内置校验，最后打印 JSON 摘要。
+脚本自动完成：发现课时资源 → 批量下载课时 JS → 解析图片映射 → JSX 还原为 Markdown → 下载图片到 `images/` → 生成 README → 内置校验，最后打印 JSON 摘要（其中 `validation` 字段是围栏配对、details 闭合、图片引用的机器可读校验结果，便于回归比对）。
+
+只需抽查或更新个别课时时，加 `--lessons 09,11`（两位编号或完整 slug 均可），只抓指定课时，README 会注明本次为部分抓取。
 
 输出结构：
 
@@ -95,7 +99,9 @@ python3 scripts/fetch_academy_course.py \
 
 | 现象                               | 处理                                                                                                                         |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| 准备 meta 时 `web_fetch` 课程主页失败（超时 / 只拿到 JS 空壳） | 课时 slug 不依赖 meta，脚本会自动发现：先不传 `--meta` 跑一遍（标题为占位名），产物可用后再补标题；或改用服务端渲染类抓取工具、浏览器打开主页提取课时列表后手写 meta.json。 |
 | 脚本报「未找到课时资源路径」                   | 站点结构可能变化。按 `references/site-architecture.md` 重新走一遍发现流程：主页 HTML → 主 JS → courses chunk → 搜索 `<slug>/lessons/`。也可能是 slug 不对。 |
+| 报「未找到 \<locale\> 的内容清单」或「清单中没有 \<locale\> 版本的课程」 | 该课程可能未发布此语言，或语言清单链路变化。先用英文源 URL 验证 slug 正确，再按 `references/site-architecture.md` 重查 locale → 清单链路。**不要静默回退英文**（会重蹈「抓到英文又去翻译」的覆辙）。 |
 | 图片映射为空 / 图片下载失败                  | 重新抓 `contentAssets-*.js`；映射正则只覆盖 `png/jpg/webp/gif/svg`，若有新格式按 `references/site-architecture.md` 补充。                       |
 | 某课出现 `CUSTOM: <未知组件>` 或正文整体变成纯文本 | 该课用了未收录的自定义组件。打开课时 JS 的 `{XXX:i}=r;return` 解构行确认组件名，按 `references/jsx-components.md` 处理。                                   |
 | 网络慢 / 超时                         | 脚本自带重试；整个课程约 1-3 分钟。单条失败会跳过并打印，可重跑。                                                                                        |

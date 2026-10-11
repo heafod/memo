@@ -312,11 +312,32 @@ def unwrap_jsx(node):
 
 CHILDREN_SEP = "\n"
 
+# 文件头与内嵌标签的脚手架文案：zh 系语言用中文，其余语言（含 en）用英文。
+ZH_LABELS = {
+    "course": "课程：",
+    "stage": "阶段：{}",
+    "lesson_of": "第 {} 课 / 共 {} 课",
+    "source": "原文：",
+    "prompt": "**提示词（Prompt）**",
+}
+EN_LABELS = {
+    "course": "Course: ",
+    "stage": "Stage: {}",
+    "lesson_of": "Lesson {} of {}",
+    "source": "Source: ",
+    "prompt": "**Prompt**",
+}
+
+
+def labels_for(locale_label):
+    return ZH_LABELS if locale_label in ("", "zh-CN", "zh-TW") else EN_LABELS
+
 class MDConverter:
-    def __init__(self, lesson_prefix, image_mapper):
+    def __init__(self, lesson_prefix, image_mapper, labels=None):
         self.lesson_prefix = lesson_prefix  # 如 "01"
         self.image_mapper = image_mapper    # src -> 本地 images 相对路径
         self.images = []                    # 收集引用的图片 src
+        self.labels = labels or ZH_LABELS   # 脚手架文案（随课程 locale）
 
     def render(self, node):
         """渲染一个表达式节点，返回 markdown 字符串。"""
@@ -571,7 +592,7 @@ class MDConverter:
         body = self.render(find_prop(props, "children")).strip()
         if body:
             quoted = "\n".join("> " + l if l.strip() else ">" for l in body.split("\n"))
-            return f"> **提示词（Prompt）**\n>\n{quoted}"
+            return f"> {self.labels['prompt']}\n>\n{quoted}"
         return ""
 
 # ---------- 顶层流程 ----------
@@ -613,14 +634,14 @@ def detect_custom_component(src):
     return "ImageFigure"
 
 
-def process_file(path, image_mapper):
+def process_file(path, image_mapper, labels=None):
     """解析单个课时 JS 文件，返回 (body_markdown, images_src_list, custom_component)。"""
     src = open(path, encoding="utf-8").read()
     node, consumed = extract_tree(src)
     custom = detect_custom_component(src)
     slug = os.path.basename(path).replace(".js", "")
     num = slug.split("-")[0] if "-" in slug else ""
-    converter = MDConverter(num, image_mapper)
+    converter = MDConverter(num, image_mapper, labels)
     converter.custom = custom
     body = converter.render(node)
     return body, converter.images, custom
@@ -628,8 +649,12 @@ def process_file(path, image_mapper):
 
 def convert_lesson(js_path, lesson_num, title, stage, image_mapper, course_url,
                    locale_label="", total=0, course_title="Claude Academy"):
-    """渲染单个课时的 Markdown（含文件头）。image_mapper: src -> 本地相对路径。"""
-    body, images, custom = process_file(js_path, image_mapper)
+    """渲染单个课时的 Markdown（含文件头）。image_mapper: src -> 本地相对路径。
+
+    文件头脚手架文案随 locale_label 切换：zh-CN/zh-TW 中文，其余（含默认 en）英文。
+    """
+    labels = labels_for(locale_label)
+    body, images, custom = process_file(js_path, image_mapper, labels)
     slug = os.path.basename(js_path).replace(".js", "")
     num = lesson_num if lesson_num else slug.split("-")[0]
     if course_url:
@@ -641,13 +666,13 @@ def convert_lesson(js_path, lesson_num, title, stage, image_mapper, course_url,
     if course_url:
         meta_parts.append(f"[{course_title}]({course_url})")
     if stage:
-        meta_parts.append(f"阶段：{stage}")
+        meta_parts.append(labels["stage"].format(stage))
     if total:
-        meta_parts.append(f"第 {int(num)} 课 / 共 {total} 课")
+        meta_parts.append(labels["lesson_of"].format(int(num), total))
     if meta_parts:
-        header += "> 课程：" + " · ".join(meta_parts) + "\n"
+        header += "> " + labels["course"] + " · ".join(meta_parts) + "\n"
     if lesson_url:
-        header += ">\n> 原文：" + f"[{lesson_url}]({lesson_url})\n"
+        header += ">\n> " + labels["source"] + f"[{lesson_url}]({lesson_url})\n"
     header += "\n---\n\n"
     return header + body.strip() + "\n", images
 
