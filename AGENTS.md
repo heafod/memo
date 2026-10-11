@@ -14,7 +14,7 @@
 
 ## 约定
 
-- 前端为零依赖架构：原生 JavaScript ES 模块 + CSS，不使用 UI 框架，不引入运行时依赖；新增依赖需要明确理由。
+- 前端为零依赖架构：原生 JavaScript ES 模块 + CSS，不使用 UI 框架，不引入运行时依赖；新增依赖需要明确理由。（此条适用 `prototype/` 原型；生产前端 `frontend/` 的技术栈以 001 规格定案为准——发起人期望组件体系，见 `intent/` 001 链）
 - Node.js 18+（`.nvmrc` 固定 22）。
 - 提交前 `lint` 与 `format:check` 必须通过。
 - 产品变更从 `intent/` 出发：新想法先写意图文件（`intent/TEMPLATE.md`），接受后再进入设计与实现，流程见 `intent/README.md`。产物状态用英文 token（`draft` / `in-review` / `accepted`，链级 `open` / `closed` 写在链头）；closed 链不移动文件，链头标记即归档，open 链用 `grep -l '链: open' intent/[0-9]*.md` 索引。
