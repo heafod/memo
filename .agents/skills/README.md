@@ -15,10 +15,8 @@
 | check | tw93/Waza | 合并/发布前 diff 与 PR 审查（依赖 gh CLI、测试套件） | 已启用（PR 评审回路；计划文档评审已首用） |
 | grill-with-docs | mattpocock/skills | 追问 + 产出 ADR 与 GLOSSARY（依赖 grilling、domain-modeling） | 暂缓评估 |
 | domain-modeling | mattpocock/skills | 构建领域模型，维护 GLOSSARY.md 与 ADR（grill-with-docs 的依赖） | 暂缓评估 |
-| implement | mattpocock/skills | 基于 spec/tickets 实施（依赖 issue tracker、tdd、code-review） | 暂缓评估 |
 | tdd | mattpocock/skills | 红绿重构 TDD，一次一个垂直切片 | 暂缓评估（对应反馈回路，需先建测试） |
 | pr | mattpocock/skills | PR 描述规范与合并风险判定 | 待启用（PR-1a 起，每个 PR 描述使用） |
-| to-tickets | mattpocock/skills | 把计划/spec 拆成 tracer-bullet tickets | 暂缓评估 |
 | diagnosing-bugs | mattpocock/skills | 纪律化排障循环：红反馈环→最小化→假设→修复 | 暂缓评估（对应反馈回路） |
 | beautify-github-readme | oil-oil/beautify-github-readme | README 视觉设计与素材制作（含 Python 脚本） | 暂缓评估（开源发布时用） |
 | ponytail | DietrichGebert/ponytail | 「最懒资深工程师」行为约束：最少代码、优先复用、最小 diff | 暂缓评估（全局行为约束，试用后决定） |
@@ -31,6 +29,7 @@
 | extract-design-md | google-labs-code/stitch-skills | 从前端源码提取设计系统产出 DESIGN.md（零依赖） | 已启用（已用于生成仓库根目录 DESIGN.md） |
 | capture-intent | 自建（本仓库） | 意图捕获入口：与发起人头脑风暴产出 `intent/NNN-*.md` | 已启用 |
 | intent-to-spec | 自建（本仓库） | 意图转规格：产出 `NNN-spec.md`（R#、三节结构、合成→讨论→归位协议） | 已启用 |
+| intent-to-plan | 自建（本仓库） | 规格转计划：R# → 垂直切片批次 + 四节结构 + 审问纪律（吸收 to-tickets 垂直切片 / 前置声明 / expand–contract 三点） | 已启用 |
 | fastapi-fullstack-scaffold | 自建（本仓库） | 用 full-stack-fastapi-template 锁定版本初始化全栈脚手架（引用不复制，含维护 SOP） | 已启用 |
 
 ## 来源版本
@@ -55,5 +54,6 @@
 - **to-spec 已移除**（2026-10-12）：依赖 issue tracker 与本管道不符，其「合成不重问」姿态已吸收进自建 intent-to-spec。
 - **同名冲突已裁决**（2026-10-12）：code-review 删除，check 为 PR 评审回路所用（计划文档评审已首用）。
 - **2026-10-12 清理**：humanizer-zh（工程文风已定，无润色需求）、copywriting-tone-of-voice-creator（产品文案走 i18n 体系）删除；think 启用并接线计划阶段（方案收敛）。
+- **implement / to-tickets 已移除**（2026-10-12）：implement 的价值点（测试缝 TDD、验证节奏、完成评审）已被管道结构化覆盖；to-tickets 的垂直切片、前置声明、expand–contract 三点吸收进自建 intent-to-plan（计划阶段技能化）。
 - 评估未采纳（不装）的：prompt-master、ui-ux-pro-max-skill、Waza read / health / learn / write、hengmu，原因见安装评估记录。
 - `skills/claude-academy-course-fetcher/`（仓库根）是业务技能，与本目录的工程技能分属不同场景，勿混用。
