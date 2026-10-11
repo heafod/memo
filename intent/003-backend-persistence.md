@@ -1,6 +1,6 @@
 # 意图：Memo 后端服务与持久化存储
 
-作者：tony（产品发起人）。状态：已接受（2026-10-11，四项未决问题已决策）。
+作者：tony（产品发起人）。状态：已接受（2026-10-11 四项未决问题决策；同日重排序为 003，前端集成范围移出，见 003-spec 决策记录）。
 
 ## 问题
 
@@ -13,7 +13,7 @@
 ## 受影响的用户和系统
 
 - 用户：全部 Memo 用户（跨设备使用与多人协作的基础）
-- 系统：前端应用（实施时自 `src/frontend/` 迁至 `frontend/`；`core/store.js` 数据层引入 API 客户端，对上层保持接口不变）、新增 `backend/`（FastAPI）与 PostgreSQL、部署与运行环境（服务结构参考 fastapi/full-stack-fastapi-template）
+- 系统：新增 `backend/`（FastAPI）与 PostgreSQL、部署与运行环境（服务结构参考 fastapi/full-stack-fastapi-template）；生产前端依 002 设计稿另行构建并消费本意图的 API 契约，原型 `prototype/` 不做集成
 
 ## 约束
 

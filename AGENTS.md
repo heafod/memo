@@ -31,7 +31,7 @@
   - `src/shell/` 应用骨架：布局、视图引擎、渲染、骨架屏
   - `src/pages/` 路由页面；`src/views/` 项目视图渲染器（看板 / 列表 / 表格 / 日历 / 时间线 / 文件）
   - `src/overlays/` `src/ui/` `src/components/` 弹层与通用 UI；`src/actions/` 行为；`src/features/` 功能模块
-  - `src/data/seed.js` 演示种子数据（原型阶段无后端，数据暂存浏览器 localStorage，属临时方案；后端与持久化数据库为产品方向，见 `intent/002-backend-persistence.md`）
+  - `src/data/seed.js` 演示种子数据（原型定位：UX 参考与设计稿转换源；后端与持久化数据库见 `intent/003-backend-persistence.md`，设计稿见 `intent/002-design.md`）
   - `src/styles/` 按层叠顺序引入的 CSS
 - `intent/` 意图仓库：每个产品变更的意图文件及其模板与流程说明
 - `skills/` 自建技能与知识沉淀：`skill-discovery`（技能选型 SOP + 索引知识库）、`capture-intent`（意图捕获入口）、`intent-to-spec`（意图转规格流程）、`fastapi-fullstack-scaffold`（FastAPI 全栈脚手架，锁定模板版本）、`claude-academy-course-fetcher`（业务技能）；`.agents/skills/` 第三方工程技能池（来源与状态清单见其 README.md）；`docs/` 参考资料与课程译文（只读）
