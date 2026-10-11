@@ -34,7 +34,7 @@
   - `src/data/seed.js` 演示种子数据（原型阶段无后端，数据暂存浏览器 localStorage，属临时方案；后端与持久化数据库为产品方向，见 `intent/002-backend-persistence.md`）
   - `src/styles/` 按层叠顺序引入的 CSS
 - `intent/` 意图仓库：每个产品变更的意图文件及其模板与流程说明
-- `skills/` 自建技能与知识沉淀：`skill-discovery`（技能选型 SOP + 索引知识库）、`intent-to-spec`（意图转规格流程）、`claude-academy-course-fetcher`（业务技能）；`.agents/skills/` 第三方工程技能池（来源与状态清单见其 README.md）；`docs/` 参考资料与课程译文（只读）
+- `skills/` 自建技能与知识沉淀：`skill-discovery`（技能选型 SOP + 索引知识库）、`capture-intent`（意图捕获入口）、`intent-to-spec`（意图转规格流程）、`claude-academy-course-fetcher`（业务技能）；`.agents/skills/` 第三方工程技能池（来源与状态清单见其 README.md）；`docs/` 参考资料与课程译文（只读）
 
 ## Agent 易错事项
 
