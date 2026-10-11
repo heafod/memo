@@ -13,7 +13,7 @@
 ## 受影响的用户和系统
 
 - 用户：全部 Memo 用户（跨设备使用与多人协作的基础）
-- 系统：`src/frontend/`（`core/store.js` 数据层引入 API 客户端，对上层保持接口不变）、新增后端服务与数据库、部署与运行环境
+- 系统：前端应用（实施时自 `src/frontend/` 迁至 `frontend/`；`core/store.js` 数据层引入 API 客户端，对上层保持接口不变）、新增 `backend/`（FastAPI）与 PostgreSQL、部署与运行环境（服务结构参考 fastapi/full-stack-fastapi-template）
 
 ## 约束
 
