@@ -1,6 +1,6 @@
 # 规格：Memo 项目管理工作台
 
-来源：[001-memo-workbench.md](001-memo-workbench.md)（tony，产品发起人）。状态：待产品负责人评审（合并修订：原 001 规格与后端范围（原 002/003）并为一条链，2026-10-11）。
+来源：[001-memo-workbench.md](001-memo-workbench.md)（tony，产品发起人）。状态: in-review（待产品负责人评审，两遍走：先发起人视角、再工程视角。合并修订：原 001 规格与后端范围（原 002/003）并为一条链，2026-10-11）。
 
 应用的技能包：writing-for-agents（文档结构）、security-and-hardening（认证与 API 安全基线）、frontend-design（UX 品质基准）。
 

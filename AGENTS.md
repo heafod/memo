@@ -17,10 +17,11 @@
 - 前端为零依赖架构：原生 JavaScript ES 模块 + CSS，不使用 UI 框架，不引入运行时依赖；新增依赖需要明确理由。
 - Node.js 18+（`.nvmrc` 固定 22）。
 - 提交前 `lint` 与 `format:check` 必须通过。
-- 产品变更从 `intent/` 出发：新想法先写意图文件（`intent/TEMPLATE.md`），接受后再进入设计与实现，流程见 `intent/README.md`。
+- 产品变更从 `intent/` 出发：新想法先写意图文件（`intent/TEMPLATE.md`），接受后再进入设计与实现，流程见 `intent/README.md`。产物状态用英文 token（`draft` / `in-review` / `accepted`，链级 `open` / `closed` 写在链头）；closed 链四文件归档至 `intent/archive/`。
 - 进入构建阶段的变更以计划为起点：规格接受后先产出 `intent/NNN-plan.md`（变更的文件、工作顺序、风险、证明），计划经人批准后才开始实施；实施偏离计划时，计划与代码在同一提交中更新。
 - 技能选型、检索、「某技能是做什么的」类问题，走 `skills/skill-discovery/` 的响应协议（知识库命中 → skills.sh + 联网 → 未找到）。
 - 设计 token 权威源是 `prototype/src/styles/tokens.css`；机器可读的设计系统在仓库根 `DESIGN.md`（design.md 规范），两者修改后运行 `npx @google/design.md lint DESIGN.md` 保持 0 警告。
+- 实施走 PR（自 001 起）：PR 变更文件须在对应 `NNN-plan.md`「变更的文件」清单内，CI 做子集检查（白名单与同 PR 修订 plan 的规则见 `intent/README.md`）。
 - 提交信息使用中文 Conventional Commits（`feat:` / `fix:` / `docs:` …）。
 - UI 文案经 `prototype/src/core/i18n.js` 与 `core/zh/` 管理，不在页面模块里硬编码双份文案；界面默认语言为中文（产品决策）。
 
