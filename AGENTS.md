@@ -18,6 +18,7 @@
 - Node.js 18+（`.nvmrc` 固定 22）。
 - 提交前 `lint` 与 `format:check` 必须通过。
 - 产品变更从 `intent/` 出发：新想法先写意图文件（`intent/TEMPLATE.md`），接受后再进入设计与实现，流程见 `intent/README.md`。
+- 设计 token 权威源是 `src/frontend/src/styles/tokens.css`；机器可读的设计系统在仓库根 `DESIGN.md`（design.md 规范），两者修改后运行 `npx @google/design.md lint DESIGN.md` 保持 0 警告。
 - 提交信息使用中文 Conventional Commits（`feat:` / `fix:` / `docs:` …）。
 - UI 文案经 `src/frontend/src/core/i18n.js` 与 `core/zh/` 管理，不在页面模块里硬编码双份文案；界面默认语言为中文（产品决策）。
 
