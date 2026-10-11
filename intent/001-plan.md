@@ -1,6 +1,6 @@
 # 计划：Memo 项目管理工作台（来自 001 意图与规格）
 
-来源：[001-spec.md](001-spec.md)（accepted，2026-10-12）。状态: in-review（依修订版 3 规格重审重写，待工程师批准）。
+来源：[001-spec.md](001-spec.md)（accepted，2026-10-12）。状态: in-review（吸收外部专家评审 18 项发现与 3 项确认决策，2026-10-12，待工程师复批）。
 
 并行声明：当前仅 001 一条 open 链，与其他 open 链无变更文件交集。
 
@@ -29,25 +29,29 @@ README.md
 
 **不动**：`prototype/`（只读转换源）、`docs/`、`skills/`、`.agents/`、`DESIGN.md` 与 `prototype/src/styles/tokens.css`（token 权威源，前端做映射不改源）。
 
-## 工作顺序（PR 批次，同链分支按序合并；后端 PR 各自携带其覆盖 R# 的测试，docstring 标注、随 PR 跑绿）
+## 工作顺序（14 个 PR 批次；后端批次各自携带其覆盖 R# 的测试，docstring 标注、随 PR 跑绿）
 
-1. **PR-1a 设计稿·核心屏幕**（R9）：首页仪表盘、项目六视图、任务详情、命令面板、登录页——依 [001-design.md](001-design.md) 从原型转换（ardot），导出 `intent/design/001/`（SVG 优先），产品负责人迭代确认。
-2. **PR-2 CI 骨架 + 后端骨架**（R10、R15）：根 `.github/workflows/ci.yml` 初版（prototype lint / build + PR⊆plan 检查 `check-pr-subset.sh` + R# 存在性检查 `check-r-refs.sh`）；`backend/` 按模板组织，**锁定 FastAPI 最新稳定版后即跑迁移与冒烟测试验证兼容**；`models.py` 十类领域实体 + users 表（`owner_member_id` 关联 Owner 成员）；alembic 初始迁移（升降级测试随 PR）；compose 起 db + backend。
-3. **PR-3 认证**（R12，关注点 3）：登录 / 登出 / 改密路由，bcrypt + 密码策略（≥10 位含数字或符号），会话 Cookie（HttpOnly、SameSite=Lax），CORS 白名单，输入校验；管理员账号由 `initial_data.py` 按环境变量幂等创建并关联 Owner 成员；除 login 与按部署开关的 OpenAPI 外全部端点须认证。随 PR 测试：认证例外断言（401/200）、密码策略、Cookie 属性、错误路径 detail 中文（R8）。
-4. **PR-4 领域 API 与种子**（R11、R13、R2、R7 服务端）：`GET /api/snapshot` 全量快照 + 各实体写端点；写端点内同步产生通知（R2 投递口径逐类）；`/api/preferences` per-user 端点；`initial_data.py` 幂等灌种子（含 notifs / activity）。随 PR 测试：各实体 CRUD、快照、通知逐类收件人断言（含排除操作者）、偏好、种子幂等连跑两次、种子实体计数断言（成员 ≤100、任务 ≤2000，R11 规模口径）。
-5. **PR-5 事件与保存视图端点**（R17、R18）：`POST/PUT/DELETE /api/events`（title/date 必填 422）；saved-views 端点（命名 + 布局 + 过滤条件）。随 PR 测试：422 校验与端点契约。
-6. **PR-6 文件上传**（R4b）：multipart 端点（10MB 上限 413、扩展名白名单 415、文件名清洗与重名序号）、compose 卷存储、内容下载端点。随 PR 测试：413 / 415 / 白名单 / 清洗。
-7. **PR-7 部署编排**（R14）：compose 完整化（backend / db / 前端静态——nginx + 空 index 占位，PR-8 替换为真实构建产物）、数据库与文件双卷、`.env.example`、根 README 更新。
-8. **PR-8 前端基座**（R16，依赖 PR-1a）：Vite + React + TS + Tailwind + shadcn CLI 初始化（组件源码进 `src/components/ui/`）；`DESIGN.md`/`tokens.css` → Tailwind 主题变量映射；i18n（默认中文）；路由骨架；TanStack Query 数据层——**全局失效约定：所有 mutation 成功后 invalidate 对应 query key（快照按实体粒度拆 key），PR-9 起每个 PR 遵守**；登录页（消费 PR-1a 设计稿）；**交付「原型控件 → shadcn 组件映射表」至 `frontend/docs/component-mapping.md`**（popover、拖拽、toast、命令面板等对照关系，PR-9 起照表执行）。
-9. **PR-9 六视图与任务**（R1、R3、R4，依赖 PR-1a + PR-8）：首页仪表盘、我的任务、项目六视图（看板拖拽 / 列表 / 表格编辑 / 日历 / 时间线 / 文件列表消费 R4b），按映射表执行。
-10. **PR-10 收件箱、组织与搜索**（R2、R5、R6）：收件箱双栏与已读语义、组织信息三 tab、全局搜索与命令面板（裁剪后命令集）。
-11. **PR-11 设置、事件与保存视图 UI**（R7、R8、R17、R18，前置：PR-1b 全量设计稿确认完成）：设置页保留导航（含工作区名称/URL 编辑）、日历事件 CRUD 入口、保存视图 tab。
-12. **PR-12 CI 收尾与跨服务验证**（证明）：compose 冒烟 job（未认证 401、登录 200、snapshot 200）与卷重启持久化验证进 CI；前端 lint / tsc / build job 化；AGENTS.md 架构与命令更新收口。backend 单元测试已随各 PR，本批不补写。
+**分支与并行**：每批一分支（命名 `001/pr-N`，自主干切出），按依赖顺序合并；无文件交集的批次可并行开分支与评审（PR-1b 只动 `intent/design/001/**`，与 PR-2~7 并行）；后合并批次 rebase 主干；PR-1b 须先于 PR-11 合并。
+
+1. **PR-1a 设计稿·核心屏幕**（R9）：**续用 ardot 云文件 `735312067245413`**（含已修复帧与逐屏验收记录，验收底稿复制入 `.tmp/ardot-review/` 持久化），首行动作将已确认帧导出入仓。转换流水线：`register_assets` 上传页面 HTML → `html_to_ardot` 导入 → `batch_edit` 修复 → `capture_screenshot` 逐屏与原型比对（重点核对四类已知缺陷：进度条比例、状态图标色与字形、全局抽屉残留、路由有效性）→ `export_nodes` 导出 SVG 入仓。覆盖五屏：首页仪表盘、项目六视图、任务详情、命令面板、登录页。降级触发：任一屏两轮修复仍不达标、或原型无此屏（如团队详情），停工回产品负责人决策，不得静默接受；**产品负责人确认在合并前**留痕。
+2. **PR-1b 设计稿·全量补齐**（R9，可与 PR-2~7 并行开分支）：补齐 1a 未覆盖的页面模块（收件箱、组织、搜索、设置、收藏、概览等）与关键状态（空态 / 加载 / 弹层），同流水线导出 SVG 至 `intent/design/001/`；产品负责人逐屏确认留痕；**须在 PR-11 开分支前合并**。
+3. **PR-2 CI 骨架 + 后端骨架**（R10、R15）：根 CI 初版（prototype lint / build + `check-pr-subset.sh` + `check-r-refs.sh`；子集脚本两处硬化——保护路径（`.github/**`、根 `compose*.yml`、`pyproject.toml`、`uv.lock`、`frontend/package.json`、Dockerfile）改动单独标记、必入 PR 描述复核；每 PR 新增文件 >3 或出现批次描述之外的新目录即转人评）。后端按模板组织，**模板适配差异面**：真锁为 `backend/uv.lock`（pyproject 是兼容区间，最新安装解析 FastAPI 0.142.x）；Dockerfile 删除 bun 构建段、基于 `python:3.14`；**在剥离邮件与 Vue 相关模块后**执行迁移升降级测试与冒烟（`/health` 200、OpenAPI 可生成）。**建模约定**：沿用模板 SQLModel；关系字段（项目成员、任务依赖、子任务）用关联表，标签等弱结构数组用 JSONB；`order` 用 Float8 分数插值；notif 加（事件类型、任务、成员）去重约束；工作区名称 / URL 存管理员 preferences 的 `workspace` 键（单例语义，不新增表）；users 表 `owner_member_id` 关联 Owner 成员；随迁移测试附表结构与关系自审清单。
+4. **PR-3 认证**（R12、R8，关注点 3）：会话载体为**签名会话 Cookie**（itsdangerous，载荷含 user id 与过期时间；登出清除 Cookie，首版不做服务端会话失效）；登录 / 登出 / 改密路由；bcrypt（模板 pwdlib 显式配置 BcryptHasher）+ 密码策略（≥10 位含数字或符号）；Cookie HttpOnly、SameSite=Lax；CORS 白名单；输入校验；**删除模板 `/password-recovery*`、`/reset-password` 端点与 `app/utils.py` 邮件函数**；管理员账号按环境变量幂等创建并关联 Owner 成员；除 login 与按部署开关的 OpenAPI 外全部端点须认证。随 PR 测试：认证例外断言（401/200）、密码策略、Cookie 属性、错误 detail 中文、改密断言（旧密码错 400、改密后旧密码 401 / 新密码 200、不符策略 422）。
+5. **PR-4 领域 API 与种子**（R11、R13、R2、R7 服务端）：`GET /api/snapshot` 全量快照 + 各实体写端点；**notif 已读端点：`PATCH /api/notifs/{id}`（按当前用户切换 read）与 `POST /api/notifs/read-all`**；写端点内同步产生通知（R2 投递口径逐类）；`/api/preferences` per-user（含 `workspace` 键）；`initial_data.py` 幂等灌种子（含 notifs / activity 与 1 条 savedView 种子「高优先级」：list 布局 + urgent/high 过滤）。约定：本批起所有 `HTTPException(detail=...)` 使用中文文案。随 PR 测试：各实体 CRUD、快照、通知逐类收件人（含排除操作者）与已读端点 / 未读数变化、偏好、幂等连跑两次、种子实体计数（≤100 成员、≤2000 任务）、OpenAPI 路径面断言（读取 `app.openapi()`，断言规格要求的路径均存在）。
+6. **PR-5 事件与保存视图端点**（R17、R18）：`POST/PUT/DELETE /api/events`（title/date 必填 422）；saved-views `POST/PUT/DELETE`（命名 + 布局 + 过滤条件）。随 PR 测试：422 校验与端点契约（含重命名 / 删除）。
+7. **PR-6 文件上传**（R4b）：multipart 端点（10MB 上限 413、扩展名白名单 415、文件名清洗与重名序号）、compose 卷存储、内容下载端点。随 PR 测试：413 / 415 / 白名单 / 清洗。
+8. **PR-7 部署编排**（R14）：新增 `frontend/nginx.conf`（root `/usr/share/nginx/html`、`try_files` SPA 回退、`/api` 反代 backend）与 `frontend/Dockerfile`（nginx 镜像，占位 `docker/placeholder/index.html`），compose 前端 build 上下文指 `frontend/`；数据库与文件双卷、`.env.example`、根 README 更新。
+9. **PR-8 前端基座**（R16，依赖 PR-1a 与 PR-7）：Vite + React + TS 初始化；**Tailwind v4**（`@tailwindcss/vite`，token 映射至 `src/index.css` CSS 变量）；shadcn 非交互执行（`init -t vite -y` / `add -y`），组件源码进 `src/components/ui/`；**i18n 用 react-i18next（默认中文）**；随批交付前端 ESLint 配置；TanStack Query 数据层——全局失效约定：所有 mutation 成功后 invalidate 对应 query key（快照按实体粒度拆 key），后续批次遵守；登录页（消费 PR-1a 设计稿）；交付「原型控件 → shadcn 组件映射表」至 `frontend/docs/component-mapping.md`；**建 `frontend/docs/acceptance-checklist.md`（逐 R# 判据条目）——后续前端批次随批勾选，对应段全勾方为合并闸门**。
+10. **PR-9a 六视图·读面**（R1、R3、R4 之列表 / 文件视图，依赖 PR-8）：首页仪表盘、我的任务、列表视图、文件视图（消费 R4b）；按映射表执行；验收清单勾选对应段。
+11. **PR-9b 六视图·重交互**（R4 其余视图，依赖 PR-8，9a 先合并）：看板（拖拽 + order 分数插值）、表格（popover / 双击就地编辑 / 列显隐列宽持久化）、日历（拖改 due）、时间线（甘特条拖移 / 依赖箭头 / 里程碑车道）；验收清单勾选 R4 对应段。
+12. **PR-10 收件箱、组织与搜索**（R2、R5、R6）：收件箱双栏与已读语义（消费 PR-4 已读端点）、组织信息三 tab、全局搜索与命令面板（裁剪后命令集）。
+13. **PR-11 设置、事件与保存视图 UI**（R7、R8、R17、R18，前置：PR-1b 已合并、PR-5、PR-8）：设置页保留导航（含工作区名称 / URL 编辑——读写管理员 preferences 的 `workspace` 键）、日历事件 CRUD 入口、保存视图 tab。
+14. **PR-12 CI 收尾与跨服务验证**（证明）：compose 冒烟 job（未认证 401、登录 200、snapshot 200）与卷重启持久化验证进 CI；前端 lint / tsc / build job 化；**部署验证记录：compose 种子环境实测 snapshot 响应体大小与 p95（100 次采样），结果记入 PR 描述，超标不阻断 CI 但回产品负责人评估**；**中文 detail 扫描（grep `backend/app` 中模板英文固定串如 "not found"、"Incorrect"，命中即报）**；AGENTS.md 架构与命令更新收口。backend 单元测试已随各 PR，本批不补写。
 
 ## 风险（含审问三问）
 
-- **可能破坏什么**：`prototype/`、`docs/`、`skills/` 全程不动，对现有仓库零侵入；风险集中在三处——FastAPI 最新稳定版与锁定模板版本的差异面（**PR-2 锁定即验证**）、设计稿 → shadcn 组件的保真映射（**PR-8 映射表承接**）、TanStack Query 客户端缓存与 last-write-wins 服务端语义的交互（**PR-8 全局失效约定承接**）。
-- **风险最高的一步**：PR-9（六视图交互面最大——拖拽、就地编辑、列持久化全部要保真）；后端侧为 PR-4（通知投递口径 R2 的正确实现，断言依赖逐类收件人）。
+- **可能破坏什么**：`prototype/`、`docs/`、`skills/` 全程不动，对现有仓库零侵入；风险集中在四处——FastAPI 最新稳定版与模板的差异面（**PR-2 适配清单承接**：uv.lock 真锁、Python 3.14、剥离邮件/Vue 后验证）、设计稿 → shadcn 组件的保真映射（**PR-8 映射表承接**）、TanStack Query 客户端缓存与 last-write-wins 服务端语义的交互（**PR-8 全局失效约定承接**）、ardot H2D 转换的四类已知系统性缺陷（实测：进度条比例、图标退化、抽屉残留、无效资产——**PR-1a 流水线 DoD 承接**）。
+- **风险最高的一步**：PR-9b（重交互批——看板拖拽、表格就地编辑、日历与时间线交互全部要保真）；后端侧为 PR-4（通知投递口径 R2 的正确实现，断言依赖逐类收件人）。
 - **弃用的备选方案**：① 模板自带 Vue 前端与邮件验证体系；② 客户端 localStorage 演示回退；③ WebSocket 实时同步与增量推送；④ 定时任务调度器（系统通知仅种子）；⑤ 按成员角色的访问控制；⑥ Next.js（选 Vite，无 SSR 需求）；⑦ 原生 fetch 手写状态管理（选 TanStack Query）；⑧ 从零绘制设计稿（选原型转换）。
 
 ## 证明
@@ -62,7 +66,7 @@ README.md
 - R2：通知按事件类型逐类断言收件人与排除操作者。
 - R4b：413 / 415 / 白名单 / 文件名清洗测试。
 - R16：tsc 类型检查 + lint + build；shadcn 组件源码位于 `src/components/ui/` 可评审。
-- R1–R8、R17、R18（前端面）：对照设计稿与本规格逐项核验清单，默认语言中文。
-- 全程：根 CI 全关卡绿（backend 测试 + prototype lint / build + 前端 lint / tsc / build + PR⊆plan + R# 存在性 + compose 冒烟）。
+- R1–R8、R17、R18（前端面）：对照设计稿与本规格逐项核验，产物为 `frontend/docs/acceptance-checklist.md`（PR-8 建，前端批次随批勾选、对应段全勾为合并闸门），默认语言中文。
+- 全程：根 CI 全关卡绿（backend 测试 + prototype lint / build + 前端 lint / tsc / build + PR⊆plan + R# 存在性 + compose 冒烟 + 中文 detail 扫描）；部署验证记录（snapshot ≤5MB、p95 ≤500ms 实测）入 PR-12。
 
 阶段卡（按 `intent/README.md` 执行层约定，关链前沉淀）：本计划覆盖 ③④ 阶段首走，各 PR 完成时补四行阶段卡，关链前写入 `AGENTS.md` 对应章节并列入本节。
