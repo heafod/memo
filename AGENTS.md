@@ -18,6 +18,7 @@
 - Node.js 18+（`.nvmrc` 固定 22）。
 - 提交前 `lint` 与 `format:check` 必须通过。
 - 产品变更从 `intent/` 出发：新想法先写意图文件（`intent/TEMPLATE.md`），接受后再进入设计与实现，流程见 `intent/README.md`。
+- 技能选型、检索、「某技能是做什么的」类问题，走 `skills/skill-discovery/` 的响应协议（知识库命中 → skills.sh + 联网 → 未找到）。
 - 设计 token 权威源是 `src/frontend/src/styles/tokens.css`；机器可读的设计系统在仓库根 `DESIGN.md`（design.md 规范），两者修改后运行 `npx @google/design.md lint DESIGN.md` 保持 0 警告。
 - 提交信息使用中文 Conventional Commits（`feat:` / `fix:` / `docs:` …）。
 - UI 文案经 `src/frontend/src/core/i18n.js` 与 `core/zh/` 管理，不在页面模块里硬编码双份文案；界面默认语言为中文（产品决策）。
@@ -32,7 +33,7 @@
   - `src/data/seed.js` 演示种子数据（原型阶段无后端，数据暂存浏览器 localStorage，属临时方案；后端与持久化数据库为产品方向，见 `intent/002-backend-persistence.md`）
   - `src/styles/` 按层叠顺序引入的 CSS
 - `intent/` 意图仓库：每个产品变更的意图文件及其模板与流程说明
-- `skills/` 业务技能包；`.agents/skills/` 第三方工程技能池（来源与状态清单见其 README.md）；`docs/` 参考资料与课程译文（只读）
+- `skills/` 自建技能与知识沉淀：`skill-discovery`（技能选型 SOP + 索引知识库）、`claude-academy-course-fetcher`（业务技能）；`.agents/skills/` 第三方工程技能池（来源与状态清单见其 README.md）；`docs/` 参考资料与课程译文（只读）
 
 ## Agent 易错事项
 
