@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/api"
     PROJECT_NAME: str
     SECRET_KEY: str
-    FASTAPI_ENV: Literal["development"] | None = None
+    FASTAPI_ENV: Literal["development", "production", "staging"] | None = None
     DATABASE_URL: PostgresDsn
     # 生产前端与后端不同源时（本地 Vite 开发）的 CORS 白名单来源
     FRONTEND_HOST: str = "http://localhost:5173"
