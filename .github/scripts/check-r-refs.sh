@@ -63,7 +63,7 @@ files="$({ for root in $ANNOTATION_ROOTS; do
     -not -path '*/node_modules/*' -not -path '*/.venv/*' -not -path '*/dist/*'
 done; } | sort)"
 
-say "== R# 存在性检查（定义源：$SPEC_REF 上的 spec；标注源：$ANNOTATION_ROOTS）=="
+say "== R# 存在性检查（定义源：${SPEC_REF} 上的 spec；标注源：${ANNOTATION_ROOTS}）=="
 
 if [[ -z "$files" ]]; then
   say "PASS：未发现测试文件，无 R# 标注需核对"
@@ -83,7 +83,7 @@ while IFS= read -r f; do
     chain="${ref%%/*}"
     r="${ref#*/}"
     if ! has_chain_r "$chain" "$r"; then
-      violations="$violations$f: $ref（$chain-spec 未定义该需求）"$'\n'
+      violations="${violations}${f}: ${ref}（${chain}-spec 未定义该需求）"$'\n'
     fi
   done <<<"$cross"
 
@@ -96,7 +96,7 @@ while IFS= read -r f; do
     [[ -z "$r" ]] && continue
     total=$((total + 1))
     if ! has_any_r "$r"; then
-      violations="$violations$f: $r（任何 spec 均未定义该需求）"$'\n'
+      violations="${violations}${f}: ${r}（任何 spec 均未定义该需求）"$'\n'
     fi
   done <<<"$bare"
 done <<<"$files"

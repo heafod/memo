@@ -47,7 +47,7 @@ cd "$(git rev-parse --show-toplevel)"
 
 # ---------- 1. 取基线 plan 清单 ----------
 if ! git cat-file -e "$PLAN_REF:$PLAN_PATH" 2>/dev/null; then
-  say_err "FAIL：基线 ref 中不存在 $PLAN_PATH（PLAN_REF=$PLAN_REF）——无法核对子集"
+  say_err "FAIL：基线 ref 中不存在 ${PLAN_PATH}（PLAN_REF=${PLAN_REF}）——无法核对子集"
   exit 1
 fi
 
@@ -144,7 +144,7 @@ while IFS= read -r path; do
     *) continue ;;
   esac
   if ! grep -qxF "$seg" <<<"$baseline_roots"; then
-    new_dirs="$new_dirs$path（新顶级目录 $seg/）"$'\n'
+    new_dirs="${new_dirs}${path}（新顶级目录 ${seg}/）"$'\n'
   fi
 done <<<"$out_added"
 
@@ -152,7 +152,7 @@ out_added_count="$(grep -c . <<<"$out_added" || true)"
 out_modified_count="$(grep -c . <<<"$out_modified" || true)"
 
 # ---------- 3. 输出与判定 ----------
-say "== PR⊆plan 检查（基准：$PLAN_REF:$PLAN_PATH）=="
+say "== PR⊆plan 检查（基准：${PLAN_REF}:${PLAN_PATH}）=="
 say "变更文件 $in_plan_count 个在清单内；清单外：新增 ${out_added_count:-0} 个、修改/删除 ${out_modified_count:-0} 个（白名单未计）"
 
 if [[ -n "$protected_hits" ]]; then
