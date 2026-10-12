@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="240" viewBox="0 0 1200 240" role="img" aria-labelledby="pipeTitle pipeDesc">
+  <title id="pipeTitle">Memo 仓库的意图驱动交付管道</title>
+  <desc id="pipeDesc">八个阶段的闭环流程图：意图、设计、规格、计划、构建、测试、评审、部署；部署之后的线上监控与用户反馈以虚线回到「意图」，形成新变更的起点。</desc>
+
+  <rect width="1200" height="240" rx="24" fill="#FBFAF8"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif">
+    <!-- 节点：x_i = 68 + i*136，w 112，y 48，h 84 -->
+    <!-- 01 意图 -->
+    <rect x="68" y="48" width="112" height="84" rx="12" fill="#FFFFFF" stroke="#E9E7E2"/>
+    <text x="84" y="74" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace" font-size="14" fill="#8C8880">01</text>
+    <text x="84" y="100" font-size="21" font-weight="600" fill="#1D1C1A">意图</text>
+    <text x="84" y="120" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace" font-size="14" fill="#8C8880">intent</text>
+    <!-- 02 设计 -->
+    <rect x="204" y="48" width="112" height="84" rx="12" fill="#FFFFFF" stroke="#E9E7E2"/>
+    <text x="220" y="74" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace" font-size="14" fill="#8C8880">02</text>
+    <text x="220" y="100" font-size="21" font-weight="600" fill="#1D1C1A">设计</text>
+    <text x="220" y="120" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace" font-size="14" fill="#8C8880">design</text>
+    <!-- 03 规格 -->
+    <rect x="340" y="48" width="112" height="84" rx="12" fill="#FFFFFF" stroke="#E9E7E2"/>
+    <text x="356" y="74" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace" font-size="14" fill="#8C8880">03</text>
+    <text x="356" y="100" font-size="21" font-weight="600" fill="#1D1C1A">规格</text>
+    <text x="356" y="120" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace" font-size="14" fill="#8C8880">spec</text>
+    <!-- 04 计划 -->
+    <rect x="476" y="48" width="112" height="84" rx="12" fill="#FFFFFF" stroke="#E9E7E2"/>
+    <text x="492" y="74" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace" font-size="14" fill="#8C8880">04</text>
+    <text x="492" y="100" font-size="21" font-weight="600" fill="#1D1C1A">计划</text>
+    <text x="492" y="120" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace" font-size="14" fill="#8C8880">plan</text>
+    <!-- 05 构建 -->
+    <rect x="612" y="48" width="112" height="84" rx="12" fill="#FFFFFF" stroke="#E9E7E2"/>
+    <text x="628" y="74" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace" font-size="14" fill="#8C8880">05</text>
+    <text x="628" y="100" font-size="21" font-weight="600" fill="#1D1C1A">构建</text>
+    <text x="628" y="120" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace" font-size="14" fill="#8C8880">build</text>
+    <!-- 06 测试 -->
+    <rect x="748" y="48" width="112" height="84" rx="12" fill="#FFFFFF" stroke="#E9E7E2"/>
+    <text x="764" y="74" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace" font-size="14" fill="#8C8880">06</text>
+    <text x="764" y="100" font-size="21" font-weight="600" fill="#1D1C1A">测试</text>
+    <text x="764" y="120" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace" font-size="14" fill="#8C8880">test</text>
+    <!-- 07 评审 -->
+    <rect x="884" y="48" width="112" height="84" rx="12" fill="#FFFFFF" stroke="#E9E7E2"/>
+    <text x="900" y="74" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace" font-size="14" fill="#8C8880">07</text>
+    <text x="900" y="100" font-size="21" font-weight="600" fill="#1D1C1A">评审</text>
+    <text x="900" y="120" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace" font-size="14" fill="#8C8880">pr</text>
+    <!-- 08 部署 -->
+    <rect x="1020" y="48" width="112" height="84" rx="12" fill="#FFFFFF" stroke="#E9E7E2"/>
+    <text x="1036" y="74" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace" font-size="14" fill="#8C8880">08</text>
+    <text x="1036" y="100" font-size="21" font-weight="600" fill="#1D1C1A">部署</text>
+    <text x="1036" y="120" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace" font-size="14" fill="#8C8880">deploy</text>
+
+    <!-- 阶段间箭头 -->
+    <g stroke="#DAD7D0" stroke-width="1.5">
+      <line x1="183" y1="90" x2="197" y2="90"/>
+      <line x1="319" y1="90" x2="333" y2="90"/>
+      <line x1="455" y1="90" x2="469" y2="90"/>
+      <line x1="591" y1="90" x2="605" y2="90"/>
+      <line x1="727" y1="90" x2="741" y2="90"/>
+      <line x1="863" y1="90" x2="877" y2="90"/>
+      <line x1="999" y1="90" x2="1013" y2="90"/>
+    </g>
+    <g fill="#DAD7D0">
+      <path d="M 197 86 L 204 90 L 197 94 Z"/>
+      <path d="M 333 86 L 340 90 L 333 94 Z"/>
+      <path d="M 469 86 L 476 90 L 469 94 Z"/>
+      <path d="M 605 86 L 612 90 L 605 94 Z"/>
+      <path d="M 741 86 L 748 90 L 741 94 Z"/>
+      <path d="M 877 86 L 884 90 L 877 94 Z"/>
+      <path d="M 1013 86 L 1020 90 L 1013 94 Z"/>
+    </g>
+
+    <!-- 回环：部署 → 线上 → 新意图 -->
+    <path d="M 1076 132 L 1076 196 Q 1076 210 1062 210 L 138 210 Q 124 210 124 196 L 124 146"
+          fill="none" stroke="#4B5BD6" stroke-width="1.5" stroke-dasharray="5 5"/>
+    <path d="M 118 154 L 124 142 L 130 154 Z" fill="#4B5BD6"/>
+    <text x="600" y="202" text-anchor="middle" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, monospace" font-size="18" fill="#4B5BD6">线上监控 &#183; 用户反馈 &#8594; 新意图</text>
+  </g>
+</svg>
