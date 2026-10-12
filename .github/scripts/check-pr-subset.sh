@@ -184,6 +184,36 @@ fi
 
 problems=0
 
+# ---------- 4. PR 描述分节切片（L1 修复：按节匹配，不再全文模糊匹配）----------
+# 抽取「## <title>…」节正文（不含节标题行），到下一个「## 」开头或 EOF。
+# 不用 sed：BSD sed 在非 UTF-8 locale 下对多字节输入报 illegal byte sequence
+# （仓库已固化教训，见 check-r-refs.sh 同款注释与 AGENTS.md）。
+# 找不到节时输出空串——调用方据此按「节缺失」路径处理，维持既有 FAIL 行为。
+extract_section() {
+  local title="$1"
+  local in_section=0
+  local line
+  while IFS= read -r line; do
+    case "$line" in
+      "## "*)
+        heading="${line#\#\# }"
+        if [[ $in_section -eq 1 ]]; then
+          # 已进入目标节后遇到下一个 ## 标题：节结束
+          break
+        fi
+        case "$heading" in
+          "$title"*) in_section=1 ;;
+        esac
+        ;;
+      *)
+        if [[ $in_section -eq 1 ]]; then
+          printf '%s\n' "$line"
+        fi
+        ;;
+    esac
+  done <<<"$PR_BODY"
+}
+
 if [[ -n "$out_added" ]]; then
   if [[ "$PR_BODY" != *"实施中新增"* ]]; then
     problems=1
@@ -194,9 +224,10 @@ if [[ -n "$out_added" ]]; then
     printf '      须逐条列明：\n'
     print_list "$out_added"
   else
+    section_added="$(extract_section "实施中新增")"
     while IFS= read -r path; do
       [[ -z "$path" ]] && continue
-      if [[ "$PR_BODY" != *"$path"* ]]; then
+      if [[ "$section_added" != *"$path"* ]]; then
         problems=1
         say "FAIL：PR 描述「实施中新增」节未列明清单外新增文件：$path"
       fi
@@ -212,9 +243,10 @@ if [[ -n "$protected_hits" ]]; then
     printf '        ## 保护路径变更\n'
     printf '        - <路径>：<改动与复核要点>\n'
   else
+    section_protected="$(extract_section "保护路径变更")"
     while IFS= read -r path; do
       [[ -z "$path" ]] && continue
-      if [[ "$PR_BODY" != *"$path"* ]]; then
+      if [[ "$section_protected" != *"$path"* ]]; then
         problems=1
         say "FAIL：PR 描述「保护路径变更」节未列明：$path"
       fi
