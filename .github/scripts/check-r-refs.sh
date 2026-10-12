@@ -60,7 +60,9 @@ files="$({ for root in $ANNOTATION_ROOTS; do
     -o -name 'test_*.py' -o -name '*_test.py' \
     -o -name '*.test.ts' -o -name '*.test.tsx' -o -name '*.test.js' -o -name '*.test.jsx' \
     -o -name '*.spec.ts' -o -name '*.spec.tsx' -o -name '*.spec.js' -o -name '*.spec.jsx' \) \
-    -not -path '*/node_modules/*' -not -path '*/.venv/*' -not -path '*/dist/*'
+    -not -path '*/node_modules/*' -not -path '*/.venv/*' -not -path '*/dist/*' \
+    -not -path '*/__pycache__/*' -not -path '*/.pytest_cache/*' \
+    -not -name '*.pyc' -not -name '*.pyo'
 done; } | sort)"
 
 say "== R# 存在性检查（定义源：${SPEC_REF} 上的 spec；标注源：${ANNOTATION_ROOTS}）=="
@@ -87,11 +89,10 @@ while IFS= read -r f; do
     fi
   done <<<"$cross"
 
-  # 裸 R#（先剥掉跨链引用，避免重复计入）
-  stripped="$(sed -E 's@[0-9]{3}/R[0-9]+[a-z]?@ @g' "$f")"
-  bare="$(printf '%s\n' "$stripped" |
-    grep -oE '(^|[^0-9A-Za-z_])(R[0-9]+[a-z]?)' |
-    sed -E 's/^[^R]*//' || true)"
+  # 裸 R#（排除跨链引用的 R 部分：R 前不得是 / 或字母数字）
+  # 不用 sed：BSD sed 在非 UTF-8 locale 下对多字节输入报 "illegal byte sequence"
+  bare="$(grep -oE '(^|[^0-9A-Za-z_/])R[0-9]+[a-z]?' "$f" |
+    grep -oE 'R[0-9]+[a-z]?' || true)"
   while IFS= read -r r; do
     [[ -z "$r" ]] && continue
     total=$((total + 1))
@@ -107,7 +108,9 @@ say "扫描 $file_count 个测试文件、$total 条 R# 标注；已定义链：
 if [[ -n "$violations" ]]; then
   say ""
   say "FAIL：以下标注的 R# 在对应 spec 中不存在（须先修订 spec 并接受，再引用）："
-  printf '%s' "$violations" | sort -u | sed 's/^/  - /'
+  printf '%s' "$violations" | sort -u | while IFS= read -r line; do
+    [[ -n "$line" ]] && say "  - $line"
+  done
   exit 1
 fi
 
