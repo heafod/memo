@@ -2,3 +2,10 @@
 __pycache__/
 .tmp/
 node_modules/
+.venv/
+.env
+dist/
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/

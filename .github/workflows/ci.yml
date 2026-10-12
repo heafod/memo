@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prototype:
+    name: prototype lint / format / build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # npm 命令在 prototype/ 下执行（仓库根没有工程 package.json）
+    defaults:
+      run:
+        working-directory: prototype
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: prototype/.nvmrc
+          cache: npm
+          cache-dependency-path: prototype/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run build
+
+  backend:
+    name: backend lint / tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      db:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d app"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      FASTAPI_ENV: development
+      PROJECT_NAME: Memo
+      SECRET_KEY: ci-only-not-a-production-secret
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: "0.12.6"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Install dependencies（真锁 backend/uv.lock）
+        run: uv sync --frozen
+      - name: Lint
+        run: uv run bash scripts/lint.sh
+      - name: Migrate + initial data
+        run: uv run bash scripts/prestart.sh
+      - name: Tests（含迁移升降级与冒烟）
+        run: uv run bash scripts/tests-start.sh "CI"
+
+  pr-guards:
+    name: PR⊆plan / R# 存在性
+    # 子集检查以最近一次 accepted 的 plan 清单为基准（读基线版本，非 PR 内改后的清单）
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      BASE_REF: origin/${{ github.event.pull_request.base.ref }}
+      PLAN_REF: origin/${{ github.event.pull_request.base.ref }}
+      PR_BODY: ${{ github.event.pull_request.body }}
+    steps:
+      - name: Checkout（全历史，供 merge-base 与基线 plan 读取）
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: PR 变更文件 ⊆ plan 清单
+        run: bash .github/scripts/check-pr-subset.sh
+      - name: 测试标注的 R# 须在对应 spec 中存在
+        run: bash .github/scripts/check-r-refs.sh
