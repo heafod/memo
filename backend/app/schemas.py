@@ -17,6 +17,7 @@ ProjectStatus = Literal["planning", "active", "risk", "hold", "complete"]
 TaskStatus = Literal["backlog", "todo", "progress", "review", "done"]
 Priority = Literal["urgent", "high", "medium", "low", "none"]
 NotifType = Literal["mention", "assign", "comment", "update", "system"]
+SavedViewLayout = Literal["list", "board", "table"]
 
 
 class TeamPublic(BaseModel):
@@ -262,12 +263,51 @@ class EventPublic(BaseModel):
     project_id: uuid.UUID | None
 
 
+class EventCreate(BaseModel):
+    """事件创建载荷（R17：title/date 必填、time 'HH:MM' 可空、project 可空）。"""
+
+    title: str = Field(min_length=1, max_length=255)
+    date: date
+    time: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
+    project_id: uuid.UUID | None = None
+
+
+class EventPut(BaseModel):
+    """事件 PUT 全量替换载荷（字段面同创建；省略的 time/project 被清空）。"""
+
+    title: str = Field(min_length=1, max_length=255)
+    date: date
+    time: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
+    project_id: uuid.UUID | None = None
+
+
 class SavedViewPublic(BaseModel):
     id: uuid.UUID
     project_id: uuid.UUID
     name: str
     layout: str
     filters: list[dict[str, Any]]
+
+
+class SavedViewCreate(BaseModel):
+    """保存视图创建载荷（R18：命名 + 布局 + 过滤条件；排序与分组不收）。
+
+    filters 只做「对象数组」轻校验（结构以原型为源，不逐键 schema 化——
+    口径同 PR-4 偏好 JSONB 取舍）。
+    """
+
+    project_id: uuid.UUID
+    name: str = Field(min_length=1, max_length=120)
+    layout: SavedViewLayout
+    filters: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class SavedViewPut(BaseModel):
+    """保存视图 PUT 全量替换载荷（重命名 + 布局/过滤整体替换；project 不可改）。"""
+
+    name: str = Field(min_length=1, max_length=120)
+    layout: SavedViewLayout
+    filters: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class PreferencesPublic(BaseModel):
