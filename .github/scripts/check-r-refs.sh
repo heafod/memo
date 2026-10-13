@@ -91,7 +91,15 @@ while IFS= read -r f; do
 
   # 裸 R#（排除跨链引用的 R 部分：R 前不得是 / 或字母数字）
   # 不用 sed：BSD sed 在非 UTF-8 locale 下对多字节输入报 "illegal byte sequence"
-  bare="$(grep -oE '(^|[^0-9A-Za-z_/])R[0-9]+[a-z]?' "$f" |
+  #
+  # 正则取舍（PR-2 补评 L2 固化，README 规则：同一错误第二次出现即强制固化）：
+  #   - 前置排除集不含 `_`：snake_case 变量名里的 R# 引用（如 `foo_R99`）
+  #     视为有意标注，须被检查；漏报代价（未定义的 R# 混进测试）大于误报代价
+  #     （恰好以 `_` 结尾的标识符后跟数字串，概率极低且人可辨识）。
+  #   - `[a-z]?` 保留：批次号允许 R4b 这类合法形式；`R10abc` 会被提取为 `R10a`，
+  #     若 `R10a` 未在 spec 定义则被本关卡拒绝——由 spec 检查兜底，提示作者
+  #     要么修订 spec，要么修正标注（不误放行未定义引用）。
+  bare="$(grep -oE '(^|[^0-9A-Za-z/])R[0-9]+[a-z]?' "$f" |
     grep -oE 'R[0-9]+[a-z]?' || true)"
   while IFS= read -r r; do
     [[ -z "$r" ]] && continue

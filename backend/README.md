@@ -33,3 +33,5 @@ $ uv run bash scripts/format.sh
 ```
 
 测试需要可用的 PostgreSQL（`DATABASE_URL` 指向；CI 用 postgres:18 service 容器）。
+套件在派生测试库 `<库名>_test` 上执行（`tests/conftest.py` 自动创建并改写
+`DATABASE_URL`），迁移升降级测试含 `downgrade base`，不会触碰开发库。
