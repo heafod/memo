@@ -110,6 +110,29 @@ from fastapi.testclient import TestClient  # noqa: E402
 from app.main import app  # noqa: E402
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _prepare_test_db() -> Generator[None]:
+    """会话级测试库就位（迁移升级 + 初始数据幂等灌入，一次性）。
+
+    动机（PR-3）：``test_auth`` 等用例要求测试库存在管理员账号；
+    ``test_migrations`` 只升级 schema 不灌数据，``prestart.sh`` 只作用于开发库。
+    本夹具在派生测试库上执行等价 prestart 链路，保证认证用例可登录。
+    """
+    from pathlib import Path
+
+    from alembic import command
+    from alembic.config import Config
+
+    from app.initial_data import init
+
+    backend_dir = Path(__file__).resolve().parents[1]
+    config = Config(str(backend_dir / "alembic.ini"))
+    config.set_main_option("script_location", str(backend_dir / "app" / "alembic"))
+    command.upgrade(config, "head")
+    init()
+    yield
+
+
 @pytest.fixture(scope="session")
 def client() -> Generator[TestClient]:
     with TestClient(app) as c:

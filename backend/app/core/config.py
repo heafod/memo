@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     # 生产前端与后端不同源时（本地 Vite 开发）的 CORS 白名单来源
     FRONTEND_HOST: str = "http://localhost:5173"
     SENTRY_DSN: HttpUrl | None = None
+    # 管理员初始账号（R12）：initial_data 幂等创建；非 development 环境拒绝默认值
+    FIRST_SUPERUSER: str = "admin@example.com"
+    FIRST_SUPERUSER_PASSWORD: str = "changethis"
 
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
@@ -44,6 +47,9 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def _enforce_non_default_secrets(self) -> Settings:
         self._check_default_secret("SECRET_KEY", self.SECRET_KEY)
+        self._check_default_secret(
+            "FIRST_SUPERUSER_PASSWORD", self.FIRST_SUPERUSER_PASSWORD
+        )
         for host in self.DATABASE_URL.hosts():
             self._check_default_secret("DATABASE_URL password", host["password"])
         return self

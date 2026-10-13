@@ -4,7 +4,7 @@ from fastapi.routing import APIRoute
 from starlette.middleware.cors import CORSMiddleware
 
 from app.api.main import api_router
-from app.api.routes import health
+from app.api.routes import auth, health
 from app.core.config import settings
 
 
@@ -17,7 +17,12 @@ if settings.SENTRY_DSN and settings.FASTAPI_ENV != "development":
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    openapi_url=f"{settings.API_PREFIX}/openapi.json",
+    # OpenAPI 按部署开关（R12）：非 development 不暴露 openapi.json / docs
+    openapi_url=(
+        f"{settings.API_PREFIX}/openapi.json"
+        if settings.FASTAPI_ENV == "development"
+        else None
+    ),
     generate_unique_id_function=custom_generate_unique_id,
 )
 
@@ -30,4 +35,5 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(auth.router, prefix=settings.API_PREFIX)
 app.include_router(api_router, prefix=settings.API_PREFIX)

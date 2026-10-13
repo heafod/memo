@@ -18,6 +18,7 @@ from app.core.config import Settings
 _BASE_KWARGS = {
     "PROJECT_NAME": "Memo",
     "DATABASE_URL": "postgresql://postgres:strongpass@localhost:5432/app",
+    "FIRST_SUPERUSER_PASSWORD": "strong-superuser-pass",
 }
 
 
