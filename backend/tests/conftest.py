@@ -51,6 +51,7 @@ def _resolve_database_url() -> str:
     url = dotenv.get("DATABASE_URL")
     if not url:
         return _DEFAULT_DEV_URL
+
     # 展开 ${VAR}：先查进程环境，再查 .env 同文件变量
     def _sub(match: re.Match[str]) -> str:
         name = match.group(1)
@@ -137,3 +138,23 @@ def _prepare_test_db() -> Generator[None]:
 def client() -> Generator[TestClient]:
     with TestClient(app) as c:
         yield c
+
+
+@pytest.fixture(scope="session")
+def authed_client(client: TestClient) -> TestClient:
+    """已登录的会话级 TestClient（PR-4 起领域端点全部须认证，R12）。
+
+    会话级共享：测试用例不得在其上执行登出 / 改密（认证用例用自带
+    独立 jar 的 ``auth_client``，见 ``tests/api/test_auth.py``）。
+    """
+    from app.core.config import settings
+
+    resp = client.post(
+        "/api/auth/login",
+        json={
+            "username": settings.FIRST_SUPERUSER,
+            "password": settings.FIRST_SUPERUSER_PASSWORD,
+        },
+    )
+    assert resp.status_code == 200, resp.text
+    return client
