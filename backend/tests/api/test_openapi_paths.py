@@ -6,7 +6,8 @@
 
 PR-4（R11）：断言本批规格要求的路径均存在——快照、各实体写端点
 （projects/tasks/members/teams/comments）、notifs 已读、preferences。
-events / saved-views 写端点属 PR-5、文件上传属 PR-6，此处不断言。
+PR-5（R17、R18）：events / saved-views 写端点路径面（仅 POST/PUT/DELETE，
+不暴露 GET——读面由快照承载，调度方核定）。文件上传属 PR-6，此处不断言。
 """
 
 from fastapi.testclient import TestClient
@@ -61,3 +62,22 @@ def test_openapi_domain_surface(client: TestClient) -> None:  # R11
     # preferences
     assert "get" in methods("/api/preferences")
     assert "put" in methods("/api/preferences")
+
+
+def test_openapi_events_and_saved_views_surface(client: TestClient) -> None:  # R17, R18
+    """PR-5 路径面：events / saved-views 仅写端点，读面由快照承载（不设 GET）。"""
+    paths = app.openapi()["paths"]
+
+    def methods(path: str) -> set[str]:
+        return set(paths.get(path, {}).keys())
+
+    # R17 日历事件
+    assert "post" in methods("/api/events")
+    assert "put" in methods("/api/events/{event_id}")
+    assert "delete" in methods("/api/events/{event_id}")
+    assert "get" not in methods("/api/events")
+    # R18 保存视图
+    assert "post" in methods("/api/saved-views")
+    assert "put" in methods("/api/saved-views/{saved_view_id}")
+    assert "delete" in methods("/api/saved-views/{saved_view_id}")
+    assert "get" not in methods("/api/saved-views")
