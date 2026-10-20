@@ -1,4 +1,4 @@
-# 生产前端验收清单（R1–R8、R17、R18 前端面）
+# 生产前端验收清单（R1–R8、R12、R17、R18 前端面）
 
 来源：`intent/001-spec.md` 各 R# 的「验收」句，逐条拆为可勾选判据；视觉依 `intent/design/001/` 设计稿，交互依 `prototype/`（原型即真源）。按 `intent/001-plan.md`「证明」节：**后续前端批次随批勾选本清单对应段，对应段全勾方为该批合并闸门**；勾选须在同一 PR 内附证据（截图、录屏或测试 / 实跑输出）于 PR 描述。
 
@@ -88,10 +88,14 @@
 ## R8 双语界面，默认中文（PR-8 起逐批）
 
 - [x] 默认语言中文：react-i18next `lng: 'zh'`，`<html lang="zh-CN">`（PR-8）
-- [x] 界面文案一律经 `t()`，TSX 无硬编码文案（ESLint `i18next/no-literal-string` 守护）（PR-8）
+- [x] 界面文案一律经 `t()`，TSX 无硬编码文案（ESLint `i18next/no-literal-string` 守护，含 JSX 内模板字符串；模板字符串含中文另由 `no-restricted-syntax` 兜底）（PR-8）
 - [x] 服务端错误 detail（中文）原样展示，不在前端改写（PR-8 登录页 400「用户名或密码错误」）
 - [ ] English 资源与 zh key 一一对应，语言切换生效（PR-11）
 - [ ] 服务端消息不随界面语言切换（切到 English 后错误 detail 仍为中文）（PR-11）
+
+## R12 认证会话（前端面）
+
+- [ ] 会话 Cookie 失效后，`/api/snapshot` 实际返回 401 时应用回到 `/login`（实跑：登录后令 Cookie 失效——删 Cookie 或服务端会话过期——再触发快照请求，附网络面板 401 与跳转证据）（PR-9a）
 
 ## R17 日历事件（PR-11）
 
