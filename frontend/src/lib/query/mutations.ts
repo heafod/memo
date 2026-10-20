@@ -124,6 +124,25 @@ export function useCreateProject() {
   });
 }
 
+/** 修改项目（R23 order；失败回滚并提示中文 detail）。 */
+export function useUpdateProject() {
+  return useMutation({
+    meta: { invalidates: [['projects']] },
+    mutationFn: async ({ id, patch }: { id: string; patch: Schemas['ProjectUpdate'] }) => {
+      assertVisibleProject(id);
+      return unwrap(api.PATCH('/api/projects/{project_id}', { params: { path: { project_id: id } }, body: patch }));
+    },
+    onMutate: async ({ id, patch }) => {
+      await queryClient.cancelQueries({ queryKey: ['projects'] });
+      return { rollback: optimistic<Project>(['projects'], id, patch as Partial<Project>) };
+    },
+    onError: (e, _v, ctx) => {
+      ctx?.rollback();
+      notifyError(e);
+    },
+  });
+}
+
 /** R19 收藏切换（项目 / 任务）：乐观更新，失败回滚星标并提示服务端中文 detail（PR-9c 18:18 Q11）。 */
 export function useToggleFav() {
   return useMutation({

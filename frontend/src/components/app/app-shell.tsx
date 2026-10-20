@@ -1,8 +1,9 @@
-import { ChevronDown, ChevronRight, CircleCheck, FolderKanban, FolderPlus, House, List, Lock, LogOut, Paperclip, Plus, Star } from 'lucide-react';
+import { ChevronDown, CircleCheck, FolderKanban, FolderPlus, House, LogOut, Plus } from 'lucide-react';
 import { type CSSProperties, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink, Outlet, useLocation, useMatch } from 'react-router';
 import { CreateDialogsProvider, useCreateDialogs } from '@/components/app/create-dialogs';
+import { SidebarProjectList } from '@/components/app/sidebar-project';
 import { Button } from '@/components/ui/button';
 import { FailedState } from '@/components/app/error-states';
 import { MemberAvatar, ProjectIcon } from '@/components/app/domain-ui';
@@ -18,13 +19,9 @@ import {
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
-  SidebarMenuAction,
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
@@ -32,7 +29,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { PROJECT_STATUS_COLOR, type ProjectStatus } from '@/lib/domain/constants';
 import { daysFromToday } from '@/lib/domain/dates';
 import { canSee } from '@/lib/domain/tasks';
 import { useLogout } from '@/lib/query/auth';
@@ -186,61 +182,14 @@ function AppSidebar() {
             <SidebarGroup>
               <SidebarGroupLabel>{t('shell.nav.projects')}</SidebarGroupLabel>
               <SidebarMenu>
-                {sideProjects.map(p => {
-                  const open = expanded[p.id] ?? p.id === currentProject;
-                  const visible = visibleIds.has(p.id);
-                  return (
-                    <SidebarMenuItem key={p.id}>
-                      <SidebarMenuButton asChild isActive={p.id === currentProject}>
-                        <Link to={`/projects/${p.id}`}>
-                          {/* 按原型 shell/layout.js:123–126：项目图标 + 名称 + 私有锁；不可见项目同样显示图标（17:27 总 AC 允许名称、图标、负责人），
-                              状态点与子页面不渲染（状态为隐藏字段） */}
-                          <ProjectIcon project={p} size="sm" />
-                          <span className="truncate">{p.name}</span>
-                          {/* 原型 layout.js:124 .sitem .fav；不可见项目即使 fav 为 true 也不显示星标（FRIDAY PR-9c 18:18 Q10） */}
-                          {visible && p.fav && (
-                            <Star className="ml-1 size-[11px]! shrink-0 text-[var(--amber)]" role="img" aria-label={t('write.fav.favorite')} data-side-fav="" />
-                          )}
-                          {p.private && <Lock className="size-3! text-muted-foreground" aria-label={t('shell.nav.privateProject')} />}
-                          {visible && (
-                            <span className="ml-auto size-1.5 shrink-0 rounded-full" style={{ background: PROJECT_STATUS_COLOR[p.status as ProjectStatus] }} />
-                          )}
-                        </Link>
-                      </SidebarMenuButton>
-                      {visible && (
-                        <SidebarMenuAction
-                          showOnHover={!open}
-                          className="right-5"
-                          aria-label={t('shell.nav.toggleSubPages')}
-                          aria-expanded={open}
-                          onClick={() => setExpanded(s => ({ ...s, [p.id]: !open }))}
-                        >
-                          <ChevronRight className={open ? 'rotate-90' : ''} />
-                        </SidebarMenuAction>
-                      )}
-                      {visible && open && (
-                        <SidebarMenuSub>
-                          <SidebarMenuSubItem>
-                            <SidebarMenuSubButton asChild isActive={p.id === currentProject && !projectMatch?.params['*']?.startsWith('files')}>
-                              <Link to={`/projects/${p.id}/list`}>
-                                <List />
-                                <span>{t('shell.nav.list')}</span>
-                              </Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                          <SidebarMenuSubItem>
-                            <SidebarMenuSubButton asChild isActive={p.id === currentProject && projectMatch?.params['*'] === 'files'}>
-                              <Link to={`/projects/${p.id}/files`}>
-                                <Paperclip />
-                                <span>{t('shell.nav.files')}</span>
-                              </Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        </SidebarMenuSub>
-                      )}
-                    </SidebarMenuItem>
-                  );
-                })}
+                <SidebarProjectList
+                  projects={sideProjects}
+                  visibleIds={visibleIds}
+                  currentProject={currentProject}
+                  filesActive={!!projectMatch?.params['*']?.startsWith('files')}
+                  expanded={expanded}
+                  setExpanded={setExpanded}
+                />
               </SidebarMenu>
             </SidebarGroup>
           </div>

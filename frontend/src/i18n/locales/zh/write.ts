@@ -10,6 +10,13 @@ export default {
   unassigned: '未分配',
   undo: '撤销',
   markTaskComplete: '将「{{title}}」标记为完成',
+  sidebar: {
+    more: '项目选项',
+    moveUp: '在侧边栏中上移',
+    moveDown: '在侧边栏中下移',
+    movedUp: '{{name}} 已上移',
+    movedDown: '{{name}} 已下移',
+  },
   fav: {
     favorite: '收藏',
     add: '添加到收藏',
