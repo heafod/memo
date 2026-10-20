@@ -50,7 +50,7 @@ README.md
 
 12b. **PR-9d 看板与任务菜单**（R4 看板，依赖 9c）：看板（拖拽 + order 分数插值）；任务级上下文菜单（含 R19 任务收藏项）；看板合入后项目页默认 tab 恢复为 board（按原型 project.js:35）；放出 board tab；验收清单勾选 R4 看板与任务菜单对应段。
 
-12c. **PR-9e 表格**（R4 表格，依赖 9c）：表格（popover / 双击就地编辑 / 列显隐列宽持久化）；放出 table tab；验收清单勾选 R4 表格对应段。
+12c. **PR-9e 表格**（R4 表格，依赖 9c）：表格（popover / 双击就地编辑 / 列显隐列宽持久化）；放出 table tab；承接看板余项（列折叠、列菜单，FRIDAY 2047）；验收清单勾选 R4 表格对应段。
 
 12d. **PR-9f 日历**（R4 日历、R3 Calendar 模式，依赖 9c）：日历（拖改 due）、我的任务 Calendar 模式；放出侧栏「日历」与 calendar tab；验收清单勾选 R3（Calendar 模式）与 R4 日历对应段。
 
