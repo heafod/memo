@@ -1,0 +1,28 @@
+// 动态条目：activity.*（原型 components/task-list.js actZh + zh/ui.js 句式）。
+// <who> / <obj> / <m> 为 Trans 组件占位：执行人、对象（可点击）、弱化文字。
+export default {
+  you: '你',
+  someone: '有人',
+  inProject: '于 {{p}}',
+  created: '<who>{{who}}</who> <m>创建了</m> <obj>{{obj}}</obj>',
+  createdProject: '<who>{{who}}</who> <m>创建了项目</m> <obj>{{obj}}</obj>',
+  completed: '<who>{{who}}</who> <m>完成了</m> <obj>{{obj}}</obj>',
+  commented: '<who>{{who}}</who> <m>评论了</m> <obj>{{obj}}</obj>',
+  movedTo: '<who>{{who}}</who> <m>将</m> <obj>{{obj}}</obj> <m>移至 {{x}}</m>',
+  movedFromTo: '<who>{{who}}</who> <m>将</m> <obj>{{obj}}</obj> <m>从 {{a}} 移至 {{b}}</m>',
+  moved: '<who>{{who}}</who> <m>移动了</m> <obj>{{obj}}</obj>',
+  assignedTo: '<who>{{who}}</who> <m>将</m> <obj>{{obj}}</obj> <m>的负责人设为 {{x}}</m>',
+  assigned: '<who>{{who}}</who> <m>更改了</m> <obj>{{obj}}</obj> <m>的负责人</m>',
+  priorityTo: '<who>{{who}}</who> <m>将</m> <obj>{{obj}}</obj> <m>的优先级改为 {{x}}</m>',
+  priority: '<who>{{who}}</who> <m>更改了</m> <obj>{{obj}}</obj> <m>的优先级</m>',
+  dueDate: '<who>{{who}}</who> <m>更改了</m> <obj>{{obj}}</obj> <m>的截止日期</m>',
+  startDate: '<who>{{who}}</who> <m>更改了</m> <obj>{{obj}}</obj> <m>的开始日期</m>',
+  labels: '<who>{{who}}</who> <m>更新了</m> <obj>{{obj}}</obj> <m>的标签</m>',
+  deps: '<who>{{who}}</who> <m>更新了</m> <obj>{{obj}}</obj> <m>的依赖</m>',
+  renamed: '<who>{{who}}</who> <m>重命名了</m> <obj>{{obj}}</obj>',
+  repeat: '<who>{{who}}</who> <m>设置了</m> <obj>{{obj}}</obj> <m>的重复规则</m>',
+  estimated: '<who>{{who}}</who> <m>更改了</m> <obj>{{obj}}</obj> <m>的预估</m>',
+  fileAdded: '<who>{{who}}</who> <m>向</m> <obj>{{obj}}</obj> <m>添加了文件 {{x}}</m>',
+  archived: '<who>{{who}}</who> <m>归档了</m> <obj>{{obj}}</obj>',
+  updated: '<who>{{who}}</who> <m>更新了</m> <obj>{{obj}}</obj>',
+} as const;

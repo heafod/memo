@@ -1,7 +1,38 @@
-// 登录后占位页：home.*（应用外壳与首页仪表盘属 PR-9a）
+// 首页仪表盘：home.*（R1；原型 pages/home.js + zh/pages-a.js）
 export default {
-  placeholder: {
-    title: '已登录',
-    description: '应用页面将在后续批次接入。',
+  greeting: { morning: '早上好', afternoon: '下午好', evening: '晚上好' },
+  title: '{{g}}，{{name}}',
+  subtitle: '{{date}} · 看看你的工作区里最近发生了什么。',
+  dateLine: '{{wd}}，{{m}}月{{d}}日',
+  stats: {
+    active: '进行中的项目',
+    atRisk: '{{n}} 个有风险',
+    open: '未完成任务',
+    assignedToYou: '{{n}} 个分配给你',
+    completed: '已完成',
+    thisWeek: '本周',
+    overdue: '已逾期',
+    needAttention: '需要关注',
+    onTrack: '一切正常',
   },
+  myTasks: {
+    title: '我的任务',
+    tabs: { upcoming: '即将到来', overdue: '已逾期', completed: '已完成' },
+    open: '打开我的任务',
+    nothingOverdue: '没有已逾期的任务',
+    nothingOverdueHint: '分配给你的所有任务都在按计划进行。',
+    empty: '这里还没有任务',
+    viewAll: '查看全部 {{n}} 个任务',
+  },
+  progress: {
+    title: '项目进度',
+    all: '全部项目',
+    project: '项目',
+    status: '状态',
+    progress: '进度',
+    due: '截止',
+    team: '团队',
+  },
+  deadlines: { title: '即将到期', today: '今天', tomorrow: '明天', week: '本周', nothing: '暂无到期任务', more: '还有 {{n}} 项' },
+  activity: { title: '最近动态' },
 } as const;

@@ -1,0 +1,284 @@
+import { ChevronRight, CircleCheck, FolderKanban, House, List, Lock, LogOut, Paperclip } from 'lucide-react';
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Link, NavLink, Outlet, useLocation, useMatch } from 'react-router';
+import { FailedState } from '@/components/app/error-states';
+import { MemberAvatar, ProjectIcon } from '@/components/app/domain-ui';
+import { TaskDrawer } from '@/components/app/task-drawer';
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuAction,
+  SidebarMenuBadge,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
+import { Skeleton } from '@/components/ui/skeleton';
+import { TooltipProvider } from '@/components/ui/tooltip';
+import { PROJECT_STATUS_COLOR, type ProjectStatus } from '@/lib/domain/constants';
+import { daysFromToday } from '@/lib/domain/dates';
+import { activeProjects, canSee } from '@/lib/domain/tasks';
+import { useLogout } from '@/lib/query/auth';
+import { useMeId, useMembers, usePreferences, useProjects, useSnapshotLoader, useTasks } from '@/lib/query/entities';
+
+/**
+ * 应用外壳（R1「应用外壳按 4_1-home.svg」；映射表「外壳 / 侧栏导航 / 工作区头 / 顶栏面包屑」行）。
+ * FRIDAY 裁定第 5 条：指向未完成页面的入口一律不渲染（收件箱、收藏、通知、概览、任务、日历、时间线、成员、动态、
+ * 归档、团队、设置、帮助、搜索、新建、铃铛、语言切换），由各自批次放出。工作区头不可点（切换工作区属负范围）。
+ */
+export function AppShell() {
+  const snapshot = useSnapshotLoader();
+  return (
+    <TooltipProvider>
+      <SidebarProvider>
+        {snapshot.isSuccess ? <AppSidebar /> : <Sidebar />}
+        <SidebarInset>
+          <Topbar ready={snapshot.isSuccess} />
+          <div id="main-content" tabIndex={-1} className="flex-1 outline-none">
+            {snapshot.isSuccess ? (
+              <>
+                <Outlet />
+                <TaskDrawer />
+              </>
+            ) : snapshot.isError ? (
+              <FailedState />
+            ) : (
+              <ContentSkeleton />
+            )}
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    </TooltipProvider>
+  );
+}
+
+function ContentSkeleton() {
+  const { t } = useTranslation();
+  return (
+    <div className="mx-auto flex max-w-6xl flex-col gap-4 p-8" role="status" aria-label={t('states.loading')}>
+      <Skeleton className="h-8 w-64" />
+      <Skeleton className="h-4 w-96" />
+      <div className="grid grid-cols-4 gap-3">
+        {[0, 1, 2, 3].map(i => (
+          <Skeleton key={i} className="h-24" />
+        ))}
+      </div>
+      <Skeleton className="h-72" />
+    </div>
+  );
+}
+
+function AppSidebar() {
+  const { t } = useTranslation();
+  const meId = useMeId();
+  const members = useMembers();
+  const projects = useProjects();
+  const tasks = useTasks();
+  const prefs = usePreferences();
+  const logout = useLogout();
+  const projectMatch = useMatch('/projects/:projectId/*');
+  const currentProject = projectMatch?.params.projectId;
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const onHome = useMatch('/') !== null;
+  const onMyTasks = useMatch('/my-tasks') !== null;
+  const onProjects = useMatch('/projects') !== null;
+
+  const me = members.find(m => m.id === meId);
+  const ws = (prefs as { workspace?: { name?: string } }).workspace;
+  const wsName = ws?.name || t('app.brand');
+  const visibleIds = new Set(projects.filter(p => canSee(p, meId)).map(p => p.id));
+  // 原型 renderSidebar：我的任务计数 = 分配给我、未完成、截止日 ≤ 今天（仅可见项目）
+  const myDue = tasks.filter(x => x.assignee_id === meId && x.status !== 'done' && x.due && daysFromToday(x.due) <= 0 && visibleIds.has(x.project_id)).length;
+  const sideProjects = activeProjects(projects).filter(p => p.status !== 'complete');
+
+  return (
+    <Sidebar>
+      <SidebarHeader>
+        <div className="flex items-center gap-2 px-2 py-1">
+          <span className="grid size-[22px] place-items-center rounded-md bg-foreground text-xs font-semibold text-background">
+            {wsName.slice(0, 1).toUpperCase()}
+          </span>
+          <span className="flex-1 truncate text-sm font-semibold text-foreground">{wsName}</span>
+          <SidebarTrigger className="size-7" />
+        </div>
+      </SidebarHeader>
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarMenu aria-label={t('shell.nav.main')}>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={onHome}>
+                <NavLink to="/" end>
+                  <House />
+                  <span>{t('shell.nav.home')}</span>
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={onMyTasks}>
+                <NavLink to="/my-tasks">
+                  <CircleCheck />
+                  <span>{t('shell.nav.myTasks')}</span>
+                </NavLink>
+              </SidebarMenuButton>
+              {myDue > 0 && <SidebarMenuBadge>{myDue}</SidebarMenuBadge>}
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>{t('shell.nav.workspace')}</SidebarGroupLabel>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={onProjects}>
+                <NavLink to="/projects" end>
+                  <FolderKanban />
+                  <span>{t('shell.nav.projects')}</span>
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>{t('shell.nav.projects')}</SidebarGroupLabel>
+          <SidebarMenu>
+            {sideProjects.map(p => {
+              const open = expanded[p.id] ?? p.id === currentProject;
+              const visible = visibleIds.has(p.id);
+              return (
+                <SidebarMenuItem key={p.id}>
+                  <SidebarMenuButton asChild isActive={p.id === currentProject}>
+                    <Link to={`/projects/${p.id}`}>
+                      {/* 不可见项目只露出名称（FRIDAY 裁定第 6、7 条）：图标、色、状态点均不渲染，以锁形图标代替 */}
+                      {visible ? <ProjectIcon project={p} size="sm" /> : <Lock className="text-muted-foreground" />}
+                      <span className="truncate">{p.name}</span>
+                      {p.private && visible && <Lock className="size-3! text-muted-foreground" aria-label={t('shell.nav.privateProject')} />}
+                      {visible && (
+                        <span className="ml-auto size-1.5 shrink-0 rounded-full" style={{ background: PROJECT_STATUS_COLOR[p.status as ProjectStatus] }} />
+                      )}
+                    </Link>
+                  </SidebarMenuButton>
+                  {visible && (
+                    <SidebarMenuAction
+                      showOnHover={!open}
+                      className="right-5"
+                      aria-label={t('shell.nav.toggleSubPages')}
+                      aria-expanded={open}
+                      onClick={() => setExpanded(s => ({ ...s, [p.id]: !open }))}
+                    >
+                      <ChevronRight className={open ? 'rotate-90' : ''} />
+                    </SidebarMenuAction>
+                  )}
+                  {visible && open && (
+                    <SidebarMenuSub>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild isActive={p.id === currentProject && !projectMatch?.params['*']?.startsWith('files')}>
+                          <Link to={`/projects/${p.id}/list`}>
+                            <List />
+                            <span>{t('shell.nav.list')}</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton asChild isActive={p.id === currentProject && projectMatch?.params['*'] === 'files'}>
+                          <Link to={`/projects/${p.id}/files`}>
+                            <Paperclip />
+                            <span>{t('shell.nav.files')}</span>
+                          </Link>
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    </SidebarMenuSub>
+                  )}
+                </SidebarMenuItem>
+              );
+            })}
+          </SidebarMenu>
+        </SidebarGroup>
+      </SidebarContent>
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <SidebarMenuButton aria-label={t('shell.account')}>
+                  <MemberAvatar member={me} />
+                  <span className="truncate font-medium text-foreground">{me?.name}</span>
+                </SidebarMenuButton>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="top" align="start" className="w-56">
+                <DropdownMenuItem onSelect={() => logout.mutate()} disabled={logout.isPending}>
+                  <LogOut />
+                  {t('shell.signOut')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
+
+function Topbar({ ready }: { ready: boolean }) {
+  const { t } = useTranslation();
+  const { pathname } = useLocation();
+  return (
+    <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 border-b border-border bg-background px-4">
+      <SidebarTrigger className="md:hidden" />
+      <a href="#main-content" className="sr-only focus:not-sr-only">
+        {t('shell.skipToContent')}
+      </a>
+      <Breadcrumb aria-label={t('shell.breadcrumb')}>
+        <BreadcrumbList>{ready && <Crumbs pathname={pathname} />}</BreadcrumbList>
+      </Breadcrumb>
+    </header>
+  );
+}
+
+function Crumbs({ pathname }: { pathname: string }) {
+  const { t } = useTranslation();
+  const projects = useProjects();
+  const meId = useMeId();
+  const project = useMatch('/projects/:projectId/*');
+  if (project) {
+    const p = projects.find(x => x.id === project.params.projectId);
+    const visible = !!p && canSee(p, meId);
+    return (
+      <>
+        <BreadcrumbItem>
+          <BreadcrumbLink asChild>
+            <Link to="/projects">{t('shell.nav.projects')}</Link>
+          </BreadcrumbLink>
+        </BreadcrumbItem>
+        {p && (
+          <>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage className="flex items-center gap-1.5">
+                {visible && <ProjectIcon project={p} size="sm" />}
+                {p.name}
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </>
+        )}
+      </>
+    );
+  }
+  const name = pathname === '/my-tasks' ? t('shell.nav.myTasks') : pathname === '/projects' ? t('shell.nav.projects') : t('shell.nav.home');
+  return (
+    <BreadcrumbItem>
+      <BreadcrumbPage>{name}</BreadcrumbPage>
+    </BreadcrumbItem>
+  );
+}

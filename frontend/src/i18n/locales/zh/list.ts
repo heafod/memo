@@ -1,0 +1,20 @@
+// 任务列表与视图工具栏：list.*（原型 components/task-list.js、shell/view-engine.js + zh/views.js、zh/ui.js）
+export default {
+  columns: { task: '任务', status: '状态', assignee: '负责人', priority: '优先级', due: '截止日期', labels: '标签', project: '项目' },
+  search: '搜索任务',
+  sortLabel: '排序',
+  groupLabel: '分组',
+  sort: { manual: '手动', title: '标题', due: '截止日期', priority: '优先级', status: '状态', assignee: '负责人', created: '创建时间', updated: '更新时间' },
+  group: { status: '状态', priority: '优先级', assignee: '负责人', due: '截止日期', none: '无' },
+  dueGroup: { overdue: '已逾期', today: '今天', week: '未来 7 天', later: '更晚', nodate: '无截止日期' },
+  allTasks: '全部任务',
+  unassigned: '未分配',
+  selectAll: '全选',
+  selectTask: '选择「{{title}}」',
+  selected: '已选 {{n}} 项',
+  toggleGroup: '展开或收起分组',
+  showSubtasks: '展开子任务',
+  hideSubtasks: '收起子任务',
+  emptyTitle: '这里还没有任务',
+  noResults: '没有符合搜索条件的任务',
+} as const;
