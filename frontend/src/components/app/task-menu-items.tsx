@@ -1,9 +1,10 @@
-import { CheckCircle2, PanelRightOpen, RotateCcw, Star, Trash2 } from 'lucide-react';
+import { CheckCircle2, CircleDot, PanelRightOpen, RotateCcw, SignalHigh, Star, Trash2, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { FAV_TOAST_MS } from '@/components/app/fav-button';
+import { useAssigneeItems, usePriorityItems, useStatusItems } from '@/components/app/pick-items';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,18 +15,28 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context-menu';
+import { ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger } from '@/components/ui/context-menu';
+import { PRIORITIES, STATUSES, type Priority, type TaskStatus } from '@/lib/domain/constants';
 import type { Task } from '@/lib/query/entities';
+import { useMeId, useMembers } from '@/lib/query/entities';
 import { useDeleteTasks, useToggleFav, useUpdateTask } from '@/lib/query/mutations';
-import type { TaskStatus } from '@/lib/domain/constants';
 
-/** 任务级上下文菜单（PR-9d：含 R19 收藏；原型 overlays/context-menu.js ctx=task 子集——已接线写操作）。 */
+/**
+ * 任务级上下文菜单（PR-9d；FRIDAY 2047）。
+ * 子集：打开 / 完成 / 收藏 / 删除；另含状态·负责人·优先级（复用 9c 写能力，不阻塞）。
+ * 不对齐原型全套；无归档任务项（首版无 task.archived）。
+ */
 export function TaskContextItems({ task }: { task: Task }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const fav = useToggleFav();
   const update = useUpdateTask();
   const del = useDeleteTasks();
+  const members = useMembers();
+  const meId = useMeId();
+  const statusItems = useStatusItems();
+  const priorityItems = usePriorityItems();
+  const assigneeItems = useAssigneeItems(members, meId);
   const [confirmDel, setConfirmDel] = useState(false);
 
   const open = () => void navigate(`?task=${task.id}`);
@@ -67,6 +78,50 @@ export function TaskContextItems({ task }: { task: Task }) {
         {task.status === 'done' ? <RotateCcw /> : <CheckCircle2 />}
         {task.status === 'done' ? t('write.taskMenu.reopen') : t('write.taskMenu.markComplete')}
       </ContextMenuItem>
+      <ContextMenuSeparator />
+      <ContextMenuSub>
+        <ContextMenuSubTrigger>
+          <CircleDot />
+          {t('write.taskMenu.status')}
+        </ContextMenuSubTrigger>
+        <ContextMenuSubContent>
+          {STATUSES.map(s => (
+            <ContextMenuItem key={s} disabled={task.status === s} onSelect={() => update.mutate({ id: task.id, patch: { status: s } })}>
+              {statusItems.find(i => i.id === s)?.label ?? t(`domain.status.${s}`)}
+            </ContextMenuItem>
+          ))}
+        </ContextMenuSubContent>
+      </ContextMenuSub>
+      <ContextMenuSub>
+        <ContextMenuSubTrigger>
+          <User />
+          {t('write.taskMenu.assignee')}
+        </ContextMenuSubTrigger>
+        <ContextMenuSubContent className="max-h-64 overflow-y-auto">
+          {assigneeItems.map(i => (
+            <ContextMenuItem
+              key={i.id || 'none'}
+              disabled={(task.assignee_id ?? '') === (i.id || '')}
+              onSelect={() => update.mutate({ id: task.id, patch: { assignee_id: i.id || null } })}
+            >
+              {i.label}
+            </ContextMenuItem>
+          ))}
+        </ContextMenuSubContent>
+      </ContextMenuSub>
+      <ContextMenuSub>
+        <ContextMenuSubTrigger>
+          <SignalHigh />
+          {t('write.taskMenu.priority')}
+        </ContextMenuSubTrigger>
+        <ContextMenuSubContent>
+          {PRIORITIES.map(p => (
+            <ContextMenuItem key={p} disabled={task.priority === p} onSelect={() => update.mutate({ id: task.id, patch: { priority: p as Priority } })}>
+              {priorityItems.find(i => i.id === p)?.label ?? t(`domain.priority.${p}`)}
+            </ContextMenuItem>
+          ))}
+        </ContextMenuSubContent>
+      </ContextMenuSub>
       <ContextMenuSeparator />
       <ContextMenuItem onSelect={toggleFav}>
         <Star />

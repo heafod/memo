@@ -177,7 +177,7 @@ function NewTaskDialog({ defaults, onClose }: { defaults: NewTaskDefaults; onClo
               </Button>
             </PickList>
             <PickList items={statusItems} value={f.status} onPick={v => setF({ ...f, status: v as TaskStatus })} ariaLabel={t('write.pick.status')}>
-              <Button type="button" variant="outline" className={chip}>
+              <Button type="button" variant="outline" className={chip} data-new-task-status={f.status}>
                 <StatusPill status={f.status} />
               </Button>
             </PickList>

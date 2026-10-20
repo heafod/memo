@@ -122,7 +122,14 @@ function BoardColumn({
         <span className="truncate">{t(`domain.status.${status}`)}</span>
         <span className="text-xs text-muted-foreground tabular-nums">{tasks.length}</span>
         <span className="flex-1" />
-        <Button type="button" variant="ghost" size="icon-xs" aria-label={t('write.board.addTo', { name: t(`domain.status.${status}`) })} onClick={onAdd}>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          data-col-add={status}
+          aria-label={t('write.board.addTo', { name: t(`domain.status.${status}`) })}
+          onClick={onAdd}
+        >
           <Plus />
         </Button>
       </div>
@@ -142,6 +149,7 @@ function BoardColumn({
         ))}
         <button
           type="button"
+          data-col-add-footer={status}
           className="flex h-9 items-center justify-center gap-1.5 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:bg-accent/50 hover:text-foreground"
           onClick={onAdd}
         >
