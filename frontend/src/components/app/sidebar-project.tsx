@@ -1,6 +1,6 @@
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import { ChevronRight, List, Lock, Paperclip, Star } from 'lucide-react';
+import { ChevronRight, GripVertical, List, Lock, Paperclip, Star } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -42,6 +42,7 @@ export function SidebarProjectRow({
 }) {
   const { t } = useTranslation();
   const rowRef = useRef<HTMLLIElement>(null);
+  const handleRef = useRef<HTMLSpanElement>(null);
   const [edge, setEdge] = useState<'top' | null>(null);
   const [dragging, setDragging] = useState(false);
   const update = useUpdateProject();
@@ -52,9 +53,12 @@ export function SidebarProjectRow({
     // 可见：可拖 + 落点（始终插在目标前，对齐原型 drop-before / r23-spec）。
     // 不可见：不可拖、不显示插入线；仍接住落点并把拖来的可见项目落到可见列表末尾（r23-spec）。
     if (visible) {
+      const handle = handleRef.current;
+      if (!handle) return;
       return combine(
         draggable({
           element: el,
+          dragHandle: handle,
           getInitialData: () => ({ type: DRAG_TYPE, id: project.id }),
           onDragStart: () => setDragging(true),
           onDrop: () => setDragging(false),
@@ -86,7 +90,21 @@ export function SidebarProjectRow({
     });
   }, [project.id, visible, visibleOrdered, update]);
 
-  const row = (
+  const button = (
+    <SidebarMenuButton asChild isActive={project.id === currentProject}>
+      <Link to={`/projects/${project.id}`}>
+        <ProjectIcon project={project} size="sm" />
+        <span className="truncate">{project.name}</span>
+        {visible && projectStar && (
+          <Star className="ml-1 size-[11px]! shrink-0 text-[var(--amber)]" role="img" aria-label={t('write.fav.favorite')} data-side-fav="" />
+        )}
+        {project.private && <Lock className="size-3! text-muted-foreground" aria-label={t('shell.nav.privateProject')} />}
+        {visible && <span className="ml-auto size-1.5 shrink-0 rounded-full" style={{ background: PROJECT_STATUS_COLOR[project.status as ProjectStatus] }} />}
+      </Link>
+    </SidebarMenuButton>
+  );
+
+  const item = (
     <SidebarMenuItem
       ref={rowRef}
       data-sidebar-proj={project.id}
@@ -94,17 +112,17 @@ export function SidebarProjectRow({
       className={cn('relative', dragging && 'opacity-50')}
     >
       {edge === 'top' && <DropLine edge="top" />}
-      <SidebarMenuButton asChild isActive={project.id === currentProject}>
-        <Link to={`/projects/${project.id}`}>
-          <ProjectIcon project={project} size="sm" />
-          <span className="truncate">{project.name}</span>
-          {visible && projectStar && (
-            <Star className="ml-1 size-[11px]! shrink-0 text-[var(--amber)]" role="img" aria-label={t('write.fav.favorite')} data-side-fav="" />
-          )}
-          {project.private && <Lock className="size-3! text-muted-foreground" aria-label={t('shell.nav.privateProject')} />}
-          {visible && <span className="ml-auto size-1.5 shrink-0 rounded-full" style={{ background: PROJECT_STATUS_COLOR[project.status as ProjectStatus] }} />}
-        </Link>
-      </SidebarMenuButton>
+      {visible && (
+        <span
+          ref={handleRef}
+          data-drag-handle={project.id}
+          className="absolute top-1/2 left-0 z-10 flex h-7 w-4 -translate-y-1/2 cursor-grab items-center justify-center text-muted-foreground opacity-0 active:cursor-grabbing group-hover/menu-item:opacity-100"
+          aria-hidden="true"
+        >
+          <GripVertical className="size-3.5!" />
+        </span>
+      )}
+      {visible ? <ContextMenuTrigger asChild>{button}</ContextMenuTrigger> : button}
       {visible && (
         <SidebarMenuAction showOnHover={!open} className="right-5" aria-label={t('shell.nav.toggleSubPages')} aria-expanded={open} onClick={onToggle}>
           <ChevronRight className={open ? 'rotate-90' : ''} />
@@ -133,11 +151,12 @@ export function SidebarProjectRow({
     </SidebarMenuItem>
   );
 
-  if (!visible) return row;
+  if (!visible) return item;
 
+  // ContextMenu.Root 无宿主节点；Trigger 挂在按钮上，避免与 li 上的 pdnd 指针监听冲突
   return (
     <ContextMenu>
-      <ContextMenuTrigger asChild>{row}</ContextMenuTrigger>
+      {item}
       <ContextMenuContent data-project-ctx={project.id}>
         <ProjectContextItems project={project} visibleOrdered={visibleOrdered} />
       </ContextMenuContent>
