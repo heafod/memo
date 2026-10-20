@@ -60,7 +60,7 @@ export const snapshotQueryOptions = queryOptions({
 /** 应用外壳用：快照加载状态（成功后各实体 key 已就绪）。 */
 export const useSnapshotLoader = () => useQuery(snapshotQueryOptions);
 
-// 实体 key 被 invalidate 时的重拉来源（有独立列表端点的只拉该端点，其余重拉快照）。9a 只读，暂无 mutation 触发失效。
+// 实体 key 被 invalidate 时的重拉来源（有独立列表端点的只拉该端点，其余重拉快照）。9c 起由 mutations.ts 的 meta.invalidates 触发。
 async function refetchEntity<K extends EntityKey>(key: K): Promise<Snapshot[K]> {
   const list = async <T>(p: Promise<{ data?: T; error?: unknown; response: Response }>): Promise<T> => {
     const { data, error, response } = await p;

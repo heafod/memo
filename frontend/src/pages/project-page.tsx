@@ -1,23 +1,38 @@
-import { Calendar, Star, User } from 'lucide-react';
+import { Calendar, List, Paperclip, Plus, User } from 'lucide-react';
+import { toast } from 'sonner';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import { AvatarStack, MemberAvatar, PriorityIcon, ProjectIcon, ProjectStatusBadge, StatusIcon } from '@/components/app/domain-ui';
 import { ForbiddenState, NotFoundState } from '@/components/app/error-states';
-import { type TaskGroup, TaskList, ViewToolbar } from '@/components/app/task-list';
+import { FavButton } from '@/components/app/fav-button';
+import { type RowDrop, type TaskGroup, TaskList, ViewToolbar } from '@/components/app/task-list';
+import { useCreateDialogs } from '@/components/app/create-dialogs';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DEFAULT_PROJECT_TAB, ENABLED_PROJECT_TABS, type EnabledProjectTab, PRIORITIES, PROJECT_TABS, STATUSES } from '@/lib/domain/constants';
+import {
+  DEFAULT_PROJECT_TAB,
+  ENABLED_PROJECT_TABS,
+  type EnabledProjectTab,
+  type Priority,
+  PRIORITIES,
+  PROJECT_TABS,
+  STATUSES,
+  type TaskStatus,
+} from '@/lib/domain/constants';
 import { daysFromToday } from '@/lib/domain/dates';
 import { canSee, isOverdue, type Sort, sortTasks } from '@/lib/domain/tasks';
 import { type Member, type Task, useMeId, useMembers, useProjects } from '@/lib/query/entities';
+import { type TaskPatch, useUpdateTask } from '@/lib/query/mutations';
 import { useVisibleComments, useVisibleSubtasks, useVisibleTasks } from '@/lib/query/visibility';
 import { FilesView } from './project-files';
 
 /**
- * 项目页（R4 列表 / 文件视图只读部分；原型 pages/project.js）。
+ * 项目页（R4 列表 / 文件视图；9a 读面，9c 写面；原型 pages/project.js）。
  * - 项目不存在 → 原地 404（project.js:33）；不可见项目 → 原地 403（project.js:34，canSee 见 core/store.js:113）。
- * - 视图类型：9a 只放出 list / files 两个 tab，默认 list（FRIDAY 裁定第 3、4 条）；合法但未做的类型
- *   （overview / board / table / calendar / timeline / activity）直接访问时回到默认 tab；不在合法集合内的显示 404（project.js:106）。
+ * - 视图类型：只放出 list / files 两个 tab，默认 list（FRIDAY 裁定第 3、4 条）；合法但未开放的类型
+ *   （overview / board / table / calendar / timeline / activity）直接访问时回到 `/`（FRIDAY PR-9c 18:18 Q14，取代 9a 的回默认 tab）；
+ *   不在合法集合内的显示 404（project.js:106）。
  */
 export function ProjectPage() {
   const { projectId, tab } = useParams();
@@ -29,7 +44,7 @@ export function ProjectPage() {
   if (!project) return <NotFoundState />;
   if (!canSee(project, meId)) return <ForbiddenState project={project} lead={members.find(m => m.id === project.lead_id)} />;
   if (tab && !(ENABLED_PROJECT_TABS as readonly string[]).includes(tab) && (PROJECT_TABS as readonly string[]).includes(tab))
-    return <Navigate to={`/projects/${project.id}`} replace />;
+    return <Navigate to="/" replace />;
   const known = !tab || (ENABLED_PROJECT_TABS as readonly string[]).includes(tab);
   const current: EnabledProjectTab = known && tab ? (tab as EnabledProjectTab) : DEFAULT_PROJECT_TAB;
 
@@ -52,30 +67,44 @@ function ProjectHeader({ projectId, tab }: { projectId: string; tab: EnabledProj
       <div className="flex items-center gap-3">
         <ProjectIcon project={p} size="lg" />
         <h1 className="text-xl font-semibold">{p.name}</h1>
-        {p.fav && <Star size={15} className="text-[var(--amber)]" />}
+        <FavButton kind="project" id={p.id} fav={p.fav} name={p.name} />
         <ProjectStatusBadge status={p.status} />
         <span className="flex-1" />
         <AvatarStack ids={p.member_ids} members={members} max={4} />
       </div>
-      <Tabs value={tab ?? ''} onValueChange={v => void navigate(`/projects/${p.id}/${v}`)} className="mt-3">
-        <TabsList variant="line" aria-label={t('project.tabsLabel')}>
-          {ENABLED_PROJECT_TABS.map(k => (
-            <TabsTrigger key={k} value={k}>
-              {t(`project.tabs.${k}`)}
-            </TabsTrigger>
-          ))}
+      {/* tab 样式按原型 components.css `.tabs` / `.tab`（高 36、左右 10、图标 14 间距 6、--fs-sm 500、未选 --text-2；
+          选中下划线 2px var(--text)、左右内缩 8px、贴底 -1px、圆角 2px），FRIDAY PR-9c 18:18 Q13 */}
+      <Tabs value={tab ?? ''} onValueChange={v => void navigate(`/projects/${p.id}/${v}`)} className="mt-3 gap-0">
+        <TabsList variant="line" aria-label={t('project.tabsLabel')} className="gap-[2px] p-0 group-data-horizontal/tabs:h-auto">
+          {ENABLED_PROJECT_TABS.map(k => {
+            const Icon = TAB_ICONS[k];
+            return (
+              <TabsTrigger
+                key={k}
+                value={k}
+                className="flex-none gap-[6px] rounded-none px-[10px] py-0 text-(length:--fs-sm) font-medium text-[var(--text-2)] hover:text-[var(--text)] data-active:text-[var(--text)] group-data-horizontal/tabs:h-[36px] group-data-horizontal/tabs:after:inset-x-[8px] group-data-horizontal/tabs:after:bottom-[-1px] group-data-horizontal/tabs:after:h-[2px] after:rounded-[2px] after:bg-[var(--text)]"
+              >
+                <Icon size={14} className="size-[14px]" />
+                {t(`project.tabs.${k}`)}
+              </TabsTrigger>
+            );
+          })}
         </TabsList>
       </Tabs>
     </div>
   );
 }
 
+const TAB_ICONS = { list: List, files: Paperclip } as const;
+
 type GroupBy = 'status' | 'priority' | 'assignee' | 'due' | 'none';
 const GROUP_OPTIONS = ['status', 'priority', 'assignee', 'due', 'none'] as const;
 
-/** 列表视图·只读（R4 列表；FRIDAY 裁定第 1 条：保留分组、折叠与多选；拖拽、跨组改字段、批量操作栏属 PR-9c）。 */
+/** 列表视图（R4 列表；9a 分组、折叠与多选；9c 行拖拽排序与跨分组改字段、单元格编辑、批量操作栏、「新建任务」）。 */
 function ListView({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
+  const { newTask } = useCreateDialogs();
+  const update = useUpdateTask();
   const tasks = useVisibleTasks();
   const members = useMembers();
   const projects = useProjects();
@@ -91,9 +120,42 @@ function ListView({ projectId }: { projectId: string }) {
     members,
   );
   const projectMembers = projects.find(p => p.id === projectId)?.member_ids ?? [];
+
+  // 行落下（原型 drag-drop.js type 'row'）：order 取目标行与其相邻任务（按 order 排、排除自身；只含可见任务）的中点；
+  // 分组为状态 / 优先级 / 负责人时按落点分组改字段（截止分组不改）；非手动排序时切到手动并提示。
+  const onRowDrop: RowDrop = (id, target, edge, groupKey) => {
+    const all = tasks.filter(x => x.id !== id).sort((a, b) => a.order - b.order);
+    const i = all.findIndex(x => x.id === target.id);
+    const nb = edge === 'top' ? all[i - 1] : all[i + 1];
+    const order = nb ? (target.order + nb.order) / 2 : target.order + (edge === 'top' ? -1 : 1);
+    const patch: TaskPatch = { order };
+    if (group === 'status' && (STATUSES as readonly string[]).includes(groupKey)) patch.status = groupKey as TaskStatus;
+    if (group === 'priority' && (PRIORITIES as readonly string[]).includes(groupKey)) patch.priority = groupKey as Priority;
+    if (group === 'assignee') patch.assignee_id = groupKey === 'none' ? null : groupKey;
+    update.mutate({ id, patch });
+    if (sort.field !== 'manual') {
+      setSort({ field: 'manual', dir: 1 });
+      toast.info(t('write.drag.sortedManually'), { duration: 2200 });
+    }
+  };
+
   return (
     <>
-      <ViewToolbar q={q} onQ={setQ} sort={sort} onSort={setSort} group={group} onGroup={g => setGroup(g as GroupBy)} groupOptions={GROUP_OPTIONS} />
+      <ViewToolbar
+        q={q}
+        onQ={setQ}
+        sort={sort}
+        onSort={setSort}
+        group={group}
+        onGroup={g => setGroup(g as GroupBy)}
+        groupOptions={GROUP_OPTIONS}
+        right={
+          <Button size="sm" onClick={() => newTask({ projectId })}>
+            <Plus />
+            {t('write.newTask.open')}
+          </Button>
+        }
+      />
       <div className="overflow-x-auto">
         <TaskList
           ariaLabel={t('project.tabs.list')}
@@ -102,6 +164,7 @@ function ListView({ projectId }: { projectId: string }) {
           columns={['status', 'assignee', 'priority', 'due', 'labels']}
           ctx={{ members, projects, subtasks, comments }}
           selectable
+          onRowDrop={onRowDrop}
         />
       </div>
     </>

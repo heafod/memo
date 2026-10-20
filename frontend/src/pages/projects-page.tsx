@@ -1,7 +1,8 @@
-import { Calendar, CircleCheck, Clock, FolderKanban, LayoutGrid, List, Lock, Search, SearchX, Star, Table2 } from 'lucide-react';
+import { Calendar, CircleCheck, Clock, FolderKanban, LayoutGrid, List, Lock, Plus, Search, SearchX, Star, Table2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { useCreateDialogs } from '@/components/app/create-dialogs';
 import { AvatarStack, MemberAvatar, ProgressBar, ProjectIcon, ProjectStatusBadge } from '@/components/app/domain-ui';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -26,11 +27,12 @@ const LAYOUTS = [
 type Layout = (typeof LAYOUTS)[number][0];
 
 /**
- * 项目列表页（FRIDAY 裁定第 1、5 条：属 9a，只读，按 51_1-projects.svg；原型 pages/projects.js）。
- * 不可见项目（canSee 为假）只暴露名称、图标和负责人，其余字段不显示、不参与搜索 / 筛选 / 排序 / 计数 / 汇总（FRIDAY 裁定 #12 17:27 总 AC）。「新建项目」与项目菜单属 PR-9c。
+ * 项目列表页（FRIDAY 裁定第 1、5 条：属 9a，按 51_1-projects.svg；9c 加页头与空状态「新建项目」；原型 pages/projects.js）。
+ * 不可见项目（canSee 为假）只暴露名称、图标和负责人，其余字段不显示、不参与搜索 / 筛选 / 排序 / 计数 / 汇总（FRIDAY 裁定 #12 17:27 总 AC）。9c：页头与空状态的「新建项目」。项目卡片「更多」菜单是上下文菜单（原型 ctxBtn），随上下文菜单归 PR-9b（FRIDAY PR-9c 18:18 Q8），本批不渲染。
  */
 export function ProjectsPage() {
   const { t } = useTranslation();
+  const { newProject } = useCreateDialogs();
   const tasks = useVisibleTasks();
   const isHidden = useIsHiddenProject();
   const members = useMembers();
@@ -83,11 +85,17 @@ export function ProjectsPage() {
 
   return (
     <div className="mx-auto flex max-w-[1240px] flex-col gap-4 px-8 py-7">
-      <div>
-        <h1 className="text-2xl font-semibold">{t('projects.title')}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t('projects.summary', { a: visibleAll.filter(p => p.status !== 'complete').length, b: visibleAll.filter(p => p.status === 'complete').length })}
-        </p>
+      <div className="flex items-start gap-3">
+        <div className="flex-1">
+          <h1 className="text-2xl font-semibold">{t('projects.title')}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t('projects.summary', { a: visibleAll.filter(p => p.status !== 'complete').length, b: visibleAll.filter(p => p.status === 'complete').length })}
+          </p>
+        </div>
+        <Button onClick={newProject}>
+          <Plus />
+          {t('write.newProject.open')}
+        </Button>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
@@ -151,9 +159,16 @@ export function ProjectsPage() {
               <EmptyMedia variant="icon">
                 <FolderKanban />
               </EmptyMedia>
-              {/* 9a 只显示标题；描述随 PR-9c「新建项目」按钮一起加回（FRIDAY 裁定 #12 17:49，原型 core/zh/pages-a.js:212） */}
+              {/* 描述与「新建项目」按钮同时出现（FRIDAY 裁定 #12 17:49；原型 pages/projects.js:33、core/zh/pages-a.js:211–213） */}
               <EmptyTitle>{t('projects.empty')}</EmptyTitle>
+              <EmptyDescription>{t('write.newProject.emptyDesc')}</EmptyDescription>
             </EmptyHeader>
+            <EmptyContent>
+              <Button size="sm" onClick={newProject} data-empty-new-project="">
+                <Plus />
+                {t('write.newProject.emptyAction')}
+              </Button>
+            </EmptyContent>
           </Empty>
         </Card>
       ) : !shown.length ? (

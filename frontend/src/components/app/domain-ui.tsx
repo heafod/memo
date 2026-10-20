@@ -150,7 +150,13 @@ const ICONS: Record<string, LucideIcon> = {
   folder: Folder,
   sparkles: Sparkles,
   users: Users,
+  file: File,
 };
+
+/** 项目图标字形（新建项目对话框的图标选择用；原型 PICONS）。 */
+export function ProjectGlyph({ icon, size = 15 }: { icon: string; size?: number }) {
+  return createElement(ICONS[icon] ?? Folder, { size });
+}
 
 export function ProjectIcon({ project, size = 'md' }: { project: Project; size?: 'sm' | 'md' | 'lg' }) {
   const c = projectColor(project.color);
@@ -184,10 +190,10 @@ const initials = (name: string) =>
     .join('')
     .slice(0, 2);
 
-export function MemberAvatar({ member, size = 'sm' }: { member: Member | undefined; size?: 'sm' | 'md' }) {
+export function MemberAvatar({ member, size = 'sm', className }: { member: Member | undefined; size?: 'sm' | 'md'; className?: string }) {
   const cls = size === 'sm' ? 'size-5 text-[10px]' : 'size-7 text-xs';
   return (
-    <Avatar className={cn(cls, 'shrink-0')} title={member?.name}>
+    <Avatar className={cn(cls, 'shrink-0', className)} title={member?.name}>
       <AvatarFallback
         className="font-medium"
         style={member ? { color: member.avatar_color, background: `color-mix(in srgb, ${member.avatar_color} 16%, var(--surface))` } : undefined}
@@ -229,10 +235,11 @@ export function DueDate({ task, icon = true }: { task: Task; icon?: boolean }) {
 
 export function ProgressBar({ value, tone }: { value: number; tone?: 'red' | 'green' }) {
   return (
+    // 原型 components.css `.prog`：高 4px、圆角 4px、轨道 var(--surface-3)、填充 var(--accent)（FRIDAY PR-9c 18:18 Q13）
     <Progress
       value={value}
       className={cn(
-        'h-1.5 flex-1',
+        'h-[4px] flex-1 rounded-[4px] bg-[var(--surface-3)] [&_[data-slot=progress-indicator]]:rounded-[4px] [&_[data-slot=progress-indicator]]:bg-[var(--accent)]',
         tone === 'red' && '[&_[data-slot=progress-indicator]]:bg-[var(--red)]',
         tone === 'green' && '[&_[data-slot=progress-indicator]]:bg-[var(--green)]',
       )}
