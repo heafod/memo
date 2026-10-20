@@ -1,0 +1,104 @@
+/* 生产前端样式入口（R16 / R9）。
+   设计 token 权威源：prototype/src/styles/tokens.css（与 DESIGN.md 同步，一字不改）。
+   ./styles/tokens.css 为其逐字节副本（scripts/check-tokens.mjs 校验），亮 / 暗两套变量
+   连同 data-theme / data-accent / data-density 切换规则原样生效；本文件只做映射：
+   把 shadcn/Tailwind 的语义色、圆角、字体指向 token 变量，不另立色值。 */
+/* 只扫描 src/（镜像构建上下文无 .gitignore，避免误扫 node_modules） */
+@import 'tailwindcss' source('.');
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+@import '@fontsource-variable/geist';
+@import './styles/tokens.css';
+
+/* 暗色变体跟随 token 的显式主题开关（R7 主题切换在 PR-11 写 data-theme）；
+   跟随系统的暗色由 tokens.css 的 prefers-color-scheme 规则直接换变量值，无需 dark: 类。 */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme inline {
+  /* 字体：token --font 首选 Geist；本地打包 @fontsource-variable/geist（族名 Geist Variable），不走外链 CDN */
+  --font-sans: 'Geist Variable', var(--font);
+  --font-heading: var(--font-sans);
+  --font-mono: var(--mono);
+
+  /* 语义色 → token */
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--text);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--text);
+  --color-primary: var(--accent);
+  --color-primary-foreground: var(--on-accent);
+  --color-secondary: var(--surface-2);
+  --color-secondary-foreground: var(--text);
+  --color-muted: var(--surface-2);
+  --color-muted-foreground: var(--text-3);
+  /* shadcn 的 accent 是「悬停 / 选中底色」语义，对应 token 的 surface-3，而非品牌强调色 --accent */
+  --color-accent: var(--surface-3);
+  --color-accent-foreground: var(--text);
+  --color-destructive: var(--red);
+  --color-border: var(--border);
+  --color-input: var(--border-strong);
+  --color-ring: var(--accent-line);
+  --color-sidebar: var(--bg-side);
+  --color-sidebar-foreground: var(--text-2);
+  --color-sidebar-primary: var(--accent);
+  --color-sidebar-primary-foreground: var(--on-accent);
+  --color-sidebar-accent: var(--surface-3);
+  --color-sidebar-accent-foreground: var(--text);
+  --color-sidebar-border: var(--border);
+  --color-sidebar-ring: var(--accent-line);
+  --color-chart-1: var(--accent);
+  --color-chart-2: var(--green);
+  --color-chart-3: var(--amber);
+  --color-chart-4: var(--violet);
+  --color-chart-5: var(--teal);
+
+  /* 圆角 → token（--r-xs 4 / --r-sm 6 / --r 8 / --r-lg 10） */
+  --radius-xs: var(--r-xs);
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r);
+  --radius-lg: var(--r-lg);
+  --radius-xl: calc(var(--r-lg) * 1.4);
+  --radius-2xl: calc(var(--r-lg) * 1.8);
+  --radius-3xl: calc(var(--r-lg) * 2.2);
+  --radius-4xl: calc(var(--r-lg) * 2.6);
+
+  /* 阴影 → token（token 自身的 --shadow-sm 与 Tailwind 同名，未分层的 tokens.css 优先，shadow-sm 即取 token 值） */
+  --shadow-xs: var(--shadow-sm);
+  --shadow-lg: var(--shadow-pop);
+}
+
+/* shadcn 组件源码里直接引用的原始变量（如 button 的 var(--secondary) / var(--foreground)）：
+   别名到 token。不定义 --accent / --border——与 token 同名（--accent 在 token 中是品牌强调色），保持 token 原值。 */
+:root {
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: var(--surface);
+  --popover-foreground: var(--text);
+  --primary: var(--accent);
+  --primary-foreground: var(--on-accent);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--text);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--text-3);
+  --destructive: var(--red);
+  --input: var(--border-strong);
+  --ring: var(--accent-line);
+  --radius: var(--r-lg);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    font-size: var(--fs);
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

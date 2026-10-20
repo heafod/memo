@@ -1,0 +1,8 @@
+dist
+node_modules
+package-lock.json
+# 生成物（npm run gen:api）
+openapi.json
+src/lib/api/schema.d.ts
+# token 权威源的逐字节副本（scripts/check-tokens.mjs 校验）
+src/styles/tokens.css

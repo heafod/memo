@@ -113,7 +113,9 @@ prestart_fingerprint() { # 主项目 prestart 的「容器 ID|StartedAt」，用
   [[ -n "$id" ]] || return 1
   printf '%s|%s\n' "$id" "$(docker inspect -f '{{.State.StartedAt}}' "$id")"
 }
-spa_ok() { [[ "$1" == "200" && "$2" == *Memo* ]]; }
+spa_ok() { # 构建后的登录页入口（PR-8）：200 + SPA 挂载点 + Vite 构建产物脚本
+  [[ "$1" == "200" && "$2" == *'<div id="root"></div>'* && "$2" == *'/assets/index-'* ]]
+}
 service_running() { # service_running <项目> <env> <服务>
   [[ -n "$(dc_p "$1" "$2" ps -q --status running "$3")" ]]
 }
@@ -159,7 +161,7 @@ step_ac1() {
   check "AC1 种子含 notifs（$notifs 条）与 activity（$activity 条）" test "${notifs:-0}" -gt 0 -a "${activity:-0}" -gt 0
   code="$(curl -s -o "$WORK/spa.html" -w '%{http_code}' "$BASE/some/spa/route")"
   page="$(cat "$WORK/spa.html" 2>/dev/null)"
-  check "AC1 前端 SPA 回退：状态 200（实际 $code）且返回占位页" spa_ok "$code" "$page"
+  check "AC1 前端 SPA 回退：状态 200（实际 $code）且返回构建后的登录页入口" spa_ok "$code" "$page"
 }
 
 # ====================== AC2：幂等（restart + 二次 up） ======================
