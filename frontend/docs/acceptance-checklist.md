@@ -76,6 +76,7 @@
 - [x] 9d 放出 board tab；打开 `/projects/:id` 与默认 tab 为 board（原型 project.js:35）；`/projects/:id/board` 显示看板（PR-9d）
 - [x] 9e 放出 table tab；`/projects/:id/table` 显示表格（不再重定向到 list）（PR-9e）
 - [x] 看板列可折叠 / 展开（会话态；PR-9e，FRIDAY 2047）
+- [x] 折叠列仍是合法拖拽落点；拖入后任务状态变为该列状态，order 按该列规则写入；列保持折叠。（PR-9e，FRIDAY 2112）
 - [x] 看板列菜单：添加任务、折叠、全部标为完成（非 done 列）、按优先级排序；不出现归档已完成（无 task.archived）（PR-9e，FRIDAY 2047）
 - [x] 表格 11 列（title / status / priority / assignee / due / start / labels / deps / estimate / created / project）（PR-9e）
 - [x] 表格 popover 编辑；标题与估算双击就地编辑（PR-9e）

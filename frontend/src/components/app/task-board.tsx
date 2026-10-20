@@ -77,22 +77,13 @@ export function TaskBoard({ tasks, members, projectId }: { tasks: readonly Task[
         const col = tasks.filter(x => x.status === status).sort((a, b) => a.order - b.order);
         if (collapsed[status]) {
           return (
-            <button
+            <CollapsedColumn
               key={status}
-              type="button"
-              data-drop-col={status}
-              data-col-collapsed={status}
-              className="flex w-12 shrink-0 flex-col items-center gap-2 rounded-xl border border-border bg-muted/30 py-3"
-              aria-label={t('write.board.expand', { name: t(`domain.status.${status}`) })}
-              title={t('write.board.expand', { name: t(`domain.status.${status}`) })}
-              onClick={() => setCollapsed(c => ({ ...c, [status]: false }))}
-            >
-              <StatusIcon status={status} />
-              <span className="text-[11px] text-muted-foreground tabular-nums">{col.length}</span>
-              <span className="mt-2 origin-center rotate-180 text-xs font-medium writing-mode-vertical" style={{ writingMode: 'vertical-rl' }}>
-                {t(`domain.status.${status}`)}
-              </span>
-            </button>
+              status={status}
+              count={col.length}
+              onExpand={() => setCollapsed(c => ({ ...c, [status]: false }))}
+              onDropCard={onDropCard}
+            />
           );
         }
         return (
@@ -113,6 +104,61 @@ export function TaskBoard({ tasks, members, projectId }: { tasks: readonly Task[
         );
       })}
     </div>
+  );
+}
+
+/** 折叠列：仍是合法落点（原型 board.js 折叠条带 data-drop-col；FRIDAY 2112）。拖入改 status+order，列保持折叠。 */
+function CollapsedColumn({
+  status,
+  count,
+  onExpand,
+  onDropCard,
+}: {
+  status: TaskStatus;
+  count: number;
+  onExpand: () => void;
+  onDropCard: (id: string, status: TaskStatus, beforeId: string | null) => void;
+}) {
+  const { t } = useTranslation();
+  const ref = useRef<HTMLButtonElement>(null);
+  const [over, setOver] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    return dropTargetForElements({
+      element: el,
+      canDrop: ({ source }) => source.data.type === DRAG,
+      getData: () => ({ type: 'board-col-collapsed', status }),
+      onDragEnter: () => setOver(true),
+      onDragLeave: () => setOver(false),
+      onDrop: ({ source }) => {
+        setOver(false);
+        onDropCard(source.data.id as string, status, null);
+      },
+    });
+  }, [status, onDropCard]);
+
+  return (
+    <button
+      ref={ref}
+      type="button"
+      data-drop-col={status}
+      data-col-collapsed={status}
+      className={cn(
+        'flex w-12 shrink-0 flex-col items-center gap-2 rounded-xl border border-border bg-muted/30 py-3',
+        over && 'ring-2 ring-[var(--accent)]/40',
+      )}
+      aria-label={t('write.board.expand', { name: t(`domain.status.${status}`) })}
+      title={t('write.board.expand', { name: t(`domain.status.${status}`) })}
+      onClick={onExpand}
+    >
+      <StatusIcon status={status} />
+      <span className="text-[11px] text-muted-foreground tabular-nums">{count}</span>
+      <span className="mt-2 origin-center rotate-180 text-xs font-medium" style={{ writingMode: 'vertical-rl' }}>
+        {t(`domain.status.${status}`)}
+      </span>
+    </button>
   );
 }
 
