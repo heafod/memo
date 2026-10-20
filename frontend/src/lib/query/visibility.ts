@@ -1,4 +1,6 @@
 import { activeProjects, canSee } from '@/lib/domain/tasks';
+import { authKeys, type CurrentUser } from './auth';
+import { queryClient } from './client';
 import {
   type Activity,
   type Comment,
@@ -72,4 +74,27 @@ export function useVisibleSubtasks(): Subtask[] {
 export function useVisibleComments(): Comment[] {
   const taskIds = new Set(useVisibleTasks().map(x => x.id));
   return useComments().filter(c => taskIds.has(c.task_id));
+}
+
+/** 写入闸门（PR-9c）：目标项目不可见时抛出，调用方不发请求。 */
+export class HiddenProjectError extends Error {
+  constructor() {
+    super('hidden project');
+    this.name = 'HiddenProjectError';
+  }
+}
+
+/** 写入前校验目标项目可见（与读取侧同一 canSee 规则，取当前缓存的项目与登录成员）。 */
+export function assertVisibleProject(projectId: string): void {
+  const projects = queryClient.getQueryData<Project[]>(['projects']) ?? [];
+  const meId = queryClient.getQueryData<CurrentUser | null>(authKeys.me)?.owner_member_id ?? null;
+  const p = projects.find(x => x.id === projectId);
+  if (!p || !canSee(p, meId)) throw new HiddenProjectError();
+}
+
+/** 任务所属项目 id（缓存中找不到视为不可写）。 */
+export function taskProject(taskId: string): string {
+  const t = (queryClient.getQueryData<Task[]>(['tasks']) ?? []).find(x => x.id === taskId);
+  if (!t) throw new HiddenProjectError();
+  return t.project_id;
 }
