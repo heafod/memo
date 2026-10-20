@@ -73,8 +73,20 @@ export function AppShell() {
         position="bottom-right"
         offset={20}
         duration={4200}
-        style={{ '--normal-bg': 'var(--text)', '--normal-text': 'var(--text-inv)', '--normal-border': 'var(--text)' } as CSSProperties}
-        toastOptions={{ classNames: { actionButton: 'bg-transparent! font-semibold! text-[var(--text-inv)]!' } }}
+        style={
+          {
+            '--normal-bg': 'var(--text)',
+            '--normal-text': 'var(--text-inv)',
+            '--normal-border': 'var(--text)',
+            pointerEvents: 'auto',
+          } as CSSProperties
+        }
+        toastOptions={{
+          classNames: {
+            toast: 'pointer-events-auto!',
+            actionButton: 'pointer-events-auto! bg-transparent! font-semibold! text-[var(--text-inv)]!',
+          },
+        }}
       />
     </TooltipProvider>
   );

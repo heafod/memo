@@ -54,7 +54,19 @@ export function TaskDrawer() {
 
   return (
     <Sheet open={open} onOpenChange={o => !o && close()}>
-      <SheetContent className="w-full gap-0 overflow-y-auto sm:max-w-xl" aria-describedby={undefined}>
+      <SheetContent
+        className="w-full gap-0 overflow-y-auto sm:max-w-xl"
+        aria-describedby={undefined}
+        // toaster 在 Sheet 外；点 toast「撤销」属正当操作，勿当「点外部」关抽屉（EDITH #13）
+        onPointerDownOutside={e => {
+          const t = e.target;
+          if (t instanceof Element && t.closest('[data-sonner-toaster], [data-sonner-toast]')) e.preventDefault();
+        }}
+        onFocusOutside={e => {
+          const t = e.target;
+          if (t instanceof Element && t.closest('[data-sonner-toaster], [data-sonner-toast]')) e.preventDefault();
+        }}
+      >
         {open && <DrawerBody taskId={task.id} />}
         {!open && <SheetTitle className="sr-only">{t('task.close')}</SheetTitle>}
       </SheetContent>

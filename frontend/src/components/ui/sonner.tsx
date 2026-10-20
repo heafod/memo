@@ -5,7 +5,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme="light"
-      className="toaster group"
+      // Sheet/Dialog 打开时 body 为 pointer-events:none（react-remove-scroll）；toaster 在门户外须自行恢复，否则「撤销」看得见点不到
+      className="toaster group pointer-events-auto!"
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,
@@ -23,7 +24,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }
       toastOptions={{
         classNames: {
-          toast: 'cn-toast',
+          toast: 'cn-toast pointer-events-auto!',
         },
       }}
       {...props}
