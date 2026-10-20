@@ -1,8 +1,9 @@
-import { Download, FolderOpen, LayoutGrid, Link2, List, Search, SearchX } from 'lucide-react';
+import { CloudUpload, Download, FolderOpen, LayoutGrid, Link2, List, Search, SearchX } from 'lucide-react';
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { FileTypeIcon, MemberAvatar } from '@/components/app/domain-ui';
+import { FileDropzone, FilePickButton } from '@/components/app/upload-ui';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -14,15 +15,19 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { asFileType, FILE_TYPE_COLOR, FILE_TYPES, type FileType } from '@/lib/domain/constants';
 import { fileSize, timeAgo } from '@/lib/domain/format';
 import { type FileItem, useMembers } from '@/lib/query/entities';
+import { useUploadFiles } from '@/lib/query/mutations';
 import { useVisibleFiles, useVisibleTasks } from '@/lib/query/visibility';
 
 const FILE_SORTS = ['date', 'name', 'type'] as const;
 type FileSort = (typeof FILE_SORTS)[number];
+// 单个文件上限（后端 files.py MAX_FILE_BYTES 10MB，超限返回 413）
+const UPLOAD_LIMIT = '10 MB';
 const contentUrl = (f: FileItem) => `/api/files/${f.id}/content`;
 
 /**
- * 文件视图·只读（R4b；原型 views/files.js，视觉按 124_1-files.svg）：列表、按名称搜索、按类型筛选、按名称 / 类型 / 新近排序，
- * 下载与预览走服务端 URL（GET /api/files/{id}/content）。上传与关联任务属 PR-9c（FRIDAY 裁定第 1 条）。
+ * 文件视图（R4b；9a 读面、9c 上传；原型 views/files.js，视觉按 124_1-files.svg）：列表、按名称搜索、按类型筛选、按名称 / 类型 / 新近排序，
+ * 下载与预览走服务端 URL（GET /api/files/{id}/content）。9c：工具栏「上传」与拖放上传区（POST /api/files，multipart），
+ * 超限 / 类型不符显示服务端 413 / 415 中文 detail；关联任务的上传入口在任务抽屉附件区。
  */
 export function FilesView({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
@@ -34,6 +39,7 @@ export function FilesView({ projectId }: { projectId: string }) {
   const [sort, setSort] = useState<FileSort>('date');
   const [layout, setLayout] = useState<'grid' | 'list'>('grid');
   const [preview, setPreview] = useState<FileItem | null>(null);
+  const upload = useUploadFiles(projectId);
 
   const query = q.trim().toLowerCase();
   const fs = files
@@ -91,8 +97,15 @@ export function FilesView({ projectId }: { projectId: string }) {
             <List size={13} />
           </ToggleGroupItem>
         </ToggleGroup>
+        <FilePickButton onFiles={upload} label={t('write.upload.upload')} variant="default" />
       </div>
       <div className="mx-auto w-full max-w-[1240px] px-8 py-4">
+        <FileDropzone onFiles={upload} className="mb-4 p-5" data-dropzone={projectId}>
+          <CloudUpload size={18} />
+          <span>
+            <Trans i18nKey="write.upload.dropzone" values={{ size: UPLOAD_LIMIT }} components={{ browse: <span className="text-primary" /> }} />
+          </span>
+        </FileDropzone>
         {!fs.length ? (
           <Empty>
             <EmptyHeader>

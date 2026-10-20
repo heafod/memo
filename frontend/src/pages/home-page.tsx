@@ -1,8 +1,9 @@
-import { ArrowRight, ArrowUpRight, CircleCheck, CircleDashed, ClockAlert, FolderKanban, ListChecks } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, CircleCheck, CircleDashed, ClockAlert, FolderKanban, FolderPlus, ListChecks, Plus } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { ActivityItem } from '@/components/app/activity-item';
+import { useCreateDialogs } from '@/components/app/create-dialogs';
 import {
   AvatarStack,
   DueDate,
@@ -14,6 +15,7 @@ import {
   ProjectStatusBadge,
   StatusIcon,
 } from '@/components/app/domain-ui';
+import { Button } from '@/components/ui/button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -28,9 +30,10 @@ import { cn } from '@/lib/utils';
 const HOME_TABS = ['upcoming', 'overdue', 'completed'] as const;
 type HomeTab = (typeof HOME_TABS)[number];
 
-/** 首页仪表盘（R1；原型 pages/home.js，视觉按 4_1-home.svg）。只读：邀请成员 / 新建项目 / 新建任务等写入口不渲染（属 PR-9c / PR-10）。 */
+/** 首页仪表盘（R1；原型 pages/home.js，视觉按 4_1-home.svg）。页头「新建项目」「新建任务」属 9c；「邀请成员」属 PR-10，不渲染。 */
 export function HomePage() {
   const { t } = useTranslation();
+  const { newTask, newProject } = useCreateDialogs();
   const meId = useMeId();
   const members = useMembers();
   const projects = useProjects();
@@ -81,10 +84,23 @@ export function HomePage() {
   const dateLine = t('home.dateLine', { wd: t(`date.weekdayLong.${weekdayKey(d)}`), m: d.getMonth() + 1, d: d.getDate() });
 
   return (
-    <div className="mx-auto flex max-w-[1180px] flex-col gap-4 px-8 py-7">
-      <div>
-        <h1 className="text-2xl font-semibold">{t('home.title', { g: greet, name: me?.name ?? '' })}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{t('home.subtitle', { date: dateLine })}</p>
+    // 页宽与左右留白按原型 shell.css `.page`（max-width 1160px、padding 0 var(--gutter)）；栏间距与栏内间距按 panels.css `.grid2` / `.stack` 16px（FRIDAY PR-9c 18:18 Q13）
+    <div className="mx-auto flex w-full max-w-[1160px] flex-col gap-4 px-(--gutter) py-7">
+      <div className="flex items-start gap-3">
+        <div className="flex-1">
+          <h1 className="text-2xl font-semibold">{t('home.title', { g: greet, name: me?.name ?? '' })}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">{t('home.subtitle', { date: dateLine })}</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="secondary" className="max-md:hidden" onClick={newProject}>
+            <FolderPlus />
+            {t('write.newProject.open')}
+          </Button>
+          <Button onClick={() => newTask()}>
+            <Plus />
+            {t('write.newTask.open')}
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 overflow-hidden rounded-xl border border-border bg-card lg:grid-cols-4">
@@ -119,8 +135,8 @@ export function HomePage() {
       </div>
 
       {/* 主栏 : 右栏 = 1.55 : 1（原型 panels.css:74–78 `.grid2`；FRIDAY 裁定 #12 17:07 第 ①b 条） */}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-        <div className="flex min-w-0 flex-col gap-4">
+      <div className="grid gap-[16px] lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+        <div className="flex min-w-0 flex-col gap-[16px]">
           <Card className="gap-0 py-0" aria-labelledby="h-mytasks">
             <CardHeader className="flex h-12 items-center justify-between border-b border-border py-0 [.border-b]:pb-0">
               <CardTitle id="h-mytasks" className={PANEL_TITLE}>
@@ -218,7 +234,7 @@ export function HomePage() {
           </Card>
         </div>
 
-        <div className="flex min-w-0 flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-[16px]">
           <Card className="gap-0 py-0">
             <CardHeader className="flex h-12 items-center justify-between border-b border-border py-0 [.border-b]:pb-0">
               <CardTitle className={PANEL_TITLE}>{t('home.deadlines.title')}</CardTitle>
@@ -255,7 +271,8 @@ export function HomePage() {
             <CardHeader className="flex h-12 items-center justify-between border-b border-border py-0 [.border-b]:pb-0">
               <CardTitle className={PANEL_TITLE}>{t('home.activity.title')}</CardTitle>
             </CardHeader>
-            <CardContent className="py-1">
+            {/* 原型 panels.css `.panel-b` 左右 14px + `.panel` 1px 边框（Card 用 ring，不占布局，故 15px） */}
+            <CardContent className="px-[15px] py-1">
               {recent.map(a => (
                 <ActivityItem key={a.id} activity={a} meId={meId} members={members} tasks={tasks} projects={projects} showProject />
               ))}

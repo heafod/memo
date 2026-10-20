@@ -1,12 +1,14 @@
-import { ChevronRight, CircleCheck, FolderKanban, House, List, Lock, LogOut, Paperclip } from 'lucide-react';
-import { useState } from 'react';
+import { ChevronDown, ChevronRight, CircleCheck, FolderKanban, FolderPlus, House, List, Lock, LogOut, Paperclip, Plus, Star } from 'lucide-react';
+import { type CSSProperties, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink, Outlet, useLocation, useMatch } from 'react-router';
+import { CreateDialogsProvider, useCreateDialogs } from '@/components/app/create-dialogs';
+import { Button } from '@/components/ui/button';
 import { FailedState } from '@/components/app/error-states';
 import { MemberAvatar, ProjectIcon } from '@/components/app/domain-ui';
 import { TaskDrawer } from '@/components/app/task-drawer';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
   Sidebar,
   SidebarContent,
@@ -28,6 +30,7 @@ import {
 } from '@/components/ui/sidebar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { PROJECT_STATUS_COLOR, type ProjectStatus } from '@/lib/domain/constants';
 import { daysFromToday } from '@/lib/domain/dates';
@@ -45,24 +48,46 @@ export function AppShell() {
   const snapshot = useSnapshotLoader();
   return (
     <TooltipProvider>
-      <SidebarProvider>
-        {snapshot.isSuccess ? <AppSidebar /> : <Sidebar />}
-        <SidebarInset>
-          <Topbar ready={snapshot.isSuccess} />
-          <div id="main-content" tabIndex={-1} className="flex-1 outline-none">
-            {snapshot.isSuccess ? (
-              <>
-                <Outlet />
-                <TaskDrawer />
-              </>
-            ) : snapshot.isError ? (
-              <FailedState />
-            ) : (
-              <ContentSkeleton />
-            )}
-          </div>
-        </SidebarInset>
-      </SidebarProvider>
+      <CreateDialogsProvider>
+        <SidebarProvider>
+          {snapshot.isSuccess ? <AppSidebar /> : <Sidebar />}
+          <SidebarInset>
+            <Topbar ready={snapshot.isSuccess} />
+            <div id="main-content" tabIndex={-1} className="flex-1 outline-none">
+              {snapshot.isSuccess ? (
+                <>
+                  <Outlet />
+                  <TaskDrawer />
+                </>
+              ) : snapshot.isError ? (
+                <FailedState />
+              ) : (
+                <ContentSkeleton />
+              )}
+            </div>
+          </SidebarInset>
+        </SidebarProvider>
+      </CreateDialogsProvider>
+      {/* 原型 overlays.css .toast：右下 20px、深底（--text）浅字（--text-inv）、默认 4200ms；收藏提示单独 1.8s（Q11） */}
+      <Toaster
+        position="bottom-right"
+        offset={20}
+        duration={4200}
+        style={
+          {
+            '--normal-bg': 'var(--text)',
+            '--normal-text': 'var(--text-inv)',
+            '--normal-border': 'var(--text)',
+            pointerEvents: 'auto',
+          } as CSSProperties
+        }
+        toastOptions={{
+          classNames: {
+            toast: 'pointer-events-auto!',
+            actionButton: 'pointer-events-auto! bg-transparent! font-semibold! text-[var(--text-inv)]!',
+          },
+        }}
+      />
     </TooltipProvider>
   );
 }
@@ -172,6 +197,10 @@ function AppSidebar() {
                               状态点与子页面不渲染（状态为隐藏字段） */}
                           <ProjectIcon project={p} size="sm" />
                           <span className="truncate">{p.name}</span>
+                          {/* 原型 layout.js:124 .sitem .fav；不可见项目即使 fav 为 true 也不显示星标（FRIDAY PR-9c 18:18 Q10） */}
+                          {visible && p.fav && (
+                            <Star className="ml-1 size-[11px]! shrink-0 text-[var(--amber)]" role="img" aria-label={t('write.fav.favorite')} data-side-fav="" />
+                          )}
                           {p.private && <Lock className="size-3! text-muted-foreground" aria-label={t('shell.nav.privateProject')} />}
                           {visible && (
                             <span className="ml-auto size-1.5 shrink-0 rounded-full" style={{ background: PROJECT_STATUS_COLOR[p.status as ProjectStatus] }} />
@@ -253,7 +282,38 @@ function Topbar({ ready }: { ready: boolean }) {
       <Breadcrumb aria-label={t('shell.breadcrumb')}>
         <BreadcrumbList>{ready && <Crumbs pathname={pathname} />}</BreadcrumbList>
       </Breadcrumb>
+      <span className="flex-1" />
+      {ready && <CreateMenu />}
     </header>
+  );
+}
+
+/** 顶栏「新建」菜单（原型 layout.js:200 + popovers.js case 'create'；FRIDAY 裁定第 5 条「新建归 9c」）。
+ *  团队、邀请成员归 PR-10，快捷键 N / P 未做，均不渲染。 */
+function CreateMenu() {
+  const { t } = useTranslation();
+  const { newTask, newProject } = useCreateDialogs();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="secondary" size="sm" aria-label={t('shell.create.label')} data-create-menu="">
+          <Plus />
+          {t('shell.create.open')}
+          <ChevronDown className="size-3" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-[220px]">
+        <DropdownMenuLabel>{t('shell.create.heading')}</DropdownMenuLabel>
+        <DropdownMenuItem onSelect={() => newTask()}>
+          <CircleCheck />
+          {t('shell.create.task')}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => newProject()}>
+          <FolderPlus />
+          {t('shell.create.project')}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -285,7 +345,14 @@ function Crumbs({ pathname }: { pathname: string }) {
       </>
     );
   }
-  const name = pathname === '/my-tasks' ? t('shell.nav.myTasks') : pathname === '/projects' ? t('shell.nav.projects') : t('shell.nav.home');
+  const name =
+    pathname === '/my-tasks'
+      ? t('shell.nav.myTasks')
+      : pathname === '/projects'
+        ? t('shell.nav.projects')
+        : pathname === '/'
+          ? t('shell.nav.home')
+          : t('shell.notFound');
   return (
     <BreadcrumbItem>
       <BreadcrumbPage>{name}</BreadcrumbPage>

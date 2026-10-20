@@ -64,3 +64,33 @@ export const PROJECT_TABS = ['overview', 'board', 'list', 'table', 'calendar', '
 export const ENABLED_PROJECT_TABS = ['list', 'files'] as const;
 export type EnabledProjectTab = (typeof ENABLED_PROJECT_TABS)[number];
 export const DEFAULT_PROJECT_TAB: EnabledProjectTab = 'list';
+
+// 新建项目对话框（原型 core/constants.js PICONS 与 overlays/modals.js TEMPLATES；模板名称与起步任务文案见 i18n write.newProject.templates）
+export const PROJECT_ICON_IDS = [
+  'globe',
+  'smartphone',
+  'megaphone',
+  'rocket',
+  'component',
+  'building-2',
+  'layout-grid',
+  'palette',
+  'code',
+  'briefcase',
+  'target',
+  'layers',
+  'zap',
+  'heart',
+  'folder',
+  'sparkles',
+] as const;
+export const PROJECT_TEMPLATES = [
+  { id: 'blank', icon: 'file' },
+  { id: 'product', icon: 'target' },
+  { id: 'web', icon: 'globe' },
+  { id: 'mkt', icon: 'megaphone' },
+  { id: 'design', icon: 'palette' },
+  { id: 'software', icon: 'code' },
+  { id: 'personal', icon: 'heart' },
+] as const;
+export type ProjectTemplateId = (typeof PROJECT_TEMPLATES)[number]['id'];

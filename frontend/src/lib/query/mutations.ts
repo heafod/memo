@@ -1,0 +1,209 @@
+import { type QueryKey, useMutation } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import i18n from '@/i18n';
+import { api, ApiError } from '@/lib/api/client';
+import type { components } from '@/lib/api/schema';
+import { queryClient } from './client';
+import type { Comment, FileItem, Project, Task } from './entities';
+import { assertVisibleProject, HiddenProjectError, taskProject } from './visibility';
+
+// 写操作（PR-9c）。约定见 docs/query-conventions.md「全局失效约定」：成功后经 meta.invalidates 统一失效。
+// 不可见项目闸门（FRIDAY 裁定 #12 17:27 总 AC、PR-9c 18:18 Q10）：任何写入在发请求前经 visibility.ts 的写入闸门校验目标项目可见，
+// 不可见项目（及其任务、评论、文件）一律不发请求——界面上也不提供入口，此处为兜底。
+
+type Schemas = components['schemas'];
+export type TaskPatch = Schemas['TaskUpdate'];
+export type TaskCreate = Schemas['TaskCreate'];
+export type ProjectCreate = Schemas['ProjectCreate'];
+
+async function unwrap<T>(p: Promise<{ data?: T; error?: unknown; response: Response }>): Promise<T> {
+  const { data, error, response } = await p;
+  if (!response.ok) throw new ApiError(response.status, error);
+  return data as T;
+}
+
+/** 写入失败提示：服务端中文 detail 原文（R8），无 detail 时用兜底文案。 */
+export function errorMessage(e: unknown): string {
+  if (e instanceof ApiError && e.detail) return e.detail;
+  if (e instanceof ApiError) return i18n.t('errors.generic');
+  return i18n.t('errors.network');
+}
+const notifyError = (e: unknown) => {
+  if (!(e instanceof HiddenProjectError)) toast.error(errorMessage(e));
+};
+
+/** 乐观更新：先改缓存，失败回滚（服务端为 last-write-wins，成功后仍按 meta 失效拉回真值）。 */
+function optimistic<T extends { id: string }>(key: QueryKey, id: string, patch: Partial<T>) {
+  const prev = queryClient.getQueryData<T[]>(key);
+  queryClient.setQueryData<T[]>(key, list => list?.map(x => (x.id === id ? { ...x, ...patch } : x)));
+  return () => queryClient.setQueryData(key, prev);
+}
+
+const TASK_WRITE: readonly QueryKey[] = [['tasks'], ['activity'], ['notifs']];
+
+export interface UpdateTaskVars {
+  id: string;
+  patch: TaskPatch;
+}
+
+/** 修改任务（属性、标题、描述、排序 order、收藏 fav、跨分组改字段）。 */
+export function useUpdateTask() {
+  return useMutation({
+    meta: { invalidates: TASK_WRITE },
+    mutationFn: async ({ id, patch }: UpdateTaskVars) => {
+      assertVisibleProject(taskProject(id));
+      if (patch.project_id) assertVisibleProject(patch.project_id);
+      return unwrap(api.PATCH('/api/tasks/{task_id}', { params: { path: { task_id: id } }, body: patch }));
+    },
+    onMutate: async ({ id, patch }) => {
+      await queryClient.cancelQueries({ queryKey: ['tasks'] });
+      return { rollback: optimistic<Task>(['tasks'], id, patch as Partial<Task>) };
+    },
+    onError: (e, v, ctx) => {
+      ctx?.rollback();
+      if (v.patch.status === 'done') toast.dismiss(`done-${v.id}`);
+      notifyError(e);
+    },
+  });
+}
+
+/** 批量修改（批量操作栏）：逐条 PATCH，全部完成后统一失效。 */
+export function useBulkUpdateTasks() {
+  return useMutation({
+    meta: { invalidates: TASK_WRITE },
+    mutationFn: async ({ ids, patch }: { ids: string[]; patch: TaskPatch }) => {
+      ids.forEach(id => assertVisibleProject(taskProject(id)));
+      for (const id of ids) await unwrap(api.PATCH('/api/tasks/{task_id}', { params: { path: { task_id: id } }, body: patch }));
+    },
+    onMutate: async ({ ids, patch }) => {
+      await queryClient.cancelQueries({ queryKey: ['tasks'] });
+      const prev = queryClient.getQueryData<Task[]>(['tasks']);
+      queryClient.setQueryData<Task[]>(['tasks'], list => list?.map(x => (ids.includes(x.id) ? { ...x, ...(patch as Partial<Task>) } : x)));
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['tasks'], ctx.prev);
+      notifyError(e);
+    },
+  });
+}
+
+/** 删除任务（级联子任务、评论、附件，后端 delete_task_cascade）。 */
+export function useDeleteTasks() {
+  return useMutation({
+    meta: { invalidates: [['tasks'], ['subtasks'], ['comments'], ['files'], ['activity'], ['notifs']] },
+    mutationFn: async (ids: string[]) => {
+      ids.forEach(id => assertVisibleProject(taskProject(id)));
+      for (const id of ids) await unwrap(api.DELETE('/api/tasks/{task_id}', { params: { path: { task_id: id } } }));
+    },
+    onError: notifyError,
+  });
+}
+
+export function useCreateTask() {
+  return useMutation({
+    meta: { invalidates: TASK_WRITE },
+    mutationFn: async (body: TaskCreate): Promise<Task> => {
+      assertVisibleProject(body.project_id);
+      return unwrap(api.POST('/api/tasks', { body }));
+    },
+  });
+}
+
+/**
+ * 新建项目（含模板起步任务）。新项目由「我」创建并为成员，创建后即可见；起步任务逐条 POST。
+ */
+export function useCreateProject() {
+  return useMutation({
+    meta: { invalidates: [['projects'], ['tasks'], ['activity'], ['notifs']] },
+    mutationFn: async ({ body, tasks }: { body: ProjectCreate; tasks: Omit<TaskCreate, 'project_id'>[] }): Promise<Project> => {
+      const p = await unwrap(api.POST('/api/projects', { body }));
+      for (const t of tasks) await unwrap(api.POST('/api/tasks', { body: { ...t, project_id: p.id } }));
+      return p;
+    },
+  });
+}
+
+/** R19 收藏切换（项目 / 任务）：乐观更新，失败回滚星标并提示服务端中文 detail（PR-9c 18:18 Q11）。 */
+export function useToggleFav() {
+  return useMutation({
+    mutationFn: async (v: { kind: 'project' | 'task'; id: string; fav: boolean }) => {
+      if (v.kind === 'project') {
+        assertVisibleProject(v.id);
+        return unwrap(api.PATCH('/api/projects/{project_id}', { params: { path: { project_id: v.id } }, body: { fav: v.fav } }));
+      }
+      assertVisibleProject(taskProject(v.id));
+      return unwrap(api.PATCH('/api/tasks/{task_id}', { params: { path: { task_id: v.id } }, body: { fav: v.fav } }));
+    },
+    onMutate: async v => {
+      const key = v.kind === 'project' ? ['projects'] : ['tasks'];
+      await queryClient.cancelQueries({ queryKey: key });
+      return { rollback: optimistic<{ id: string; fav: boolean }>(key, v.id, { fav: v.fav }) };
+    },
+    onSuccess: (_d, v) => void queryClient.invalidateQueries({ queryKey: v.kind === 'project' ? ['projects'] : ['tasks'] }),
+    onError: (e, _v, ctx) => {
+      ctx?.rollback();
+      notifyError(e);
+    },
+  });
+}
+
+export function useCreateComment() {
+  return useMutation({
+    meta: { invalidates: [['comments'], ['activity'], ['notifs']] },
+    mutationFn: async (body: { task_id: string; text: string }): Promise<Comment> => {
+      assertVisibleProject(taskProject(body.task_id));
+      return unwrap(api.POST('/api/comments', { body }));
+    },
+    onError: notifyError,
+  });
+}
+
+export function useDeleteComment() {
+  return useMutation({
+    meta: { invalidates: [['comments']] },
+    mutationFn: async (c: Comment) => {
+      assertVisibleProject(taskProject(c.task_id));
+      await unwrap(api.DELETE('/api/comments/{comment_id}', { params: { path: { comment_id: c.id } } }));
+    },
+    onError: notifyError,
+  });
+}
+
+/** R4b 上传：multipart 单文件；413 / 415 等失败抛 ApiError（detail 为服务端中文）。task_id 即「关联任务」。 */
+export function useUploadFile() {
+  return useMutation({
+    meta: { invalidates: [['files'], ['activity']] },
+    mutationFn: async ({ file, projectId, taskId }: { file: File; projectId: string; taskId?: string }): Promise<FileItem> => {
+      assertVisibleProject(projectId);
+      // 经 openapi-fetch 发送（保留全局 401 中间件）；body 序列化为 multipart FormData
+      return unwrap(
+        api.POST('/api/files', {
+          body: { file: '', project_id: projectId, task_id: taskId ?? null },
+          bodySerializer: () => {
+            const fd = new FormData();
+            fd.append('file', file);
+            fd.append('project_id', projectId);
+            if (taskId) fd.append('task_id', taskId);
+            return fd;
+          },
+        }),
+      );
+    },
+  });
+}
+
+/** 上传若干文件（文件视图与任务抽屉共用；R4b）：逐个上传，成功提示「已上传 {name}」，失败提示服务端中文 detail（413 / 415）。 */
+export function useUploadFiles(projectId: string, taskId?: string) {
+  const upload = useUploadFile();
+  return (files: Iterable<File>) => {
+    for (const file of files)
+      upload.mutate(
+        { file, projectId, taskId },
+        {
+          onSuccess: f => void toast(i18n.t('write.upload.uploaded', { name: f.name })),
+          onError: notifyError,
+        },
+      );
+  };
+}

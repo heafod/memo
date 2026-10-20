@@ -40,6 +40,8 @@ export function errorDetail(error: unknown): string | undefined {
 export class ApiError extends Error {
   readonly status: number;
   readonly detail: string | undefined;
+  /** 原始错误响应体（422 校验错误的 detail 为列表，供表单按字段显示中文 msg）。 */
+  readonly body: unknown;
 
   constructor(status: number, body: unknown) {
     const detail = errorDetail(body);
@@ -47,5 +49,19 @@ export class ApiError extends Error {
     this.name = 'ApiError';
     this.status = status;
     this.detail = detail;
+    this.body = body;
   }
+}
+
+/** 422 校验错误按字段取中文 msg（FastAPI detail 列表，loc 末段为字段名；R8 / PR-6b msg 已中文化）。 */
+export function fieldErrors(error: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!(error instanceof ApiError) || error.status !== 422) return out;
+  const body = error.body as { detail?: unknown } | undefined;
+  if (!Array.isArray(body?.detail)) return out;
+  for (const d of body.detail as { loc?: unknown[]; msg?: unknown }[]) {
+    const field = Array.isArray(d.loc) ? d.loc[d.loc.length - 1] : undefined;
+    if (typeof field === 'string' && typeof d.msg === 'string' && !(field in out)) out[field] = d.msg;
+  }
+  return out;
 }

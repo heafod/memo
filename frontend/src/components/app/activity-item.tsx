@@ -101,8 +101,9 @@ export function ActivityItem({
   const { key, values } = phrase(t, a);
   return (
     // 字号 / 行高按原型 `.fitem`（projects-files.css:116–123：--fs-sm、1.45；时间 --fs-xs）
-    <div className="flex items-start gap-2.5 py-2 text-(length:--fs-sm) leading-[1.45]">
-      <MemberAvatar member={by} />
+    // 头像 20px（原型 `.av.sm`）、间距 10px（`.fitem` gap），FRIDAY PR-9c 18:18 Q13 折行对齐
+    <div className="flex items-start gap-[10px] py-2 text-(length:--fs-sm) leading-[1.45]">
+      <MemberAvatar member={by} className="size-[20px]" />
       <div className="min-w-0 flex-1">
         <Trans
           // 句式键为联合类型时 Trans 会把各句式的插值参数求交集；所有句式共用 who / obj，附加参数由 phrase() 按句式给出
