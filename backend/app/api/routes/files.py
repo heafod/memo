@@ -21,9 +21,10 @@ import uuid
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from sqlmodel import select
+from starlette.datastructures import UploadFile as StarletteUploadFile
 
 from app import crud_domain
 from app.api import serializers
@@ -51,10 +52,11 @@ _EXT_TYPES: dict[str, str] = {
 }
 ALLOWED_EXTENSIONS = frozenset(_EXT_TYPES)
 
-# Unicode 双向控制符（LRM/RLM、嵌入/覆盖、隔离；可伪装扩展名，如 "evil\u202egnp.js"），
-# 按控制字符一并去除：U+200E、U+200F、U+202A–202E、U+2066–2069
-_BIDI_CONTROLS = frozenset(
-    "\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069"
+# Unicode 双向控制符（ALM、LRM/RLM、嵌入/覆盖、隔离；可伪装扩展名，如
+# "evil\u202egnp.js"），按控制字符一并去除：U+061C、U+200E、U+200F、U+202A–202E、
+# U+2066–2069
+BIDI_CONTROLS = frozenset(
+    "\u061c\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069"
 )
 
 
@@ -72,7 +74,7 @@ def sanitize_filename(raw: str) -> str:
         for ch in raw
         if ch not in "/\\"
         and unicodedata.category(ch) != "Cc"
-        and ch not in _BIDI_CONTROLS
+        and ch not in BIDI_CONTROLS
     ).strip()
     if len(cleaned) > MAX_NAME_LENGTH:
         stem, ext = _split_ext(cleaned)
@@ -107,19 +109,30 @@ def _content_path(file_id: uuid.UUID) -> Path:
     return Path(settings.FILES_DIR) / str(file_id)
 
 
+async def _require_single_file(request: Request) -> None:
+    """每请求仅 1 个文件（R4b 单文件口径）：统计原始表单中**所有键**的文件部件。
+
+    FastAPI 的单 ``UploadFile`` 参数对同名重复字段只取最后一个、对其他键名的文件
+    部件直接忽略——两种情况都会静默丢文件，故在原始 multipart 表单上计数。
+    """
+    form = await request.form()  # Starlette 缓存解析结果，与端点参数共用
+    count = sum(
+        1 for _, value in form.multi_items() if isinstance(value, StarletteUploadFile)
+    )
+    if count > 1:
+        raise HTTPException(status_code=422, detail="一次只能上传一个文件")
+
+
 @router.post("", response_model=FilePublic, status_code=201)
 def upload_file(
     session: SessionDep,
     current_user: CurrentUser,
-    file: Annotated[
-        list[UploadFile], File(description="上传文件（每请求仅 1 个，≤10MB）")
-    ],
+    _single: Annotated[None, Depends(_require_single_file)],
+    file: Annotated[UploadFile, File(description="上传文件（每请求仅 1 个，≤10MB）")],
     project_id: Annotated[uuid.UUID, Form()],
     task_id: Annotated[uuid.UUID | None, Form()] = None,
 ) -> FilePublic:
-    if len(file) != 1:
-        raise HTTPException(status_code=422, detail="一次只能上传一个文件")
-    upload = file[0]
+    upload = file
     if crud_domain.get_project(session, project_id) is None:
         raise HTTPException(status_code=422, detail="所属项目不存在")
     if task_id is not None:

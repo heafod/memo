@@ -4,10 +4,10 @@
 
 - 上限：恰 10MB 通过、10MB+1 字节 413（中文 detail）；
 - 白名单：规格枚举的全部扩展名均 201（大小写不敏感），白名单外 / 无扩展名 415；
-- 清洗：路径分隔符、控制字符、双向控制符（U+200E/200F、U+202A–202E、U+2066–2069）、
+- 清洗：路径分隔符、控制字符、双向控制符（U+061C、U+200E/200F、U+202A–202E、U+2066–2069，逐字符参数化）、
   首尾空格被去除；>200 截断且保留扩展名；清洗后为空 422；
 - 重名：按清洗后名称、大小写敏感，同项目内在扩展名前追加序号 ``(1)``、``(2)``；
-- 单文件：一次请求多个文件 422、缺文件 422；
+- 单文件：同名 `file` 重复、`file` + `file2` 额外文件字段均 422，缺文件 422；
 - 下载：``GET /api/files/{id}/content`` 字节一致、attachment + nosniff；
   不存在 id 404、种子文件（仅元数据）404，均中文 detail；
 - 快照：上传后 ``files`` 含元数据（name/type/size_bytes/by_id/task_id）；
@@ -25,6 +25,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.routes.files import (
+    BIDI_CONTROLS,
     MAX_FILE_BYTES,
     dedupe_filename,
     sanitize_filename,
@@ -163,12 +164,28 @@ def test_sanitize_filename_rules() -> None:  # R4b
     assert sanitize_filename("  前后空格.md \t") == "前后空格.md"
     assert sanitize_filename("控\x00制\x1f字\x7f符\n.txt") == "控制字符.txt"
     assert sanitize_filename("evil\u202egnp.js") == "evilgnp.js"
-    bidi = "\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069"
-    assert sanitize_filename(f"双{bidi}向.txt") == "双向.txt"
     long = sanitize_filename("长" * 300 + ".docx")
     assert len(long) == 200
     assert long.endswith(".docx")
     assert sanitize_filename(" / \\ \x00 ") == ""
+
+
+EXPECTED_BIDI = [
+    "\u061c", "\u200e", "\u200f",
+    "\u202a", "\u202b", "\u202c", "\u202d", "\u202e",
+    "\u2066", "\u2067", "\u2068", "\u2069",
+]  # fmt: skip
+
+
+def test_bidi_set_is_exactly_ruled() -> None:  # R4b
+    assert set(EXPECTED_BIDI) == BIDI_CONTROLS
+
+
+@pytest.mark.parametrize("ch", EXPECTED_BIDI, ids=lambda c: f"U+{ord(c):04X}")
+def test_sanitize_strips_each_bidi_control(ch: str) -> None:  # R4b
+    assert sanitize_filename(f"{ch}双{ch}向{ch}.txt{ch}") == "双向.txt"
+    # 伪装扩展名：RLO 等去除后按真实扩展名判定
+    assert sanitize_filename(f"evil{ch}gnp.js") == "evilgnp.js"
 
 
 def test_dedupe_filename_rules() -> None:  # R4b
@@ -300,10 +317,17 @@ def test_upload_linked_to_task(authed_client: TestClient, project: dict) -> None
     assert resp.json()["detail"] == "所属项目不存在"  # R8
 
 
-def test_upload_multiple_files_422(
+def _assert_multi_rejected(client: TestClient, resp, names: set[str]) -> None:
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["detail"] == "一次只能上传一个文件"  # R8
+    snap_names = {f["name"] for f in _snapshot_files(client).values()}
+    assert not snap_names & names  # 不落任何元数据
+
+
+def test_upload_same_field_twice_422(
     authed_client: TestClient, project: dict
 ) -> None:  # R4b
-    """每请求仅 1 个文件：多文件 422（中文 detail），且不落任何元数据。"""
+    """同名 ``file`` 字段两次：422（不得静默取最后一个）。"""
     resp = authed_client.post(
         "/api/files",
         data={"project_id": project["id"]},
@@ -312,10 +336,22 @@ def test_upload_multiple_files_422(
             ("file", ("多文件二.txt", b"2", "text/plain")),
         ],
     )
-    assert resp.status_code == 422, resp.text
-    assert resp.json()["detail"] == "一次只能上传一个文件"  # R8
-    names = {f["name"] for f in _snapshot_files(authed_client).values()}
-    assert not names & {"多文件一.txt", "多文件二.txt"}
+    _assert_multi_rejected(authed_client, resp, {"多文件一.txt", "多文件二.txt"})
+
+
+def test_upload_extra_file_field_422(
+    authed_client: TestClient, project: dict
+) -> None:  # R4b
+    """``file`` + ``file2``：422（不得静默忽略额外文件字段）。"""
+    resp = authed_client.post(
+        "/api/files",
+        data={"project_id": project["id"]},
+        files=[
+            ("file", ("额外一.txt", b"1", "text/plain")),
+            ("file2", ("额外二.txt", b"2", "text/plain")),
+        ],
+    )
+    _assert_multi_rejected(authed_client, resp, {"额外一.txt", "额外二.txt"})
 
 
 def test_upload_missing_file_422(
