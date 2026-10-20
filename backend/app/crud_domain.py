@@ -10,11 +10,13 @@ from sqlmodel import Session, col, func, select
 
 from app.models import (
     Comment,
+    Event,
     Member,
     Notif,
     Preference,
     Project,
     ProjectMemberLink,
+    SavedView,
     Subtask,
     Task,
     TaskDepLink,
@@ -53,6 +55,24 @@ def get_notif(session: Session, notif_id: uuid.UUID) -> Notif | None:
 
 def get_preference(session: Session, user_id: uuid.UUID) -> Preference | None:
     return session.exec(select(Preference).where(Preference.user_id == user_id)).first()
+
+
+def get_event(session: Session, event_id: uuid.UUID) -> Event | None:
+    return session.get(Event, event_id)
+
+
+def get_saved_view(session: Session, saved_view_id: uuid.UUID) -> SavedView | None:
+    return session.get(SavedView, saved_view_id)
+
+
+def get_saved_view_by_name(
+    session: Session, project_id: uuid.UUID, name: str
+) -> SavedView | None:
+    return session.exec(
+        select(SavedView).where(
+            SavedView.project_id == project_id, SavedView.name == name
+        )
+    ).first()
 
 
 def project_member_ids(session: Session, project_id: uuid.UUID) -> list[uuid.UUID]:
