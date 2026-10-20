@@ -28,7 +28,7 @@ type Layout = (typeof LAYOUTS)[number][0];
 
 /**
  * 项目列表页（FRIDAY 裁定第 1、5 条：属 9a，按 51_1-projects.svg；9c 加页头与空状态「新建项目」；原型 pages/projects.js）。
- * 不可见项目（canSee 为假）只暴露名称、图标和负责人，其余字段不显示、不参与搜索 / 筛选 / 排序 / 计数 / 汇总（FRIDAY 裁定 #12 17:27 总 AC）。9c：页头与空状态的「新建项目」。项目卡片「更多」菜单是上下文菜单（原型 ctxBtn），随上下文菜单归 PR-9b（FRIDAY PR-9c 18:18 Q8），本批不渲染。
+ * 不可见项目（canSee 为假）只暴露名称、图标和负责人，其余字段不显示、不参与搜索 / 筛选 / 排序 / 计数 / 汇总（FRIDAY 裁定 #12 17:27 总 AC）。『新建项目』属 PR-9c，项目菜单属 PR-9b（页头与空状态的「新建项目」已做；项目卡片「更多」菜单是上下文菜单，原型 ctxBtn，本批不渲染）。
  */
 export function ProjectsPage() {
   const { t } = useTranslation();

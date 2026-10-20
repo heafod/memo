@@ -31,7 +31,7 @@ import { FilesView } from './project-files';
  * 项目页（R4 列表 / 文件视图；9a 读面，9c 写面；原型 pages/project.js）。
  * - 项目不存在 → 原地 404（project.js:33）；不可见项目 → 原地 403（project.js:34，canSee 见 core/store.js:113）。
  * - 视图类型：只放出 list / files 两个 tab，默认 list（FRIDAY 裁定第 3、4 条）；合法但未开放的类型
- *   （overview / board / table / calendar / timeline / activity）直接访问时回到 `/`（FRIDAY PR-9c 18:18 Q14，取代 9a 的回默认 tab）；
+ *   （overview / board / table / calendar / timeline / activity）直接访问时回到默认 list tab（9a 行为；FRIDAY PR-9c 19:30 待裁定 1 改正 Q14，只有顶层未开放页面回 `/`）；
  *   不在合法集合内的显示 404（project.js:106）。
  */
 export function ProjectPage() {
@@ -44,7 +44,7 @@ export function ProjectPage() {
   if (!project) return <NotFoundState />;
   if (!canSee(project, meId)) return <ForbiddenState project={project} lead={members.find(m => m.id === project.lead_id)} />;
   if (tab && !(ENABLED_PROJECT_TABS as readonly string[]).includes(tab) && (PROJECT_TABS as readonly string[]).includes(tab))
-    return <Navigate to="/" replace />;
+    return <Navigate to={`/projects/${project.id}`} replace />;
   const known = !tab || (ENABLED_PROJECT_TABS as readonly string[]).includes(tab);
   const current: EnabledProjectTab = known && tab ? (tab as EnabledProjectTab) : DEFAULT_PROJECT_TAB;
 
