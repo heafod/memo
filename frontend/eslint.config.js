@@ -37,12 +37,20 @@ export default tseslint.config(
           'jsx-attributes': { include: ['^aria-label$', '^aria-description$', '^title$', '^placeholder$', '^alt$', '^label$'] },
         },
       ],
-      // 兜底：JSX 之外（变量、常量再渲染）的模板字符串含中文同样报错；中文不会是 class 名或代码标识
+    },
+  },
+  {
+    // R8 / FRIDAY 裁定：src/ 下 .ts / .tsx 任意位置的字符串字面量与模板字符串不得含中文（Han 字符），
+    // 文案一律进 i18n 资源文件经 t()；唯一例外是资源文件本身（src/i18n/locales/**）。英文字符串不受此条约束。
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/i18n/locales/**'],
+    rules: {
       'no-restricted-syntax': [
         'error',
+        { selector: 'Literal[value=/\\p{Script=Han}/u]', message: 'R8：字符串含中文，须移入 src/i18n/locales/ 并经 t()' },
         {
-          selector: 'TemplateElement[value.raw=/[\\u3400-\\u9fff\\uf900-\\ufaff]/]',
-          message: 'R8：模板字符串含中文文案，须经 t()',
+          selector: 'TemplateElement[value.cooked=/\\p{Script=Han}/u]',
+          message: 'R8：模板字符串含中文，须移入 src/i18n/locales/ 并经 t()',
         },
       ],
     },

@@ -14,7 +14,7 @@ void i18n.use(initReactI18next).init({
   // 开发态缺失 key 告警：saveMissing 触发 missingKeyHandler（生产构建关闭）
   saveMissing: import.meta.env.DEV,
   missingKeyHandler: (lngs, ns, key) => {
-    console.warn(`[i18n] 缺失文案 key：${ns}:${key}（语言 ${lngs.join(',')}）`);
+    console.warn(`[i18n] missing key: ${ns}:${key} (lng: ${lngs.join(',')})`);
   },
 });
 

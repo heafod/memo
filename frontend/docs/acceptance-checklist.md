@@ -89,6 +89,7 @@
 
 - [x] 默认语言中文：react-i18next `lng: 'zh'`，`<html lang="zh-CN">`（PR-8）
 - [x] 界面文案一律经 `t()`，TSX 无硬编码文案（ESLint `i18next/no-literal-string` 守护，含 JSX 内模板字符串；模板字符串含中文另由 `no-restricted-syntax` 兜底）（PR-8）
+- [x] `src/` 下 .ts / .tsx 任意位置的字符串字面量与模板字符串含中文即 lint 报错（`no-restricted-syntax`，Han 字符），唯一例外为 i18n 资源文件 `src/i18n/locales/**`；英文字符串不受此条约束（PR-8，FRIDAY 裁定）
 - [x] 服务端错误 detail（中文）原样展示，不在前端改写（PR-8 登录页 400「用户名或密码错误」）
 - [ ] English 资源与 zh key 一一对应，语言切换生效（PR-11）
 - [ ] 服务端消息不随界面语言切换（切到 English 后错误 detail 仍为中文）（PR-11）
