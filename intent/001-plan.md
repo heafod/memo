@@ -47,7 +47,7 @@ README.md
 11. **PR-9b 六视图·重交互**（R4 其余视图，依赖 PR-8，9a 先合并）：看板（拖拽 + order 分数插值）、表格（popover / 双击就地编辑 / 列显隐列宽持久化）、日历（拖改 due）、时间线（甘特条拖移 / 依赖箭头 / 里程碑车道）；验收清单勾选 R4 对应段。
 12. **PR-10 收件箱、组织与搜索**（R2、R5、R6）：收件箱双栏与已读语义（消费 PR-4 已读端点）、组织信息三 tab、全局搜索与命令面板（裁剪后命令集）。
 13. **PR-11 设置、事件与保存视图 UI**（R7、R8、R17、R18，前置：PR-1b 已合并、PR-5、PR-8）：设置页保留导航（含工作区名称 / URL 编辑——读写管理员 preferences 的 `workspace` 键）、日历事件 CRUD 入口、保存视图 tab。
-14. **PR-12 CI 收尾与跨服务验证**（证明）：compose 冒烟 job（未认证 401、登录 200、snapshot 200）与卷重启持久化验证进 CI；前端 lint / tsc / build job 化；**部署验证记录：compose 种子环境实测 snapshot 响应体大小与 p95（100 次采样），结果记入 PR 描述，超标不阻断 CI 但回产品负责人评估**；**中文 detail 扫描（grep `backend/app` 中模板英文固定串如 "not found"、"Incorrect"，命中即报）**；AGENTS.md 架构与命令更新收口。backend 单元测试已随各 PR，本批不补写。
+14. **PR-12 CI 收尾与跨服务验证**（证明）：compose 冒烟 job（未认证 401、登录 200、snapshot 200）与卷重启持久化验证进 CI；前端 lint / tsc / build job 化；**部署验证记录：compose 种子环境实测 snapshot 响应体大小与 p95（100 次采样），结果记入 PR 描述，超标不阻断 CI 但回产品负责人评估**；**中文 detail 扫描（grep `backend/app` 中模板英文固定串如 "not found"、"Incorrect"，命中即报）**；AGENTS.md 架构与命令更新收口。**compose 冒烟须承接 PR-7 未实测部分（R14 至此验收）：AC1 compose 段（干净环境 up、backend 仅在 prestart 成功后启动）、AC2 compose restart 幂等、AC6 `down`（不带 -v）后再 up 数据与上传文件仍在、AC7 按 README 步骤执行，以及经 nginx 上传 12MB 返回 413 中文 JSON；并补 EDITH 两项非阻断：10.5MB 用例断言 Content-Type、恰好 10MB 上传断言 201。** backend 单元测试已随各 PR，本批不补写。
 
 ## 风险（含审问三问）
 
