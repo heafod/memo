@@ -4,6 +4,10 @@ services:
     ports:
       - "5432:5432"
 
+  prestart:
+    environment:
+      FASTAPI_ENV: "development"
+
   backend:
     ports:
       - "8000:8000"

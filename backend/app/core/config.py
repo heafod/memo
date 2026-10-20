@@ -37,9 +37,9 @@ class Settings(BaseSettings):
 
     def _check_default_secret(self, var_name: str, value: str | None) -> None:
         if value == "changethis":
+            # R8：部署日志中文；保留变量名与 "changethis" 便于定位
             message = (
-                f'The value of {var_name} is "changethis", '
-                "for security, please change it, at least for deployments."
+                f'{var_name} 仍为默认值 "changethis"，存在安全风险，部署前必须修改'
             )
             if self.FASTAPI_ENV == "development":
                 warnings.warn(message, stacklevel=1)

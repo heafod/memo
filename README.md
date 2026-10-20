@@ -75,12 +75,36 @@ npm run dev        # http://localhost:5173，热更新
 | `npm run lint` | ESLint 检查 |
 | `npm run format` / `format:check` | Prettier 格式化 / 校验 |
 
+## 一键部署（docker compose）
+
+后端 FastAPI + PostgreSQL 与前端静态服务（nginx）由仓库根 `compose.yml` 编排（R14）。需要 Docker（含 compose v2 插件）。干净环境三步：
+
+```bash
+cp .env.example .env
+# 编辑 .env：
+#   FIRST_SUPERUSER / FIRST_SUPERUSER_PASSWORD —— 管理员账号（必填；密码至少 10 位且须含数字或符号）
+#   SECRET_KEY / POSTGRES_PASSWORD             —— 换成随机值（占位值 changethis 在非开发环境会被拒绝）
+docker compose up --build
+```
+
+启动顺序：`db`（健康检查 `pg_isready`）→ `prestart`（一次性：等待数据库 → `alembic upgrade head` → 初始化管理员与演示种子，幂等）→ `backend` → `frontend`。浏览器访问 `http://localhost:8080`（端口由 `.env` 的 `FRONTEND_PORT` 决定），接口经同源 `/api` 反代到 backend。
+
+- **管理员账号**只取自 `.env` 的 `FIRST_SUPERUSER` / `FIRST_SUPERUSER_PASSWORD`，且仅在账号不存在时创建；之后在应用内改密，重启不会被覆盖。
+- **配置有误**（管理员变量缺失、初始密码不符策略等）时 `prestart` 以中文原因非零退出，`backend` 不会启动：`docker compose logs prestart` 查看原因。
+- **数据持久化**：数据库与上传文件分别存于卷 `app-db-data`、`app-files-data`；`docker compose down` 后重新 `up` 数据仍在，`down -v` 会一并删除。
+- **上传大小**：单文件上限 10MB；超过 11MB 的上传无论是否已认证都返回 413（由 nginx 拦截）；10–11MB 之间由后端处理，先校验认证、再校验大小。两处 413 的 `detail` 均为「文件过大，单个文件不能超过 10MB」。
+- 默认叠加 `compose.override.yml`（开发：暴露 db `5432`、backend `8000`，`FASTAPI_ENV=development`）；生产部署用 `docker compose -f compose.yml up -d --build`。
+- 部署实测脚本：`bash backend/scripts/verify-compose.sh`（独立项目名，逐项 PASS/FAIL，结束自动 `down -v` 清理）。
+
 ## 仓库结构
 
 ```text
 memo/
 ├── AGENTS.md           # Agent 协作约定（活文档）
 ├── DESIGN.md           # 机器可读设计系统（design.md 规范）
+├── compose.yml        # 一键部署编排：db / prestart / backend / frontend（双卷持久化）
+├── backend/            # 后端：FastAPI + SQLModel + PostgreSQL（alembic 迁移、初始种子）
+├── frontend/           # 生产前端：nginx 静态服务（PR-8 前为占位页）
 ├── prototype/          # 前端原型：原生 JS ES 模块 + CSS，零运行时依赖
 │   ├── src/core/       # store（localStorage）、i18n、主题、常量
 │   ├── src/shell/      # 布局、视图引擎、渲染、骨架屏
