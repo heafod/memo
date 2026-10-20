@@ -4,7 +4,7 @@ import i18n from '@/i18n';
 import { api, ApiError } from '@/lib/api/client';
 import type { components } from '@/lib/api/schema';
 import { queryClient } from './client';
-import type { Comment, FileItem, Project, Task } from './entities';
+import type { Comment, FileItem, Preferences, Project, Task } from './entities';
 import { assertVisibleProject, HiddenProjectError, taskProject } from './visibility';
 
 // 写操作（PR-9c）。约定见 docs/query-conventions.md「全局失效约定」：成功后经 meta.invalidates 统一失效。
@@ -225,4 +225,29 @@ export function useUploadFiles(projectId: string, taskId?: string) {
         },
       );
   };
+}
+
+/** 偏好整体覆盖（R7；调用方须合并现有 preferences，保留 workspace 等键）。 */
+export function useUpdatePreferences() {
+  return useMutation({
+    meta: { invalidates: [['preferences']] as const },
+    mutationFn: async (data: Preferences) => {
+      return unwrap(api.PUT('/api/preferences', { body: { data } }));
+    },
+    onMutate: async data => {
+      await queryClient.cancelQueries({ queryKey: ['preferences'] });
+      const prev = queryClient.getQueryData<Preferences>(['preferences']);
+      queryClient.setQueryData(['preferences'], data);
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev !== undefined) queryClient.setQueryData(['preferences'], ctx.prev);
+      notifyError(e);
+    },
+    onSuccess: res => {
+      // PreferencesPublic = { data }; 快照里 preferences 是 data 本体
+      const body = res as { data?: Preferences };
+      queryClient.setQueryData(['preferences'], body.data ?? res);
+    },
+  });
 }
