@@ -45,8 +45,8 @@ README.md
 9. **PR-8 前端基座**（R16，依赖 PR-1a 与 PR-7）：Vite + React + TS 初始化；**Tailwind v4**（`@tailwindcss/vite`，token 映射至 `src/index.css` CSS 变量）；shadcn 非交互执行（`init -t vite -y` / `add -y`），组件源码进 `src/components/ui/`；**i18n 用 react-i18next（默认中文）**；随批交付前端 ESLint 配置；TanStack Query 数据层——全局失效约定：所有 mutation 成功后 invalidate 对应 query key（快照按实体粒度拆 key），后续批次遵守；登录页（消费 PR-1a 设计稿）；交付「原型控件 → shadcn 组件映射表」至 `frontend/docs/component-mapping.md`；**建 `frontend/docs/acceptance-checklist.md`（逐 R# 判据条目）——后续前端批次随批勾选，对应段全勾方为合并闸门**；frontend/Dockerfile 增加 Vite 构建阶段替换占位页（保护路径）。
 10. **PR-9a 六视图·读面**（R1、R3、R4 之列表 / 文件视图，依赖 PR-8）：首页仪表盘、我的任务、列表视图、文件视图（消费 R4b），含应用外壳（侧边栏/顶栏，按 4_1-home.svg）；含错误状态：项目不存在 404、不可见项目 403、渲染兜底出错页（按原型）；按映射表执行；验收清单勾选对应段。
 11. **PR-9b 六视图·重交互**（R4 其余视图，依赖 PR-8，9a 先合并）：看板（拖拽 + order 分数插值）、表格（popover / 双击就地编辑 / 列显隐列宽持久化）、日历（拖改 due）、时间线（甘特条拖移 / 依赖箭头 / 里程碑车道）；验收清单勾选 R4 对应段。
-12. **PR-10 收件箱、组织与搜索**（R2、R5、R6）：收件箱双栏与已读语义（消费 PR-4 已读端点）、组织信息三 tab、全局搜索与命令面板（裁剪后命令集）；含成员不存在 404 状态。
-13. **PR-11 设置、事件与保存视图 UI**（R7、R8、R17、R18，前置：PR-1b 已合并、PR-5、PR-8）：设置页保留导航（含工作区名称 / URL 编辑——读写管理员 preferences 的 `workspace` 键）、日历事件 CRUD 入口、保存视图 tab；补 en 资源，key 与 zh 一一对应。
+12. **PR-10 收件箱、组织与搜索**（R2、R5、R6）：收件箱双栏与已读语义（消费 PR-4 已读端点）、组织信息三 tab、全局搜索与命令面板（裁剪后命令集）；含成员与团队不存在 404 状态。
+13. **PR-11 设置、事件与保存视图 UI**（R7、R8、R17、R18，前置：PR-1b 已合并、PR-5、PR-8）：设置页保留导航（含工作区名称 / URL 编辑——读写管理员 preferences 的 `workspace` 键）、日历事件 CRUD 入口、保存视图 tab；含保存视图不存在 404 与未知设置分区 404 状态（按原型）；补 en 资源，key 与 zh 一一对应。
 14. **PR-12 CI 收尾与跨服务验证**（证明）：compose 冒烟 job（未认证 401、登录 200、snapshot 200，断言 / 返回构建后的登录页）与卷重启持久化验证进 CI；前端 lint / tsc / build job 化，前端 job 含 gen:api 重跑后无 diff 检查；**部署验证记录：compose 种子环境实测 snapshot 响应体大小与 p95（100 次采样），结果记入 PR 描述，超标不阻断 CI 但回产品负责人评估**；**中文 detail 扫描（grep `backend/app` 中模板英文固定串如 "not found"、"Incorrect"，命中即报）**；AGENTS.md 架构与命令更新收口。**compose 冒烟须承接 PR-7 未实测部分（R14 至此验收）：AC1 compose 段（干净环境 up、backend 仅在 prestart 成功后启动）、AC2 compose restart 幂等、AC6 `down`（不带 -v）后再 up 数据与上传文件仍在、AC7 按 README 步骤执行，以及经 nginx 上传 12MB 返回 413 中文 JSON；并补 EDITH 两项非阻断：10.5MB 用例断言 Content-Type、恰好 10MB 上传断言 201。** backend 单元测试已随各 PR，本批不补写。
 
 ## 风险（含审问三问）
