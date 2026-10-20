@@ -9,7 +9,8 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DEFAULT_PROJECT_TAB, ENABLED_PROJECT_TABS, type EnabledProjectTab, PRIORITIES, PROJECT_TABS, STATUSES } from '@/lib/domain/constants';
 import { daysFromToday } from '@/lib/domain/dates';
 import { canSee, isOverdue, type Sort, sortTasks } from '@/lib/domain/tasks';
-import { type Member, type Task, useComments, useMeId, useMembers, useProjects, useSubtasks, useTasks } from '@/lib/query/entities';
+import { type Member, type Task, useMeId, useMembers, useProjects } from '@/lib/query/entities';
+import { useVisibleComments, useVisibleSubtasks, useVisibleTasks } from '@/lib/query/visibility';
 import { FilesView } from './project-files';
 
 /**
@@ -75,11 +76,11 @@ const GROUP_OPTIONS = ['status', 'priority', 'assignee', 'due', 'none'] as const
 /** 列表视图·只读（R4 列表；FRIDAY 裁定第 1 条：保留分组、折叠与多选；拖拽、跨组改字段、批量操作栏属 PR-9c）。 */
 function ListView({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
-  const tasks = useTasks();
+  const tasks = useVisibleTasks();
   const members = useMembers();
   const projects = useProjects();
-  const subtasks = useSubtasks();
-  const comments = useComments();
+  const subtasks = useVisibleSubtasks();
+  const comments = useVisibleComments();
   const [q, setQ] = useState('');
   const [sort, setSort] = useState<Sort>({ field: 'manual', dir: 1 });
   const [group, setGroup] = useState<GroupBy>('status');

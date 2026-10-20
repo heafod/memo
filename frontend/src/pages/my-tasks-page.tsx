@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { TaskList, ViewToolbar } from '@/components/app/task-list';
 import { daysFromToday } from '@/lib/domain/dates';
 import { canSee, isOverdue, type Sort, sortTasks } from '@/lib/domain/tasks';
-import { useComments, useMeId, useMembers, useProjects, useSubtasks, useTasks } from '@/lib/query/entities';
+import { useMeId, useMembers, useProjects } from '@/lib/query/entities';
+import { useVisibleComments, useVisibleSubtasks, useVisibleTasks } from '@/lib/query/visibility';
 
 /**
  * 我的任务（R3；原型 pages/my-tasks.js，视觉按 7_1-mytasks.svg）。仅 List 模式：Calendar 模式与日历视图共用组件，属 PR-9b，
@@ -15,9 +16,9 @@ export function MyTasksPage() {
   const meId = useMeId();
   const members = useMembers();
   const projects = useProjects();
-  const tasks = useTasks();
-  const subtasks = useSubtasks();
-  const comments = useComments();
+  const tasks = useVisibleTasks();
+  const subtasks = useVisibleSubtasks();
+  const comments = useVisibleComments();
   const [q, setQ] = useState('');
   const [sort, setSort] = useState<Sort>({ field: 'due', dir: 1 });
 

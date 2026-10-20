@@ -13,7 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { asFileType, FILE_TYPE_COLOR, FILE_TYPES, type FileType } from '@/lib/domain/constants';
 import { fileSize, timeAgo } from '@/lib/domain/format';
-import { type FileItem, useFiles, useMembers, useTasks } from '@/lib/query/entities';
+import { type FileItem, useMembers } from '@/lib/query/entities';
+import { useVisibleFiles, useVisibleTasks } from '@/lib/query/visibility';
 
 const FILE_SORTS = ['date', 'name', 'type'] as const;
 type FileSort = (typeof FILE_SORTS)[number];
@@ -25,9 +26,9 @@ const contentUrl = (f: FileItem) => `/api/files/${f.id}/content`;
  */
 export function FilesView({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
-  const files = useFiles();
+  const files = useVisibleFiles();
   const members = useMembers();
-  const tasks = useTasks();
+  const tasks = useVisibleTasks();
   const [q, setQ] = useState('');
   const [type, setType] = useState<'all' | FileType>('all');
   const [sort, setSort] = useState<FileSort>('date');

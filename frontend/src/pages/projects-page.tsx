@@ -12,8 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { PROJECT_STATUSES, type ProjectStatus } from '@/lib/domain/constants';
 import { fmtDate, timeAgo } from '@/lib/domain/format';
-import { activeProjects, canSee, progressOf } from '@/lib/domain/tasks';
-import { type Project, useMeId, useMembers, useProjects, useTasks, useTeams } from '@/lib/query/entities';
+import { activeProjects, progressOf } from '@/lib/domain/tasks';
+import { type Project, useMembers, useProjects, useTeams } from '@/lib/query/entities';
+import { useIsHiddenProject, useVisibleTasks } from '@/lib/query/visibility';
 
 const SORT_KEYS = ['recent', 'name', 'due', 'progress'] as const;
 type SortKey = (typeof SORT_KEYS)[number];
@@ -26,13 +27,13 @@ type Layout = (typeof LAYOUTS)[number][0];
 
 /**
  * 项目列表页（FRIDAY 裁定第 1、5 条：属 9a，只读，按 51_1-projects.svg；原型 pages/projects.js）。
- * 不可见项目（canSee 为假）的卡片只显示名称与「受限」提示，不显示描述、状态、截止日期、进度和成员（FRIDAY 裁定 #12 17:07 第 ⑥ 条）。「新建项目」与项目菜单属 PR-9c。
+ * 不可见项目（canSee 为假）只暴露名称、图标和负责人，其余字段不显示、不参与搜索 / 筛选 / 排序 / 计数 / 汇总（FRIDAY 裁定 #12 17:27 总 AC）。「新建项目」与项目菜单属 PR-9c。
  */
 export function ProjectsPage() {
   const { t } = useTranslation();
-  const meId = useMeId();
   const projects = useProjects();
-  const tasks = useTasks();
+  const tasks = useVisibleTasks();
+  const isHidden = useIsHiddenProject();
   const members = useMembers();
   const teams = useTeams();
   const [q, setQ] = useState('');
@@ -48,30 +49,44 @@ export function ProjectsPage() {
     due: p => p.due ?? '9999',
     progress: p => -progressOf(p.id, tasks),
   };
+  // 不可见项目（FRIDAY 裁定 #12 17:27 总 AC）：按名称排序时正常参与；按最近活跃 / 截止日期 / 进度排序时一律排在最后，
+  // 彼此按名称升序（本页无升降序切换）。不可见项目的其他字段不参与比较。
+  const compare = (a: Project, b: Project): number => {
+    if (sort !== 'name') {
+      const ha = isHidden(a);
+      const hb = isHidden(b);
+      if (ha !== hb) return ha ? 1 : -1;
+      if (ha && hb) return a.name > b.name ? 1 : -1;
+    }
+    return sorter[sort](a) > sorter[sort](b) ? 1 : -1;
+  };
   const shown = all
     .filter(
       p =>
         // 不可见项目（FRIDAY 裁定 #12 17:21 第 4 条）：只用名称参与搜索；按任意状态筛选都不出现，只在「全部」时显示
-        (status === 'all' || (canSee(p, meId) && p.status === status)) &&
-        (!query || p.name.toLowerCase().includes(query) || (canSee(p, meId) && p.desc.toLowerCase().includes(query))),
+        (status === 'all' || (!isHidden(p) && p.status === status)) &&
+        (!query || p.name.toLowerCase().includes(query) || (!isHidden(p) && p.desc.toLowerCase().includes(query))),
     )
-    .sort((a, b) => (sorter[sort](a) > sorter[sort](b) ? 1 : -1));
+    .sort(compare);
   const clear = () => {
     setQ('');
     setStatus('all');
   };
 
   const stat = (p: Project) => {
+    if (isHidden(p)) return { total: 0, done: 0, pr: 0, locked: true };
     const ts = tasks.filter(x => x.project_id === p.id);
-    return { total: ts.length, done: ts.filter(x => x.status === 'done').length, pr: progressOf(p.id, tasks), locked: !canSee(p, meId) };
+    return { total: ts.length, done: ts.filter(x => x.status === 'done').length, pr: progressOf(p.id, tasks), locked: false };
   };
+  // 页头汇总不计入不可见项目（总 AC；与 R1「Active = 可见且非 complete」口径一致）
+  const visibleAll = all.filter(p => !isHidden(p));
 
   return (
     <div className="mx-auto flex max-w-[1240px] flex-col gap-4 px-8 py-7">
       <div>
         <h1 className="text-2xl font-semibold">{t('projects.title')}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {t('projects.summary', { a: all.filter(p => p.status !== 'complete').length, b: all.filter(p => p.status === 'complete').length })}
+          {t('projects.summary', { a: visibleAll.filter(p => p.status !== 'complete').length, b: visibleAll.filter(p => p.status === 'complete').length })}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2">

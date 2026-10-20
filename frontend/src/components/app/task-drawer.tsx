@@ -12,7 +12,8 @@ import { fmtComment } from '@/lib/domain/comments';
 import { daysFromToday } from '@/lib/domain/dates';
 import { fileSize, fmtDate, timeAgo } from '@/lib/domain/format';
 import { canSee, isOverdue } from '@/lib/domain/tasks';
-import { useActivity, useComments, useFiles, useMeId, useMembers, useProjects, useSubtasks, useTasks } from '@/lib/query/entities';
+import { useMeId, useMembers, useProjects } from '@/lib/query/entities';
+import { useVisibleActivity, useVisibleComments, useVisibleFiles, useVisibleSubtasks, useVisibleTasks } from '@/lib/query/visibility';
 import { cn } from '@/lib/utils';
 
 /**
@@ -23,7 +24,7 @@ export function TaskDrawer() {
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const taskId = params.get('task');
-  const tasks = useTasks();
+  const tasks = useVisibleTasks();
   const projects = useProjects();
   const meId = useMeId();
   const task = taskId ? tasks.find(x => x.id === taskId) : undefined;
@@ -52,13 +53,14 @@ export function TaskDrawer() {
 
 function DrawerBody({ taskId }: { taskId: string }) {
   const { t } = useTranslation();
-  const tasks = useTasks();
+  // 依赖、附件、动态等只取可见项目数据（FRIDAY 裁定 #12 17:27 总 AC）：可见任务依赖不可见项目任务时不显示该依赖
+  const tasks = useVisibleTasks();
   const projects = useProjects();
   const members = useMembers();
-  const subtasks = useSubtasks();
-  const comments = useComments();
-  const activity = useActivity();
-  const files = useFiles();
+  const subtasks = useVisibleSubtasks();
+  const comments = useVisibleComments();
+  const activity = useVisibleActivity();
+  const files = useVisibleFiles();
   const meId = useMeId();
   const task = tasks.find(x => x.id === taskId)!;
   const project = projects.find(p => p.id === task.project_id)!;

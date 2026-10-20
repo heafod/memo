@@ -21,7 +21,8 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { DAY_MS, daysFromToday, nowMs, today, weekdayKey } from '@/lib/domain/dates';
 import { fmtDate } from '@/lib/domain/format';
 import { activeProjects, canSee, isOverdue, progressOf, sortTasks } from '@/lib/domain/tasks';
-import { type Task, useActivity, useMeId, useMembers, useProjects, useTasks } from '@/lib/query/entities';
+import { type Task, useMeId, useMembers, useProjects } from '@/lib/query/entities';
+import { useVisibleActivity, useVisibleTasks } from '@/lib/query/visibility';
 import { cn } from '@/lib/utils';
 
 const HOME_TABS = ['upcoming', 'overdue', 'completed'] as const;
@@ -33,8 +34,9 @@ export function HomePage() {
   const meId = useMeId();
   const members = useMembers();
   const projects = useProjects();
-  const tasks = useTasks();
-  const activity = useActivity();
+  // 不可见项目的任务与动态在数据层已排除（FRIDAY 裁定 #12 17:27 总 AC）
+  const tasks = useVisibleTasks();
+  const activity = useVisibleActivity();
   const [tab, setTab] = useState<HomeTab>('upcoming');
 
   const me = members.find(m => m.id === meId);

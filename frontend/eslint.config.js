@@ -56,6 +56,26 @@ export default tseslint.config(
     },
   },
   {
+    // FRIDAY 裁定 #12 17:27 不可见项目总 AC：项目内数据（任务、子任务、评论、动态、文件）只经 src/lib/query/visibility.ts 取可见部分，
+    // 页面与组件不得直接取全量，避免逐处补 canSee 时遗漏。
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/lib/query/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@/lib/query/entities',
+              importNames: ['useTasks', 'useSubtasks', 'useComments', 'useActivity', 'useFiles'],
+              message: '不可见项目总 AC：改用 @/lib/query/visibility 的 useVisible*',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // shadcn CLI 生成的组件源码：同文件导出 variants 常量属上游约定
     files: ['src/components/ui/**/*.tsx'],
     rules: { 'react-refresh/only-export-components': 'off' },

@@ -33,7 +33,8 @@ import { PROJECT_STATUS_COLOR, type ProjectStatus } from '@/lib/domain/constants
 import { daysFromToday } from '@/lib/domain/dates';
 import { activeProjects, canSee } from '@/lib/domain/tasks';
 import { useLogout } from '@/lib/query/auth';
-import { useMeId, useMembers, usePreferences, useProjects, useSnapshotLoader, useTasks } from '@/lib/query/entities';
+import { useMeId, useMembers, usePreferences, useProjects, useSnapshotLoader } from '@/lib/query/entities';
+import { useVisibleTasks } from '@/lib/query/visibility';
 
 /**
  * 应用外壳（R1「应用外壳按 4_1-home.svg」；映射表「外壳 / 侧栏导航 / 工作区头 / 顶栏面包屑」行）。
@@ -87,7 +88,7 @@ function AppSidebar() {
   const meId = useMeId();
   const members = useMembers();
   const projects = useProjects();
-  const tasks = useTasks();
+  const tasks = useVisibleTasks();
   const prefs = usePreferences();
   const logout = useLogout();
   const projectMatch = useMatch('/projects/:projectId/*');
