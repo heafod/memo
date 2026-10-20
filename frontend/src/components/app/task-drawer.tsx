@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { ActivityItem } from '@/components/app/activity-item';
 import { DueDate, FileTypeIcon, LabelTag, MemberAvatar, PriorityPill, ProjectDot, StatusIcon, StatusPill } from '@/components/app/domain-ui';
-import { FavButton } from '@/components/app/fav-button';
+import { FavButton, FAV_TOAST_MS } from '@/components/app/fav-button';
 import { projectItems, useAssigneeItems, usePriorityItems, useStatusItems } from '@/components/app/pick-items';
 import { DatePick, PickList } from '@/components/app/pickers';
 import { FileDropzone, FilePickButton } from '@/components/app/upload-ui';
@@ -100,6 +100,8 @@ function DrawerBody({ taskId }: { taskId: string }) {
       {
         onSuccess: () =>
           void toast(t('write.drawer.completedToast', { title: task.title }), {
+            id: `done-${task.id}`,
+            duration: FAV_TOAST_MS,
             action: { label: t('write.undo'), onClick: () => update.mutate({ id: task.id, patch: { status: prev } }) },
           }),
       },

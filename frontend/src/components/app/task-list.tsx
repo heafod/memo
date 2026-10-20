@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { DueDate, LabelTag, MemberAvatar, PriorityPill, ProjectDot, StatusIcon, StatusPill } from '@/components/app/domain-ui';
 import { DropLine } from '@/components/app/drop-line';
+import { FAV_TOAST_MS } from '@/components/app/fav-button';
 import { useAssigneeItems, usePriorityItems, useStatusItems } from '@/components/app/pick-items';
 import { DatePick, PickList } from '@/components/app/pickers';
 import {
@@ -275,7 +276,25 @@ function TaskRow({
               aria-label={t('write.markTaskComplete', { title: task.title })}
               checked={task.status === 'done'}
               data-complete={task.id}
-              onCheckedChange={v => patch({ status: v === true ? 'done' : 'todo' })}
+              onCheckedChange={v => {
+                // 原型 actions.js toggleDone：完成时 toast「已完成「{title}」」+ 撤销；重新打开不弹（FRIDAY 19:40）
+                // 乐观弹出 toast：行可能因分组变化立刻卸载，onSuccess 回调不可靠；失败时收回（裁定允许，与星标 onSuccess 二选一）
+                if (v === true) {
+                  const prev = task.status as TaskStatus;
+                  const id = task.id;
+                  toast(t('write.drawer.completedToast', { title: task.title }), {
+                    id: `done-${id}`,
+                    duration: FAV_TOAST_MS,
+                    action: {
+                      label: t('write.undo'),
+                      onClick: () => update.mutate({ id, patch: { status: prev } }),
+                    },
+                  });
+                  update.mutate({ id, patch: { status: 'done' } });
+                } else {
+                  patch({ status: 'todo' });
+                }
+              }}
             />
           </span>
         )}

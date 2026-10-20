@@ -59,8 +59,9 @@ export function useUpdateTask() {
       await queryClient.cancelQueries({ queryKey: ['tasks'] });
       return { rollback: optimistic<Task>(['tasks'], id, patch as Partial<Task>) };
     },
-    onError: (e, _v, ctx) => {
+    onError: (e, v, ctx) => {
       ctx?.rollback();
+      if (v.patch.status === 'done') toast.dismiss(`done-${v.id}`);
       notifyError(e);
     },
   });
@@ -74,7 +75,16 @@ export function useBulkUpdateTasks() {
       ids.forEach(id => assertVisibleProject(taskProject(id)));
       for (const id of ids) await unwrap(api.PATCH('/api/tasks/{task_id}', { params: { path: { task_id: id } }, body: patch }));
     },
-    onError: notifyError,
+    onMutate: async ({ ids, patch }) => {
+      await queryClient.cancelQueries({ queryKey: ['tasks'] });
+      const prev = queryClient.getQueryData<Task[]>(['tasks']);
+      queryClient.setQueryData<Task[]>(['tasks'], list => list?.map(x => (ids.includes(x.id) ? { ...x, ...(patch as Partial<Task>) } : x)));
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(['tasks'], ctx.prev);
+      notifyError(e);
+    },
   });
 }
 
