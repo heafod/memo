@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     DATABASE_URL: PostgresDsn
     # 生产前端与后端不同源时（本地 Vite 开发）的 CORS 白名单来源
     FRONTEND_HOST: str = "http://localhost:5173"
+    # 上传文件内容存储目录（R4b；compose 卷挂载于此，元数据入库）
+    FILES_DIR: str = "/data/files"
     SENTRY_DSN: HttpUrl | None = None
     # 管理员初始账号（R12）：initial_data 幂等创建；非 development 环境拒绝默认值
     FIRST_SUPERUSER: str = "admin@example.com"
