@@ -6,7 +6,6 @@ import type activityLocale from '@/i18n/locales/zh/activity';
 import { PRIORITIES, STATUSES } from '@/lib/domain/constants';
 import { timeAgo } from '@/lib/domain/format';
 import type { Activity, Member, Project, Task } from '@/lib/query/entities';
-import { cn } from '@/lib/utils';
 
 // 动态条目（映射表「动态流 .feed」行；原型 actHtml / actZh）。动词与 extra 为后端写入的英文数据，此处按句式匹配为中文。
 
@@ -84,7 +83,6 @@ export function ActivityItem({
   tasks,
   projects,
   showProject = false,
-  singleLine = false,
 }: {
   activity: Activity;
   meId: string | null;
@@ -92,8 +90,6 @@ export function ActivityItem({
   tasks: readonly Task[];
   projects: readonly Project[];
   showProject?: boolean;
-  /** 单行显示（超出省略，完整句子见 title）：首页最近动态用（FRIDAY 裁定 #12 17:07 第 ①b 条「每一行都不换行」） */
-  singleLine?: boolean;
 }) {
   const { t } = useTranslation();
   const by = members.find(m => m.id === a.by_id);
@@ -107,17 +103,7 @@ export function ActivityItem({
     // 字号 / 行高按原型 `.fitem`（projects-files.css:116–123：--fs-sm、1.45；时间 --fs-xs）
     <div className="flex items-start gap-2.5 py-2 text-(length:--fs-sm) leading-[1.45]">
       <MemberAvatar member={by} />
-      <div
-        className={cn('min-w-0 flex-1', singleLine && 'truncate')}
-        title={
-          singleLine
-            ? plainSentence(
-                t(key as 'activity.created', { who, obj, ...values }),
-                showProject && task && project ? t('activity.inProject', { p: project.name }) : '',
-              )
-            : undefined
-        }
-      >
+      <div className="min-w-0 flex-1">
         <Trans
           // 句式键为联合类型时 Trans 会把各句式的插值参数求交集；所有句式共用 who / obj，附加参数由 phrase() 按句式给出
           i18nKey={key as 'activity.created'}
@@ -133,9 +119,4 @@ export function ActivityItem({
       <time className="shrink-0 text-(length:--fs-xs) whitespace-nowrap text-muted-foreground">{timeAgo(t, a.at)}</time>
     </div>
   );
-}
-
-/** 去掉 Trans 句式里的组件标签，得到纯文本整句（用于单行省略时的 title）。 */
-function plainSentence(sentence: string, suffix: string): string {
-  return (sentence.replace(/<\/?\w+>/g, '') + (suffix ? ` ${suffix}` : '')).trim();
 }

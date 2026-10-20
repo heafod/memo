@@ -255,7 +255,7 @@ export function HomePage() {
             </CardHeader>
             <CardContent className="py-1">
               {recent.map(a => (
-                <ActivityItem key={a.id} activity={a} meId={meId} members={members} tasks={tasks} projects={projects} showProject singleLine />
+                <ActivityItem key={a.id} activity={a} meId={meId} members={members} tasks={tasks} projects={projects} showProject />
               ))}
             </CardContent>
           </Card>

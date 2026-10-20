@@ -51,7 +51,8 @@ export function ProjectsPage() {
   const shown = all
     .filter(
       p =>
-        (status === 'all' || p.status === status) &&
+        // 不可见项目（FRIDAY 裁定 #12 17:21 第 4 条）：只用名称参与搜索；按任意状态筛选都不出现，只在「全部」时显示
+        (status === 'all' || (canSee(p, meId) && p.status === status)) &&
         (!query || p.name.toLowerCase().includes(query) || (canSee(p, meId) && p.desc.toLowerCase().includes(query))),
     )
     .sort((a, b) => (sorter[sort](a) > sorter[sort](b) ? 1 : -1));
