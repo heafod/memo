@@ -8,15 +8,18 @@
 
 ## R1 首页仪表盘（PR-9a）
 
-- [ ] 四统计卡：Active = 可见且非 complete 项目数，副文案为 risk 数
-- [ ] Open = 非 done 任务数，副文案为分配给我的数量
-- [ ] Completed = done 且 completedAt 距今 < 7 天
-- [ ] Overdue = due 早于今日且非 done
-- [ ] 今日待办 = assignee 为我且非 done；Upcoming / Overdue 按 due 升序，Completed 按 updated 倒序，每组前 7 条
-- [ ] 项目进度 = round(done 任务数 / 项目任务总数 × 100)，排除 archived
-- [ ] 到期分组 Today / Tomorrow / This week（2–7 天），组内按优先级降序，每组前 4 条，超出显示「+N」
-- [ ] 最近动态展示前 7 条
-- [ ] 应用外壳（侧边栏 / 顶栏）按 `4_1-home.svg`
+- [x] 四统计卡：Active = 可见且非 complete 项目数，副文案为 risk 数
+- [x] Open = 非 done 任务数，副文案为分配给我的数量
+- [x] Completed = done 且 completedAt 距今 < 7 天
+- [x] Overdue = due 早于今日且非 done
+- [x] 今日待办 = assignee 为我且非 done；Upcoming / Overdue 按 due 升序，Completed 按 updated 倒序，每组前 7 条
+- [x] 项目进度 = round(done 任务数 / 项目任务总数 × 100)，排除 archived
+- [x] 到期分组 Today / Tomorrow / This week（2–7 天），组内按优先级降序，每组前 4 条，超出显示「+N」
+- [x] 最近动态展示前 7 条
+- [x] 应用外壳（侧边栏 / 顶栏）按 `4_1-home.svg`
+- [x] 侧栏与顶栏不出现指向未完成页面的入口（含搜索、新建、铃铛），无点击无反应的按钮；各入口由对应批次放出（PR-9a，FRIDAY 裁定第 5 条）
+- [x] 侧栏工作区名：偏好无 `workspace` 键时显示 i18n `app.brand`（Memo），有则显示偏好中的名称（PR-9a，FRIDAY 裁定第 8 条）
+- [x] 用种子 p6（客户门户）与 m1 时，仪表盘、我的任务、项目列表、文件列表均不出现 p6 的任务和文件；访问 p6 显示 403（PR-9a，FRIDAY 裁定第 7 条；已知债：引入多账号时 snapshot 须在服务端按可见性过滤）
 
 ## R2 收件箱（PR-10）
 
@@ -28,31 +31,34 @@
 - [ ] 双栏预览含最近 4 条评论与回复框
 - [ ] 系统类通知（到期提醒、项目风险）以种子数据正常展示
 
-## R3 我的任务（PR-9a）
+## R3 我的任务（PR-9a；Calendar 模式 PR-9b）
 
-- [ ] 仅含 assignee 为我的任务
-- [ ] 四分组 Overdue / Today / Upcoming（无 due 或未逾期且非 done）/ Completed（默认折叠）
-- [ ] 默认 due 升序，可经工具栏调整排序（对齐原型）
-- [ ] List / Calendar 两种视图
+- [x] 仅含 assignee 为我的任务
+- [x] 四分组 Overdue / Today / Upcoming（无 due 或未逾期且非 done）/ Completed（默认折叠）
+- [x] 默认 due 升序，可经工具栏调整排序（对齐原型）
+- [x] List 视图；9a 的「我的任务」页不出现 Calendar 切换入口（PR-9a，FRIDAY 裁定第 2 条）
+- [ ] Calendar 视图，与项目日历视图共用同一组件（PR-9b，FRIDAY 裁定第 2 条）
 
-## R4 项目多视图（PR-9a 列表 / 文件；PR-9b 其余）
+## R4 项目多视图（PR-9a 列表 / 文件只读；PR-9c 列表写操作；PR-9b 其余）
 
 - [ ] 六种视图（看板 / 列表 / 表格 / 日历 / 时间线 / 文件）共享同一项目数据（PR-9a / PR-9b）
 - [ ] 看板按 5 状态分列；卡片拖拽改状态与顺序（order 分数插值）（PR-9b）
-- [ ] 列表分组可折叠、多选、行拖拽排序与跨分组改字段（PR-9a）
+- [x] 列表分组可折叠、多选（只选中，不出现批量操作栏）（PR-9a，FRIDAY 裁定第 1 条）
+- [ ] 列表行拖拽排序与跨分组改字段（PR-9c，FRIDAY 裁定第 1 条）
+- [x] 9a 项目页只出现 list 与 files 两个 tab；打开 `/projects/:id` 显示列表视图；访问 `/projects/:id/board` 显示列表视图（PR-9a，FRIDAY 裁定第 3、4 条；看板合入后默认 tab 恢复为 board，见 PR-9b）
 - [ ] 表格 11 列（title / status / priority / assignee / due / start / labels / deps / estimate / created / project）（PR-9b）
 - [ ] 表格 popover 编辑；标题与估算双击就地编辑（PR-9b）
 - [ ] 表格列显隐与列宽持久化（PR-9b）
 - [ ] 日历月 / 周模式；任务拖改 due（保留时长）；格内最多 3 条（PR-9b）
 - [ ] 时间线 start → due 甘特条、依赖箭头（落后虚线）、条整体拖移、里程碑车道（PR-9b）
 
-## R4b 文件（PR-9a 文件视图）
+## R4b 文件（PR-9a 文件视图只读；PR-9c 上传与关联任务）
 
-- [ ] 上传走 `POST /api/files`（multipart）；超 10MB 显示服务端 413 中文 detail
-- [ ] 白名单外文件显示服务端 415 中文 detail
-- [ ] 文件列表可按名称 / 类型 / 新近过滤排序
-- [ ] 文件可关联任务
-- [ ] 下载与预览走服务端 URL（`GET /api/files/{id}/content`）
+- [ ] 上传走 `POST /api/files`（multipart）；超 10MB 显示服务端 413 中文 detail（PR-9c）
+- [ ] 白名单外文件显示服务端 415 中文 detail（PR-9c）
+- [x] 文件列表可按名称 / 类型 / 新近过滤排序
+- [ ] 文件可关联任务（PR-9c）
+- [x] 下载与预览走服务端 URL（`GET /api/files/{id}/content`）
 
 ## R5 组织信息（PR-10）
 
@@ -76,13 +82,13 @@
 
 ## 错误状态（PR-9a / PR-10 / PR-11，FRIDAY 裁定；按原型 `pages/errors.js`）
 
-- [ ] 404：访问不存在的项目 id，原地显示中文 404 状态和返回入口，不跳转、不白屏（PR-9a）
+- [x] 404：访问不存在的项目 id，原地显示中文 404 状态和返回入口，不跳转、不白屏；未知视图类型（project.js:106）显示中文 404；合法但未做的视图回到默认 tab（PR-9a，FRIDAY 裁定第 4、9 条）
 - [ ] 404：访问不存在的成员 id，原地显示中文 404 状态和返回入口，不跳转、不白屏（PR-10）
 - [ ] 404：访问不存在的团队 id，在原地显示中文 404 状态和返回入口，不跳转，不白屏。（PR-10）
 - [ ] 404：访问不存在的保存视图 tab，在原地显示中文 404 状态和返回入口，不跳转，不白屏。（PR-11，R18）
 - [ ] 404：访问未知设置分区，在原地显示中文 404 状态和返回入口，不跳转，不白屏。（PR-11，R7）
-- [ ] 403：访问按 canSee 规则（store.js:113）不可见的项目时，在原地显示中文 403 状态：只显示项目名称和负责人（取自 snapshot），不显示该项目的任务、成员、文件、动态等其他数据；不出现「申请访问」按钮；提供返回入口；不跳转，不白屏。（PR-9a）
-- [ ] 出错页：任一页面组件抛异常时，显示中文出错页和重试 / 刷新入口，不白屏（PR-9a）
+- [x] 403：访问按 canSee 规则（store.js:113）不可见的项目时，在原地显示中文 403 状态：只显示项目名称和负责人（取自 snapshot），不显示该项目的任务、成员、文件、动态等其他数据；不出现「申请访问」按钮；提供返回入口；不跳转，不白屏。（PR-9a）
+- [x] 出错页：任一页面组件抛异常时，显示中文出错页和重试 / 刷新入口，不白屏（PR-9a）
 
 ## R7 偏好设置（PR-11）
 
@@ -106,7 +112,7 @@
 
 ## R12 认证会话（前端面）
 
-- [ ] 会话 Cookie 失效后，`/api/snapshot` 实际返回 401 时应用回到 `/login`（实跑：登录后令 Cookie 失效——删 Cookie 或服务端会话过期——再触发快照请求，附网络面板 401 与跳转证据）（PR-9a）
+- [x] 会话 Cookie 失效后，`/api/snapshot` 实际返回 401 时应用回到 `/login`（实跑：登录后令 Cookie 失效——删 Cookie 或服务端会话过期——再触发快照请求，附网络面板 401 与跳转证据）（PR-9a）
 
 ## R17 日历事件（PR-11）
 
