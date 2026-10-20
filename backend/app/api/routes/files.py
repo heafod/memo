@@ -2,13 +2,17 @@
 
 - ``POST /api/files``（multipart：``file`` + ``project_id`` + 可选 ``task_id``）：
   单文件上限 10MB（超限 413）；扩展名白名单外 415；文件名清洗——去除路径分隔符、
-  控制字符（含 Unicode 双向覆盖符）与首尾空格，长度 ≤200（截断保留扩展名）；
-  同项目内重名追加序号 ``名称 (n).ext``；
+  控制字符（含 Unicode 双向控制符）与首尾空格，长度 ≤200（截断保留扩展名）；
+  同项目内重名（按清洗后名称、大小写敏感）在扩展名前追加序号 ``名称 (n).ext``；
+  每请求仅 1 个文件（多文件 422）；
 - ``GET /api/files/{id}/content``：内容下载（``Content-Disposition: attachment``
   + ``nosniff``，防 svg/html 被同源内联执行；``<img>`` 预览不受 attachment 影响）；
 - 元数据读面由快照 ``files`` 承载（不设列表 GET，沿 PR-5 先例）；
 - 内容存卷 ``settings.FILES_DIR``（compose 卷 ``/data/files``），盘上文件名为记录
-  UUID，与用户文件名解耦；任务关联在上传时经 ``task_id`` 指定，须属同项目。
+  UUID，与用户文件名解耦；任务关联在上传时经 ``task_id`` 指定，须存在且属同项目
+  （否则 422），不提供上传后改挂；
+- 不产生 activity / 通知；删除项目经 ``file.project_id`` 外键 ``ON DELETE CASCADE``
+  级联删除元数据行（卷内容不清理，孤儿文件留后续）。
 """
 
 import mimetypes
@@ -47,8 +51,11 @@ _EXT_TYPES: dict[str, str] = {
 }
 ALLOWED_EXTENSIONS = frozenset(_EXT_TYPES)
 
-# Unicode 双向覆盖/隔离符（可伪装扩展名，如 "evil\u202egnp.js"），按控制字符一并去除
-_BIDI_CONTROLS = frozenset("\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069")
+# Unicode 双向控制符（LRM/RLM、嵌入/覆盖、隔离；可伪装扩展名，如 "evil\u202egnp.js"），
+# 按控制字符一并去除：U+200E、U+200F、U+202A–202E、U+2066–2069
+_BIDI_CONTROLS = frozenset(
+    "\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069"
+)
 
 
 def _split_ext(name: str) -> tuple[str, str]:
@@ -104,10 +111,15 @@ def _content_path(file_id: uuid.UUID) -> Path:
 def upload_file(
     session: SessionDep,
     current_user: CurrentUser,
-    file: Annotated[UploadFile, File(description="上传文件（单文件 ≤10MB）")],
+    file: Annotated[
+        list[UploadFile], File(description="上传文件（每请求仅 1 个，≤10MB）")
+    ],
     project_id: Annotated[uuid.UUID, Form()],
     task_id: Annotated[uuid.UUID | None, Form()] = None,
 ) -> FilePublic:
+    if len(file) != 1:
+        raise HTTPException(status_code=422, detail="一次只能上传一个文件")
+    upload = file[0]
     if crud_domain.get_project(session, project_id) is None:
         raise HTTPException(status_code=422, detail="所属项目不存在")
     if task_id is not None:
@@ -117,7 +129,7 @@ def upload_file(
         if task.project_id != project_id:
             raise HTTPException(status_code=422, detail="关联任务不属于该项目")
 
-    name = sanitize_filename(file.filename or "")
+    name = sanitize_filename(upload.filename or "")
     if not name:
         raise HTTPException(status_code=422, detail="文件名无效")
     ext = file_extension(name)
@@ -131,7 +143,7 @@ def upload_file(
     size = 0
     try:
         with partial.open("wb") as out:
-            while chunk := file.file.read(_CHUNK):
+            while chunk := upload.file.read(_CHUNK):
                 size += len(chunk)
                 if size > MAX_FILE_BYTES:
                     raise HTTPException(

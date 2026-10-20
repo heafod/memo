@@ -4,12 +4,15 @@
 
 - 上限：恰 10MB 通过、10MB+1 字节 413（中文 detail）；
 - 白名单：规格枚举的全部扩展名均 201（大小写不敏感），白名单外 / 无扩展名 415；
-- 清洗：路径分隔符、控制字符、双向覆盖符、首尾空格被去除；>200 截断且保留扩展名；
-  清洗后为空 422；同项目重名追加序号 ``(1)``、``(2)``；
+- 清洗：路径分隔符、控制字符、双向控制符（U+200E/200F、U+202A–202E、U+2066–2069）、
+  首尾空格被去除；>200 截断且保留扩展名；清洗后为空 422；
+- 重名：按清洗后名称、大小写敏感，同项目内在扩展名前追加序号 ``(1)``、``(2)``；
+- 单文件：一次请求多个文件 422、缺文件 422；
 - 下载：``GET /api/files/{id}/content`` 字节一致、attachment + nosniff；
-  不存在 404；种子文件（仅元数据）404；
+  不存在 id 404、种子文件（仅元数据）404，均中文 detail；
 - 快照：上传后 ``files`` 含元数据（name/type/size_bytes/by_id/task_id）；
-- 任务关联：上传时 ``task_id`` 落库；任务须属同项目（422）；
+- 任务关联：上传时 ``task_id`` 落库；任务不存在或跨项目 422；
+- 级联：删除项目后其文件元数据不再出现在快照；
 - 认证：未认证上传 / 下载内容 401，detail 中文。
 
 测试在自建项目 PR6F 内运行，模块结束删除项目（文件行随项目级联删除）。
@@ -160,6 +163,8 @@ def test_sanitize_filename_rules() -> None:  # R4b
     assert sanitize_filename("  前后空格.md \t") == "前后空格.md"
     assert sanitize_filename("控\x00制\x1f字\x7f符\n.txt") == "控制字符.txt"
     assert sanitize_filename("evil\u202egnp.js") == "evilgnp.js"
+    bidi = "\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069"
+    assert sanitize_filename(f"双{bidi}向.txt") == "双向.txt"
     long = sanitize_filename("长" * 300 + ".docx")
     assert len(long) == 200
     assert long.endswith(".docx")
@@ -170,6 +175,9 @@ def test_dedupe_filename_rules() -> None:  # R4b
     assert dedupe_filename("a.pdf", set()) == "a.pdf"
     assert dedupe_filename("a.pdf", {"a.pdf"}) == "a (1).pdf"
     assert dedupe_filename("a.pdf", {"a.pdf", "a (1).pdf"}) == "a (2).pdf"
+    assert dedupe_filename("a.png", {"a.png"}) == "a (1).png"  # 序号在扩展名前
+    assert dedupe_filename("A.png", {"a.png"}) == "A.png"  # 大小写敏感
+    assert dedupe_filename("a.PNG", {"a.png"}) == "a.PNG"
     full = "长" * 196 + ".pdf"
     deduped = dedupe_filename(full, {full})
     assert len(deduped) <= 200
@@ -192,6 +200,15 @@ def test_upload_sanitizes_and_dedupes(
     assert first.json()["name"] == "重名.pdf"
     assert second.json()["name"] == "重名 (1).pdf"  # R4b 重名序号
     assert third.json()["name"] == "重名 (2).pdf"
+
+    # 判重基于清洗后名称：首尾空格 / 分隔符清洗后与「重名.pdf」相同 → 追加序号
+    resp = _upload(authed_client, project["id"], "  重/名.pdf ")
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["name"] == "重名 (3).pdf"
+    # 大小写敏感：仅大小写不同不视为重名
+    resp = _upload(authed_client, project["id"], "重名.PDF")
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["name"] == "重名.PDF"
 
     resp = _upload(authed_client, project["id"], "长" * 300 + ".txt")
     assert resp.status_code == 201, resp.text
@@ -281,3 +298,60 @@ def test_upload_linked_to_task(authed_client: TestClient, project: dict) -> None
     resp = _upload(authed_client, str(uuid.uuid4()), "无项目.png")
     assert resp.status_code == 422
     assert resp.json()["detail"] == "所属项目不存在"  # R8
+
+
+def test_upload_multiple_files_422(
+    authed_client: TestClient, project: dict
+) -> None:  # R4b
+    """每请求仅 1 个文件：多文件 422（中文 detail），且不落任何元数据。"""
+    resp = authed_client.post(
+        "/api/files",
+        data={"project_id": project["id"]},
+        files=[
+            ("file", ("多文件一.txt", b"1", "text/plain")),
+            ("file", ("多文件二.txt", b"2", "text/plain")),
+        ],
+    )
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["detail"] == "一次只能上传一个文件"  # R8
+    names = {f["name"] for f in _snapshot_files(authed_client).values()}
+    assert not names & {"多文件一.txt", "多文件二.txt"}
+
+
+def test_upload_missing_file_422(
+    authed_client: TestClient, project: dict
+) -> None:  # R4b
+    resp = authed_client.post("/api/files", data={"project_id": project["id"]})
+    assert resp.status_code == 422, resp.text
+
+
+def test_project_delete_cascades_file_metadata(
+    authed_client: TestClient,
+) -> None:  # R4b, R10
+    """删除项目级联删除文件元数据行：快照不再出现（卷内容可残留，见 PR 风险节）。"""
+    resp = authed_client.post(
+        "/api/projects", json={"key": "PR6D", "name": "PR-6 级联删除项目"}
+    )
+    assert resp.status_code == 201, resp.text
+    proj = resp.json()
+    resp = authed_client.post(
+        "/api/tasks", json={"project_id": proj["id"], "title": "PR-6 级联任务"}
+    )
+    assert resp.status_code == 201, resp.text
+    task_id = resp.json()["id"]
+    ids = []
+    for name, tid in (("级联一.txt", None), ("级联二.png", task_id)):
+        up = _upload(authed_client, proj["id"], name, task_id=tid)
+        assert up.status_code == 201, up.text
+        ids.append(up.json()["id"])
+    files = _snapshot_files(authed_client)
+    assert all(i in files for i in ids)
+
+    assert authed_client.delete(f"/api/projects/{proj['id']}").status_code == 204
+    files = _snapshot_files(authed_client)
+    assert not any(i in files for i in ids)  # R4b 元数据随项目删除
+    assert not any(f["project_id"] == proj["id"] for f in files.values())
+    for i in ids:
+        resp = authed_client.get(f"/api/files/{i}/content")
+        assert resp.status_code == 404
+        assert resp.json()["detail"] == "文件不存在"  # R8
