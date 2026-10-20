@@ -13,7 +13,7 @@ export default {
     empty: '还没有文件',
     noResults: '未找到结果',
     noResultsHint: '没有符合筛选条件的文件。',
-    columns: { name: '名称', type: '类型', size: '大小', by: '上传者', date: '日期', task: '关联任务' },
+    columns: { name: '名称', type: '类型', size: '大小', by: '上传者', date: '日期' },
     preview: '预览',
     download: '下载',
     previewTitle: '预览：{{name}}',

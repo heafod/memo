@@ -26,6 +26,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { PROJECT_STATUS_COLOR, type ProjectStatus } from '@/lib/domain/constants';
@@ -115,96 +116,101 @@ function AppSidebar() {
           <SidebarTrigger className="size-7" />
         </div>
       </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarMenu aria-label={t('shell.nav.main')}>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={onHome}>
-                <NavLink to="/" end>
-                  <House />
-                  <span>{t('shell.nav.home')}</span>
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={onMyTasks}>
-                <NavLink to="/my-tasks">
-                  <CircleCheck />
-                  <span>{t('shell.nav.myTasks')}</span>
-                </NavLink>
-              </SidebarMenuButton>
-              {myDue > 0 && <SidebarMenuBadge>{myDue}</SidebarMenuBadge>}
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>{t('shell.nav.workspace')}</SidebarGroupLabel>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={onProjects}>
-                <NavLink to="/projects" end>
-                  <FolderKanban />
-                  <span>{t('shell.nav.projects')}</span>
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-        <SidebarGroup>
-          <SidebarGroupLabel>{t('shell.nav.projects')}</SidebarGroupLabel>
-          <SidebarMenu>
-            {sideProjects.map(p => {
-              const open = expanded[p.id] ?? p.id === currentProject;
-              const visible = visibleIds.has(p.id);
-              return (
-                <SidebarMenuItem key={p.id}>
-                  <SidebarMenuButton asChild isActive={p.id === currentProject}>
-                    <Link to={`/projects/${p.id}`}>
-                      {/* 不可见项目只露出名称（FRIDAY 裁定第 6、7 条）：图标、色、状态点均不渲染，以锁形图标代替 */}
-                      {visible ? <ProjectIcon project={p} size="sm" /> : <Lock className="text-muted-foreground" />}
-                      <span className="truncate">{p.name}</span>
-                      {p.private && visible && <Lock className="size-3! text-muted-foreground" aria-label={t('shell.nav.privateProject')} />}
-                      {visible && (
-                        <span className="ml-auto size-1.5 shrink-0 rounded-full" style={{ background: PROJECT_STATUS_COLOR[p.status as ProjectStatus] }} />
-                      )}
-                    </Link>
+      {/* 侧栏滚动区（原型 shell/layout.js:98 `.side-scroll`，shell.css:73–82 隐藏滚动条）：`scroll-area` type scroll，仅滚动时显示细滚动条 */}
+      <SidebarContent className="overflow-hidden">
+        <ScrollArea type="scroll" className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]>div]:block!">
+          <div className="flex flex-col gap-2">
+            <SidebarGroup>
+              <SidebarMenu aria-label={t('shell.nav.main')}>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={onHome}>
+                    <NavLink to="/" end>
+                      <House />
+                      <span>{t('shell.nav.home')}</span>
+                    </NavLink>
                   </SidebarMenuButton>
-                  {visible && (
-                    <SidebarMenuAction
-                      showOnHover={!open}
-                      className="right-5"
-                      aria-label={t('shell.nav.toggleSubPages')}
-                      aria-expanded={open}
-                      onClick={() => setExpanded(s => ({ ...s, [p.id]: !open }))}
-                    >
-                      <ChevronRight className={open ? 'rotate-90' : ''} />
-                    </SidebarMenuAction>
-                  )}
-                  {visible && open && (
-                    <SidebarMenuSub>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild isActive={p.id === currentProject && !projectMatch?.params['*']?.startsWith('files')}>
-                          <Link to={`/projects/${p.id}/list`}>
-                            <List />
-                            <span>{t('shell.nav.list')}</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                      <SidebarMenuSubItem>
-                        <SidebarMenuSubButton asChild isActive={p.id === currentProject && projectMatch?.params['*'] === 'files'}>
-                          <Link to={`/projects/${p.id}/files`}>
-                            <Paperclip />
-                            <span>{t('shell.nav.files')}</span>
-                          </Link>
-                        </SidebarMenuSubButton>
-                      </SidebarMenuSubItem>
-                    </SidebarMenuSub>
-                  )}
                 </SidebarMenuItem>
-              );
-            })}
-          </SidebarMenu>
-        </SidebarGroup>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={onMyTasks}>
+                    <NavLink to="/my-tasks">
+                      <CircleCheck />
+                      <span>{t('shell.nav.myTasks')}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                  {myDue > 0 && <SidebarMenuBadge>{myDue}</SidebarMenuBadge>}
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+            <SidebarGroup>
+              <SidebarGroupLabel>{t('shell.nav.workspace')}</SidebarGroupLabel>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={onProjects}>
+                    <NavLink to="/projects" end>
+                      <FolderKanban />
+                      <span>{t('shell.nav.projects')}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroup>
+            <SidebarGroup>
+              <SidebarGroupLabel>{t('shell.nav.projects')}</SidebarGroupLabel>
+              <SidebarMenu>
+                {sideProjects.map(p => {
+                  const open = expanded[p.id] ?? p.id === currentProject;
+                  const visible = visibleIds.has(p.id);
+                  return (
+                    <SidebarMenuItem key={p.id}>
+                      <SidebarMenuButton asChild isActive={p.id === currentProject}>
+                        <Link to={`/projects/${p.id}`}>
+                          {/* 不可见项目只露出名称（FRIDAY 裁定第 6、7 条）：图标、色、状态点均不渲染，以锁形图标代替 */}
+                          {visible ? <ProjectIcon project={p} size="sm" /> : <Lock className="text-muted-foreground" />}
+                          <span className="truncate">{p.name}</span>
+                          {p.private && visible && <Lock className="size-3! text-muted-foreground" aria-label={t('shell.nav.privateProject')} />}
+                          {visible && (
+                            <span className="ml-auto size-1.5 shrink-0 rounded-full" style={{ background: PROJECT_STATUS_COLOR[p.status as ProjectStatus] }} />
+                          )}
+                        </Link>
+                      </SidebarMenuButton>
+                      {visible && (
+                        <SidebarMenuAction
+                          showOnHover={!open}
+                          className="right-5"
+                          aria-label={t('shell.nav.toggleSubPages')}
+                          aria-expanded={open}
+                          onClick={() => setExpanded(s => ({ ...s, [p.id]: !open }))}
+                        >
+                          <ChevronRight className={open ? 'rotate-90' : ''} />
+                        </SidebarMenuAction>
+                      )}
+                      {visible && open && (
+                        <SidebarMenuSub>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton asChild isActive={p.id === currentProject && !projectMatch?.params['*']?.startsWith('files')}>
+                              <Link to={`/projects/${p.id}/list`}>
+                                <List />
+                                <span>{t('shell.nav.list')}</span>
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton asChild isActive={p.id === currentProject && projectMatch?.params['*'] === 'files'}>
+                              <Link to={`/projects/${p.id}/files`}>
+                                <Paperclip />
+                                <span>{t('shell.nav.files')}</span>
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        </SidebarMenuSub>
+                      )}
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroup>
+          </div>
+        </ScrollArea>
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>

@@ -1,8 +1,9 @@
-import { Download, FolderOpen, LayoutGrid, List, Search, SearchX } from 'lucide-react';
+import { Download, FolderOpen, LayoutGrid, Link2, List, Search, SearchX } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { FileTypeIcon, MemberAvatar } from '@/components/app/domain-ui';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
@@ -130,7 +131,6 @@ export function FilesView({ projectId }: { projectId: string }) {
                   <TableHead>{t('project.files.columns.size')}</TableHead>
                   <TableHead>{t('project.files.columns.by')}</TableHead>
                   <TableHead>{t('project.files.columns.date')}</TableHead>
-                  <TableHead>{t('project.files.columns.task')}</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -140,10 +140,21 @@ export function FilesView({ projectId }: { projectId: string }) {
                   return (
                     <TableRow key={f.id} data-file-id={f.id}>
                       <TableCell className="pl-4">
-                        <button type="button" className="flex items-center gap-2 font-medium hover:underline" onClick={() => setPreview(f)}>
-                          <FileTypeIcon type={f.type} />
-                          {f.name}
-                        </button>
+                        <span className="flex items-center gap-2">
+                          <button type="button" className="flex items-center gap-2 font-medium hover:underline" onClick={() => setPreview(f)}>
+                            <FileTypeIcon type={f.type} />
+                            {f.name}
+                          </button>
+                          {/* 关联任务徽标（原型 views/files.js:57 `<button class="badge">` + link 图标 + 任务 key），点击打开任务抽屉 */}
+                          {task && (
+                            <Badge variant="outline" asChild>
+                              <Link to={`?task=${task.id}`} data-file-task={task.id}>
+                                <Link2 />
+                                {task.key}
+                              </Link>
+                            </Badge>
+                          )}
+                        </span>
                       </TableCell>
                       <TableCell>{typeName(f)}</TableCell>
                       <TableCell className="tabular-nums">{fileSize(f.size_bytes)}</TableCell>
@@ -154,13 +165,6 @@ export function FilesView({ projectId }: { projectId: string }) {
                         </span>
                       </TableCell>
                       <TableCell>{timeAgo(t, f.at)}</TableCell>
-                      <TableCell>
-                        {task && (
-                          <Link to={`?task=${task.id}`} className="font-mono text-xs hover:underline">
-                            {task.key}
-                          </Link>
-                        )}
-                      </TableCell>
                       <TableCell className="pr-4 text-right">
                         <a href={contentUrl(f)} download className="inline-flex items-center gap-1 text-xs hover:underline">
                           <Download size={13} />

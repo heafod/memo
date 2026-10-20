@@ -14,6 +14,6 @@ export default {
   noResultsHint: '没有符合搜索或筛选条件的项目。请换个关键词试试。',
   clearFilters: '清除筛选',
   privateProject: '私有项目',
-  restricted: '受限——仅项目成员可查看任务',
+  restricted: '受限——申请访问权限后可查看任务',
   columns: { project: '项目', status: '状态', lead: '负责人', team: '团队', progress: '进度', tasks: '任务', due: '截止日期' },
 } as const;

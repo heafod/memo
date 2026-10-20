@@ -67,8 +67,7 @@ export function ForbiddenState({ project, lead }: { project: Project; lead: Memb
         </Button>
       }
     >
-      {t('states.forbidden.privateProject', { name: project.name })}
-      {t('states.forbidden.askOwner', { who: lead?.name ?? t('states.forbidden.owner') })}
+      {t('states.forbidden.message', { name: project.name, who: lead?.name ?? t('states.forbidden.owner') })}
     </StateBox>
   );
 }

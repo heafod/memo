@@ -8,6 +8,7 @@ import { RichText } from '@/components/app/rich-text';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { fmtComment } from '@/lib/domain/comments';
 import { daysFromToday } from '@/lib/domain/dates';
 import { fileSize, fmtDate, timeAgo } from '@/lib/domain/format';
 import { canSee, isOverdue } from '@/lib/domain/tasks';
@@ -260,33 +261,19 @@ function DrawerBody({ taskId }: { taskId: string }) {
   );
 }
 
-/** 评论正文：@完整成员名高亮（原型 fmtComment），纯文本渲染。 */
+/** 评论正文：经 `fmtComment`（原型 ui/helpers.js:68）切段，@提及段高亮，纯文本渲染。 */
 function CommentText({ text, members }: { text: string; members: string[] }) {
-  const names = members.filter(Boolean).sort((a, b) => b.length - a.length);
-  const parts: ReactNode[] = [];
-  let rest = text;
-  let k = 0;
-  while (rest) {
-    let idx = -1;
-    let hit = '';
-    for (const n of names) {
-      const i = rest.indexOf(`@${n}`);
-      if (i >= 0 && (idx < 0 || i < idx)) {
-        idx = i;
-        hit = n;
-      }
-    }
-    if (idx < 0) {
-      parts.push(rest);
-      break;
-    }
-    parts.push(rest.slice(0, idx));
-    parts.push(
-      <span key={k++} className="rounded bg-primary/10 px-0.5 text-primary">
-        @{hit}
-      </span>,
-    );
-    rest = rest.slice(idx + hit.length + 1);
-  }
-  return <p className="mt-0.5 whitespace-pre-wrap text-sm leading-6">{parts}</p>;
+  return (
+    <p className="mt-0.5 whitespace-pre-wrap text-sm leading-6">
+      {fmtComment(text, members).map((seg, i) =>
+        seg.mention ? (
+          <span key={i} data-mention="" className="rounded bg-primary/10 px-0.5 text-primary">
+            {seg.text}
+          </span>
+        ) : (
+          seg.text
+        ),
+      )}
+    </p>
+  );
 }

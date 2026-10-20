@@ -10,8 +10,8 @@ export default {
   forbidden: {
     code: 'ERROR 403',
     title: '你没有访问权限',
-    privateProject: '{{name}} 是私有项目。',
-    askOwner: '你还不是该项目的成员，请联系 {{who}} 将你添加为成员。',
+    // FRIDAY 裁定（#12 第 5 条）完整文案，整句一个 key
+    message: '{{name}} 是私有项目。你还不是该项目的成员，请联系 {{who}} 将你添加为成员。',
     owner: '项目所有者',
     backToProjects: '返回项目列表',
   },
