@@ -1,10 +1,12 @@
-import { Calendar, CircleCheck, Clock, FolderKanban, LayoutGrid, List, Lock, Plus, Search, SearchX, Star, Table2 } from 'lucide-react';
+import { Calendar, CircleCheck, Clock, FolderKanban, LayoutGrid, List, Lock, MoreHorizontal, Plus, Search, SearchX, Star, Table2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { useCreateDialogs } from '@/components/app/create-dialogs';
+import { ProjectDropdownItems } from '@/components/app/project-menu-items';
 import { AvatarStack, MemberAvatar, ProgressBar, ProjectIcon, ProjectStatusBadge } from '@/components/app/domain-ui';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Card } from '@/components/ui/card';
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Input } from '@/components/ui/input';
@@ -28,7 +30,7 @@ type Layout = (typeof LAYOUTS)[number][0];
 
 /**
  * 项目列表页（FRIDAY 裁定第 1、5 条：属 9a，按 51_1-projects.svg；9c 加页头与空状态「新建项目」；原型 pages/projects.js）。
- * 不可见项目（canSee 为假）只暴露名称、图标和负责人，其余字段不显示、不参与搜索 / 筛选 / 排序 / 计数 / 汇总（FRIDAY 裁定 #12 17:27 总 AC）。『新建项目』属 PR-9c，项目菜单属 PR-9b（页头与空状态的「新建项目」已做；项目卡片「更多」菜单是上下文菜单，原型 ctxBtn，本批不渲染）。
+ * 不可见项目（canSee 为假）只暴露名称、图标和负责人，其余字段不显示、不参与搜索 / 筛选 / 排序 / 计数 / 汇总（FRIDAY 裁定 #12 17:27 总 AC）。『新建项目』属 PR-9c，项目菜单属 PR-9b（卡片 `.more`：R19 收藏与 R23 上移 / 下移）。
  */
 export function ProjectsPage() {
   const { t } = useTranslation();
@@ -44,6 +46,7 @@ export function ProjectsPage() {
 
   // 不可见项目不论 archived 都照常列出（17:38 archived 追加 AC），可见项目排除归档
   const all = useListedProjects();
+  const sidebarVisible = all.filter(x => !isHidden(x) && x.status !== 'complete');
   const query = q.trim().toLowerCase();
   const sorter: Record<SortKey, (p: Project) => string | number> = {
     recent: p => -Date.parse(p.last_active_at ?? '1970-01-01'),
@@ -211,43 +214,43 @@ export function ProjectsPage() {
               );
             }
             return (
-              <Link
-                key={p.id}
-                to={`/projects/${p.id}`}
-                aria-label={p.name}
-                className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 hover:shadow-[var(--shadow-card)]"
-              >
+              <div key={p.id} className="relative flex flex-col gap-3 rounded-xl border border-border bg-card p-4 hover:shadow-[var(--shadow-card)]">
                 <div className="flex items-center gap-2.5">
-                  <ProjectIcon project={p} />
-                  <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                    <b className="truncate text-sm font-semibold">{p.name}</b>
-                    {p.fav && <Star size={12} className="shrink-0 text-[var(--amber)]" />}
-                    {p.private && <Lock size={12} className="shrink-0 text-muted-foreground" aria-label={t('projects.privateProject')} />}
-                  </span>
-                  <ProjectStatusBadge status={p.status} />
+                  <Link to={`/projects/${p.id}`} aria-label={p.name} className="flex min-w-0 flex-1 items-center gap-2.5">
+                    <ProjectIcon project={p} />
+                    <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                      <b className="truncate text-sm font-semibold">{p.name}</b>
+                      {p.fav && <Star size={12} className="shrink-0 text-[var(--amber)]" />}
+                      {p.private && <Lock size={12} className="shrink-0 text-muted-foreground" aria-label={t('projects.privateProject')} />}
+                    </span>
+                    <ProjectStatusBadge status={p.status} />
+                  </Link>
+                  <ProjectMoreMenu project={p} visibleOrdered={sidebarVisible} />
                 </div>
-                <p className="line-clamp-2 min-h-10 text-[13px] text-muted-foreground">{p.desc}</p>
-                <div className="flex items-center gap-2.5">
-                  <ProgressBar value={s.pr} tone={p.status === 'complete' ? 'green' : p.status === 'risk' ? 'red' : undefined} />
-                  <span className="text-xs font-medium tabular-nums">{s.pr}%</span>
-                </div>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1">
-                    <CircleCheck size={12} />
-                    {`${s.done}/${s.total}`}
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <Calendar size={12} />
-                    {fmtDate(t, p.due)}
-                  </span>
-                  <span className="hidden items-center gap-1 sm:inline-flex">
-                    <Clock size={12} />
-                    {timeAgo(t, p.last_active_at)}
-                  </span>
-                  <span className="flex-1" />
-                  <AvatarStack ids={p.member_ids} members={members} />
-                </div>
-              </Link>
+                <Link to={`/projects/${p.id}`} className="flex flex-col gap-3">
+                  <p className="line-clamp-2 min-h-10 text-[13px] text-muted-foreground">{p.desc}</p>
+                  <div className="flex items-center gap-2.5">
+                    <ProgressBar value={s.pr} tone={p.status === 'complete' ? 'green' : p.status === 'risk' ? 'red' : undefined} />
+                    <span className="text-xs font-medium tabular-nums">{s.pr}%</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <CircleCheck size={12} />
+                      {`${s.done}/${s.total}`}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Calendar size={12} />
+                      {fmtDate(t, p.due)}
+                    </span>
+                    <span className="hidden items-center gap-1 sm:inline-flex">
+                      <Clock size={12} />
+                      {timeAgo(t, p.last_active_at)}
+                    </span>
+                    <span className="flex-1" />
+                    <AvatarStack ids={p.member_ids} members={members} />
+                  </div>
+                </Link>
+              </div>
             );
           })}
         </div>
@@ -272,26 +275,25 @@ export function ProjectsPage() {
               );
             }
             return (
-              <Link
-                key={p.id}
-                to={`/projects/${p.id}`}
-                className="flex min-h-[52px] items-center gap-3 border-b border-border px-4 py-2 last:border-b-0 hover:bg-accent/50"
-              >
-                <ProjectIcon project={p} />
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5 text-sm font-medium">
-                    {p.name}
-                    {p.private && <Lock size={12} className="text-muted-foreground" aria-label={t('projects.privateProject')} />}
+              <div key={p.id} className="flex min-h-[52px] items-center gap-3 border-b border-border px-4 py-2 last:border-b-0 hover:bg-accent/50">
+                <Link to={`/projects/${p.id}`} className="flex min-w-0 flex-1 items-center gap-3">
+                  <ProjectIcon project={p} />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-1.5 text-sm font-medium">
+                      {p.name}
+                      {p.private && <Lock size={12} className="text-muted-foreground" aria-label={t('projects.privateProject')} />}
+                    </span>
+                    <span className="block truncate text-xs text-muted-foreground">{p.desc}</span>
                   </span>
-                  <span className="block truncate text-xs text-muted-foreground">{p.desc}</span>
-                </span>
-                <ProjectStatusBadge status={p.status} />
-                <span className="hidden w-40 items-center gap-2 md:flex">
-                  <ProgressBar value={s.pr} />
-                  <span className="w-9 text-right text-xs tabular-nums">{s.pr}%</span>
-                </span>
-                <span className="w-20 text-right text-xs text-muted-foreground tabular-nums">{fmtDate(t, p.due)}</span>
-              </Link>
+                  <ProjectStatusBadge status={p.status} />
+                  <span className="hidden w-40 items-center gap-2 md:flex">
+                    <ProgressBar value={s.pr} />
+                    <span className="w-9 text-right text-xs tabular-nums">{s.pr}%</span>
+                  </span>
+                  <span className="w-20 text-right text-xs text-muted-foreground tabular-nums">{fmtDate(t, p.due)}</span>
+                </Link>
+                <ProjectMoreMenu project={p} visibleOrdered={sidebarVisible} />
+              </div>
             );
           })}
         </Card>
@@ -307,6 +309,7 @@ export function ProjectsPage() {
                 <TableHead className="w-[16%]">{t('projects.columns.progress')}</TableHead>
                 <TableHead>{t('projects.columns.tasks')}</TableHead>
                 <TableHead>{t('projects.columns.due')}</TableHead>
+                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -340,6 +343,7 @@ export function ProjectsPage() {
                     </TableCell>
                     <TableCell className="tabular-nums">{!s.locked && `${s.done}/${s.total}`}</TableCell>
                     <TableCell className="tabular-nums">{!s.locked && fmtDate(t, p.due)}</TableCell>
+                    <TableCell className="pr-2">{!s.locked && <ProjectMoreMenu project={p} visibleOrdered={sidebarVisible} />}</TableCell>
                   </TableRow>
                 );
               })}
@@ -348,6 +352,30 @@ export function ProjectsPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+function ProjectMoreMenu({ project, visibleOrdered }: { project: Project; visibleOrdered: readonly Project[] }) {
+  const { t } = useTranslation();
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          className="shrink-0"
+          aria-label={t('write.sidebar.more')}
+          data-more={project.id}
+          onClick={e => e.preventDefault()}
+        >
+          <MoreHorizontal />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <ProjectDropdownItems project={project} visibleOrdered={visibleOrdered} />
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
