@@ -1,11 +1,13 @@
 import sentry_sdk
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
 from starlette.middleware.cors import CORSMiddleware
 
 from app.api.main import api_router
 from app.api.routes import auth, health
 from app.core.config import settings
+from app.core.validation import request_validation_exception_handler
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
@@ -25,6 +27,9 @@ app = FastAPI(
     ),
     generate_unique_id_function=custom_generate_unique_id,
 )
+
+# R8：请求校验 422 的 msg 中文化（形态与状态码沿用框架默认）
+app.add_exception_handler(RequestValidationError, request_validation_exception_handler)
 
 app.add_middleware(
     CORSMiddleware,
