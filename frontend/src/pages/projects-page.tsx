@@ -151,8 +151,8 @@ export function ProjectsPage() {
               <EmptyMedia variant="icon">
                 <FolderKanban />
               </EmptyMedia>
+              {/* 9a 只显示标题；描述随 PR-9c「新建项目」按钮一起加回（FRIDAY 裁定 #12 17:49，原型 core/zh/pages-a.js:212） */}
               <EmptyTitle>{t('projects.empty')}</EmptyTitle>
-              <EmptyDescription>{t('projects.emptyHint')}</EmptyDescription>
             </EmptyHeader>
           </Empty>
         </Card>
