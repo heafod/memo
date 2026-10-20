@@ -24,6 +24,10 @@ services:
       PROJECT_NAME: ${PROJECT_NAME:?Variable not set}
       SECRET_KEY: ${SECRET_KEY:?Variable not set}
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Variable not set}@db:5432/app
+      FILES_DIR: /data/files
+    # R4b：上传文件内容存卷（元数据入库），容器重建不丢
+    volumes:
+      - app-files-data:/data/files
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
@@ -36,3 +40,4 @@ services:
 
 volumes:
   app-db-data:
+  app-files-data:

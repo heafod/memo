@@ -103,6 +103,16 @@ _TEST_URL, _TEST_DB = _derive_test_url(_dev_url)
 _ensure_test_database(_dev_url, _TEST_DB)
 os.environ["DATABASE_URL"] = _TEST_URL
 
+# R4b（PR-6）：上传内容目录落仓库根 .tmp/（AGENTS.md：临时文件不写项目之外），
+# 每次会话清空重建，避免跨会话残留。
+_TEST_FILES_DIR = Path(__file__).resolve().parents[2] / ".tmp" / "test-files"
+if _TEST_FILES_DIR.exists():
+    import shutil
+
+    shutil.rmtree(_TEST_FILES_DIR)
+_TEST_FILES_DIR.mkdir(parents=True)
+os.environ["FILES_DIR"] = str(_TEST_FILES_DIR)
+
 from collections.abc import Generator  # noqa: E402
 
 import pytest  # noqa: E402

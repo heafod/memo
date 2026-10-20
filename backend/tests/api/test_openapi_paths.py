@@ -7,7 +7,8 @@
 PR-4（R11）：断言本批规格要求的路径均存在——快照、各实体写端点
 （projects/tasks/members/teams/comments）、notifs 已读、preferences。
 PR-5（R17、R18）：events / saved-views 写端点路径面（仅 POST/PUT/DELETE，
-不暴露 GET——读面由快照承载，调度方核定）。文件上传属 PR-6，此处不断言。
+不暴露 GET——读面由快照承载，调度方核定）。
+PR-6（R4b）：文件 `POST /api/files`（multipart）与 `GET /api/files/{id}/content`。
 """
 
 from fastapi.testclient import TestClient
@@ -81,3 +82,12 @@ def test_openapi_events_and_saved_views_surface(client: TestClient) -> None:  # 
     assert "put" in methods("/api/saved-views/{saved_view_id}")
     assert "delete" in methods("/api/saved-views/{saved_view_id}")
     assert "get" not in methods("/api/saved-views")
+
+
+def test_openapi_files_surface(client: TestClient) -> None:  # R4b
+    """PR-6 路径面：multipart 上传 + 内容下载；元数据读面由快照承载。"""
+    paths = app.openapi()["paths"]
+    upload = paths["/api/files"]["post"]
+    assert "multipart/form-data" in upload["requestBody"]["content"]
+    assert "get" in paths["/api/files/{file_id}/content"]
+    assert "get" not in paths["/api/files"]
