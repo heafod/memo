@@ -15,6 +15,7 @@
 """
 
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -357,7 +358,12 @@ def test_frontend_nginx_conf() -> None:  # R14
     assert "error_page 413 @request_too_large;" in conf
     assert "default_type application/json;" in conf
     assert "charset_types application/json;" in conf
-    assert """return 413 '{"detail":"文件超过 10MB 上限"}';""" in conf
+    assert """return 413 '{"detail":"文件过大，单个文件不能超过 10MB"}';""" in conf
+    # 与后端文案逐字节一致：从后端源码取 detail 比对（FRIDAY 裁决：统一措辞）
+    files_src = (BACKEND_DIR / "app" / "api" / "routes" / "files.py").read_text()
+    backend_detail = re.search(r'status_code=413,\s*detail="([^"]+)"', files_src)
+    assert backend_detail is not None
+    assert f"""return 413 '{{"detail":"{backend_detail.group(1)}"}}';""" in conf
     # 后端 10–11MB 的 413 须原样透传：不得开启代理错误拦截
     assert "proxy_intercept_errors on" not in conf
     dockerfile = (REPO_ROOT / "frontend" / "Dockerfile").read_text()

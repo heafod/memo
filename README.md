@@ -92,6 +92,7 @@ docker compose up --build
 - **管理员账号**只取自 `.env` 的 `FIRST_SUPERUSER` / `FIRST_SUPERUSER_PASSWORD`，且仅在账号不存在时创建；之后在应用内改密，重启不会被覆盖。
 - **配置有误**（管理员变量缺失、初始密码不符策略等）时 `prestart` 以中文原因非零退出，`backend` 不会启动：`docker compose logs prestart` 查看原因。
 - **数据持久化**：数据库与上传文件分别存于卷 `app-db-data`、`app-files-data`；`docker compose down` 后重新 `up` 数据仍在，`down -v` 会一并删除。
+- **上传大小**：单文件上限 10MB；超过 11MB 的上传无论是否已认证都返回 413（由 nginx 拦截）；10–11MB 之间由后端处理，先校验认证、再校验大小。两处 413 的 `detail` 均为「文件过大，单个文件不能超过 10MB」。
 - 默认叠加 `compose.override.yml`（开发：暴露 db `5432`、backend `8000`，`FASTAPI_ENV=development`）；生产部署用 `docker compose -f compose.yml up -d --build`。
 - 部署实测脚本：`bash backend/scripts/verify-compose.sh`（独立项目名，逐项 PASS/FAIL，结束自动 `down -v` 清理）。
 
