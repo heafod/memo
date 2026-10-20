@@ -26,7 +26,7 @@ type Layout = (typeof LAYOUTS)[number][0];
 
 /**
  * 项目列表页（FRIDAY 裁定第 1、5 条：属 9a，只读，按 51_1-projects.svg；原型 pages/projects.js）。
- * 不可见项目（canSee 为假）只显示卡片元信息与「受限」提示，不显示其任务进度与计数（裁定第 7 条）。「新建项目」与项目菜单属 PR-9c。
+ * 不可见项目（canSee 为假）的卡片只显示名称与「受限」提示，不显示描述、状态、截止日期、进度和成员（FRIDAY 裁定 #12 17:07 第 ⑥ 条）。「新建项目」与项目菜单属 PR-9c。
  */
 export function ProjectsPage() {
   const { t } = useTranslation();
@@ -49,7 +49,11 @@ export function ProjectsPage() {
     progress: p => -progressOf(p.id, tasks),
   };
   const shown = all
-    .filter(p => (status === 'all' || p.status === status) && (!query || p.name.toLowerCase().includes(query) || p.desc.toLowerCase().includes(query)))
+    .filter(
+      p =>
+        (status === 'all' || p.status === status) &&
+        (!query || p.name.toLowerCase().includes(query) || (canSee(p, meId) && p.desc.toLowerCase().includes(query))),
+    )
     .sort((a, b) => (sorter[sort](a) > sorter[sort](b) ? 1 : -1));
   const clear = () => {
     setQ('');
@@ -156,6 +160,24 @@ export function ProjectsPage() {
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {shown.map(p => {
             const s = stat(p);
+            // 不可见项目卡片（FRIDAY 裁定 #12 17:07 第 ⑥ 条）：只显示名称与「受限」提示，不显示描述、状态、截止日期、进度和成员
+            if (s.locked) {
+              return (
+                <Link
+                  key={p.id}
+                  to={`/projects/${p.id}`}
+                  aria-label={p.name}
+                  data-locked-project={p.id}
+                  className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 hover:shadow-[var(--shadow-card)]"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <ProjectIcon project={p} />
+                    <b className="min-w-0 flex-1 truncate text-sm font-semibold">{p.name}</b>
+                  </div>
+                  <RestrictedNote />
+                </Link>
+              );
+            }
             return (
               <Link
                 key={p.id}
@@ -173,21 +195,14 @@ export function ProjectsPage() {
                   <ProjectStatusBadge status={p.status} />
                 </div>
                 <p className="line-clamp-2 min-h-10 text-[13px] text-muted-foreground">{p.desc}</p>
-                {s.locked ? (
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Lock size={12} />
-                    {t('projects.restricted')}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2.5">
-                    <ProgressBar value={s.pr} tone={p.status === 'complete' ? 'green' : p.status === 'risk' ? 'red' : undefined} />
-                    <span className="text-xs font-medium tabular-nums">{s.pr}%</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-2.5">
+                  <ProgressBar value={s.pr} tone={p.status === 'complete' ? 'green' : p.status === 'risk' ? 'red' : undefined} />
+                  <span className="text-xs font-medium tabular-nums">{s.pr}%</span>
+                </div>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
                   <span className="inline-flex items-center gap-1">
                     <CircleCheck size={12} />
-                    {s.locked ? '—' : `${s.done}/${s.total}`}
+                    {`${s.done}/${s.total}`}
                   </span>
                   <span className="inline-flex items-center gap-1">
                     <Calendar size={12} />
@@ -198,8 +213,7 @@ export function ProjectsPage() {
                     {timeAgo(t, p.last_active_at)}
                   </span>
                   <span className="flex-1" />
-                  {/* 不可见项目不露出成员（与 403 口径一致：只显示名称与负责人等项目元信息） */}
-                  {!s.locked && <AvatarStack ids={p.member_ids} members={members} />}
+                  <AvatarStack ids={p.member_ids} members={members} />
                 </div>
               </Link>
             );
@@ -209,6 +223,22 @@ export function ProjectsPage() {
         <Card className="gap-0 overflow-hidden py-0">
           {shown.map(p => {
             const s = stat(p);
+            if (s.locked) {
+              return (
+                <Link
+                  key={p.id}
+                  to={`/projects/${p.id}`}
+                  data-locked-project={p.id}
+                  className="flex min-h-[52px] items-center gap-3 border-b border-border px-4 py-2 last:border-b-0 hover:bg-accent/50"
+                >
+                  <ProjectIcon project={p} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{p.name}</span>
+                    <RestrictedNote />
+                  </span>
+                </Link>
+              );
+            }
             return (
               <Link
                 key={p.id}
@@ -225,12 +255,8 @@ export function ProjectsPage() {
                 </span>
                 <ProjectStatusBadge status={p.status} />
                 <span className="hidden w-40 items-center gap-2 md:flex">
-                  {!s.locked && (
-                    <>
-                      <ProgressBar value={s.pr} />
-                      <span className="w-9 text-right text-xs tabular-nums">{s.pr}%</span>
-                    </>
-                  )}
+                  <ProgressBar value={s.pr} />
+                  <span className="w-9 text-right text-xs tabular-nums">{s.pr}%</span>
                 </span>
                 <span className="w-20 text-right text-xs text-muted-foreground tabular-nums">{fmtDate(t, p.due)}</span>
               </Link>
@@ -256,23 +282,22 @@ export function ProjectsPage() {
                 const s = stat(p);
                 const lead = members.find(m => m.id === p.lead_id);
                 return (
-                  <TableRow key={p.id}>
+                  <TableRow key={p.id} data-locked-project={s.locked ? p.id : undefined}>
                     <TableCell className="pl-4">
                       <Link to={`/projects/${p.id}`} className="flex items-center gap-2 font-medium hover:underline">
                         <ProjectIcon project={p} size="sm" />
                         {p.name}
                       </Link>
+                      {s.locked && <RestrictedNote />}
                     </TableCell>
-                    <TableCell>
-                      <ProjectStatusBadge status={p.status} />
-                    </TableCell>
+                    <TableCell>{!s.locked && <ProjectStatusBadge status={p.status} />}</TableCell>
                     <TableCell>
                       <span className="flex items-center gap-1.5">
                         <MemberAvatar member={lead} />
                         {lead?.name}
                       </span>
                     </TableCell>
-                    <TableCell>{teams.find(x => x.id === p.team_id)?.name}</TableCell>
+                    <TableCell>{!s.locked && teams.find(x => x.id === p.team_id)?.name}</TableCell>
                     <TableCell>
                       {!s.locked && (
                         <span className="flex items-center gap-2">
@@ -281,8 +306,8 @@ export function ProjectsPage() {
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="tabular-nums">{s.locked ? '—' : `${s.done}/${s.total}`}</TableCell>
-                    <TableCell className="tabular-nums">{fmtDate(t, p.due)}</TableCell>
+                    <TableCell className="tabular-nums">{!s.locked && `${s.done}/${s.total}`}</TableCell>
+                    <TableCell className="tabular-nums">{!s.locked && fmtDate(t, p.due)}</TableCell>
                   </TableRow>
                 );
               })}
@@ -291,5 +316,16 @@ export function ProjectsPage() {
         </Card>
       )}
     </div>
+  );
+}
+
+/** 不可见项目的受限提示（FRIDAY 裁定 #12 第三轮第 3 条文案；有意偏离原型 projects.js:17，首版无申请访问功能）。 */
+function RestrictedNote() {
+  const { t } = useTranslation();
+  return (
+    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <Lock size={12} />
+      {t('projects.restricted')}
+    </span>
   );
 }

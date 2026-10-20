@@ -116,11 +116,12 @@ export function HomePage() {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+      {/* 主栏 : 右栏 = 1.55 : 1（原型 panels.css:74–78 `.grid2`；FRIDAY 裁定 #12 17:07 第 ①b 条） */}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <div className="flex min-w-0 flex-col gap-4">
           <Card className="gap-0 py-0" aria-labelledby="h-mytasks">
-            <CardHeader className="flex h-12 items-center justify-between border-b border-border py-0">
-              <CardTitle id="h-mytasks" className="text-sm">
+            <CardHeader className="flex h-12 items-center justify-between border-b border-border py-0 [.border-b]:pb-0">
+              <CardTitle id="h-mytasks" className={PANEL_TITLE}>
                 {t('home.myTasks.title')}
               </CardTitle>
               <CardAction className="flex items-center gap-1 self-center">
@@ -161,8 +162,8 @@ export function HomePage() {
           </Card>
 
           <Card className="gap-0 py-0">
-            <CardHeader className="flex h-12 items-center justify-between border-b border-border py-0">
-              <CardTitle className="text-sm">{t('home.progress.title')}</CardTitle>
+            <CardHeader className="flex h-12 items-center justify-between border-b border-border py-0 [.border-b]:pb-0">
+              <CardTitle className={PANEL_TITLE}>{t('home.progress.title')}</CardTitle>
               <CardAction className="self-center">
                 <Link to="/projects" className="text-[13px] text-muted-foreground hover:text-foreground">
                   {t('home.progress.all')}
@@ -217,8 +218,8 @@ export function HomePage() {
 
         <div className="flex min-w-0 flex-col gap-4">
           <Card className="gap-0 py-0">
-            <CardHeader className="flex h-12 items-center justify-between border-b border-border py-0">
-              <CardTitle className="text-sm">{t('home.deadlines.title')}</CardTitle>
+            <CardHeader className="flex h-12 items-center justify-between border-b border-border py-0 [.border-b]:pb-0">
+              <CardTitle className={PANEL_TITLE}>{t('home.deadlines.title')}</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-2.5 py-3">
               {deadlines.map(g => (
@@ -249,12 +250,12 @@ export function HomePage() {
             </CardContent>
           </Card>
           <Card className="gap-0 py-0">
-            <CardHeader className="flex h-12 items-center justify-between border-b border-border py-0">
-              <CardTitle className="text-sm">{t('home.activity.title')}</CardTitle>
+            <CardHeader className="flex h-12 items-center justify-between border-b border-border py-0 [.border-b]:pb-0">
+              <CardTitle className={PANEL_TITLE}>{t('home.activity.title')}</CardTitle>
             </CardHeader>
             <CardContent className="py-1">
               {recent.map(a => (
-                <ActivityItem key={a.id} activity={a} meId={meId} members={members} tasks={tasks} projects={projects} showProject />
+                <ActivityItem key={a.id} activity={a} meId={meId} members={members} tasks={tasks} projects={projects} showProject singleLine />
               ))}
             </CardContent>
           </Card>
@@ -263,6 +264,10 @@ export function HomePage() {
     </div>
   );
 }
+
+// 面板标题：字号 token `--fs`（13.5px）、字重 600（原型 panels.css:15–18 `.panel-h h2`；FRIDAY 裁定 #12 17:07 第 ①c 条），
+// 行高 1 并由标题栏 flex items-center 与右侧操作垂直居中
+const PANEL_TITLE = 'text-(length:--fs) leading-none font-semibold';
 
 function Stat({
   to,

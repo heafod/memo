@@ -102,3 +102,14 @@ export function RouteErrorState() {
   console.error(error);
   return <FailedState />;
 }
+
+/** 路由顶层 errorElement：外壳或守卫抛异常时整页显示出错页（无外壳可依托），含刷新入口。 */
+export function RootErrorState() {
+  const error = useRouteError();
+  console.error(error);
+  return (
+    <main className="grid min-h-svh place-items-center bg-background">
+      <FailedState />
+    </main>
+  );
+}

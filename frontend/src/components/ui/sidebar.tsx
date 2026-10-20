@@ -15,7 +15,8 @@ import { PanelLeftIcon } from 'lucide-react';
 
 const SIDEBAR_COOKIE_NAME = 'sidebar_state';
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
-const SIDEBAR_WIDTH = '16rem';
+// 侧栏宽度取设计 token `--side-w`（252px，tokens.css；FRIDAY 裁定 #12 17:07 第 ①a 条，R9 token 为权威源）
+const SIDEBAR_WIDTH = 'var(--side-w)';
 const SIDEBAR_WIDTH_MOBILE = '18rem';
 const SIDEBAR_WIDTH_ICON = '3rem';
 const SIDEBAR_KEYBOARD_SHORTCUT = 'b';

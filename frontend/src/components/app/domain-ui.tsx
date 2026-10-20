@@ -29,6 +29,7 @@ import {
 import { createElement } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import {
   asFileType,
@@ -123,10 +124,11 @@ export function LabelTag({ id }: { id: string }) {
   const { t } = useTranslation();
   if (!(LABELS as readonly string[]).includes(id)) return null;
   return (
-    <span className="inline-flex h-5 items-center gap-1.5 rounded-sm border border-border px-1.5 text-xs text-[var(--text-2)]">
-      <i className="size-1.5 rounded-full" style={{ background: LABEL_COLOR[id as LabelId] }} />
+    // 映射表「任务标签 .lbl」行：`Badge` outline 变体 + 色点；尺寸按原型 components.css:544–562（高 20、圆角 5、左 6 右 7、字号 --fs-xs、色点 6px 圆角 2）
+    <Badge variant="outline" className="h-[20px] gap-[5px] rounded-[5px] pr-[7px] pl-[6px] text-(length:--fs-xs) font-normal text-[var(--text-2)]">
+      <i className="size-1.5 rounded-[2px]" style={{ background: LABEL_COLOR[id as LabelId] }} />
       {t(`domain.label.${id as LabelId}`)}
-    </span>
+    </Badge>
   );
 }
 
