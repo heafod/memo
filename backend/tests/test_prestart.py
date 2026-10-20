@@ -14,6 +14,7 @@
   变量名沿用 settings 既有名称。
 """
 
+import json
 import os
 import re
 import subprocess
@@ -368,5 +369,15 @@ def test_frontend_nginx_conf() -> None:  # R14
     assert "proxy_intercept_errors on" not in conf
     dockerfile = (REPO_ROOT / "frontend" / "Dockerfile").read_text()
     assert "FROM nginx:" in dockerfile
-    assert "COPY docker/placeholder/ /usr/share/nginx/html/" in dockerfile
-    assert (REPO_ROOT / "frontend" / "docker" / "placeholder" / "index.html").is_file()
+    # PR-8：Vite 构建阶段替换占位页；构建命令与本地一致（npm ci + npm run build）
+    assert "FROM node:22" in dockerfile
+    assert "RUN npm ci" in dockerfile and "RUN npm run build" in dockerfile
+    assert "COPY --from=build /app/dist/ /usr/share/nginx/html/" in dockerfile
+    assert "placeholder" not in dockerfile
+    assert not (REPO_ROOT / "frontend" / "docker" / "placeholder").exists()
+    package = json.loads((REPO_ROOT / "frontend" / "package.json").read_text())
+    assert package["scripts"]["build"] == "tsc -b && vite build"
+    nvmrc = (REPO_ROOT / "frontend" / ".nvmrc").read_text().strip()
+    assert nvmrc == "22"
+    index_html = (REPO_ROOT / "frontend" / "index.html").read_text()
+    assert '<div id="root"></div>' in index_html

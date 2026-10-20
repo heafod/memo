@@ -75,6 +75,26 @@ npm run dev        # http://localhost:5173，热更新
 | `npm run lint` | ESLint 检查 |
 | `npm run format` / `format:check` | Prettier 格式化 / 校验 |
 
+### 生产前端（`frontend/`，R16）
+
+需要 Node.js 22（`frontend/.nvmrc`）。开发时先按 `backend/README.md` 启动 backend（:8000），再：
+
+```bash
+cd frontend
+npm ci
+npm run dev        # http://localhost:5173；/api 经 Vite 代理到 backend（同源，会话 Cookie 可用）
+```
+
+| 命令 | 作用 |
+| :--- | :--- |
+| `npm run build` | 类型检查 + 生产构建（`tsc -b && vite build`），产物在 `dist/` |
+| `npm run typecheck` | 仅 TypeScript 类型检查 |
+| `npm run lint` | ESLint（含界面文案须经 `t()` 的 i18n 规则）+ token 副本与权威源一致性校验 |
+| `npm run format` / `format:check` | Prettier 格式化 / 校验 |
+| `npm run gen:api` | 自 backend 导出 `openapi.json` 并生成 API 类型（需 `uv`；后端接口变更后重跑并提交） |
+
+数据层与 API 客户端约定见 `frontend/docs/query-conventions.md`，原型控件映射见 `frontend/docs/component-mapping.md`，前端验收清单见 `frontend/docs/acceptance-checklist.md`。
+
 ## 一键部署（docker compose）
 
 后端 FastAPI + PostgreSQL 与前端静态服务（nginx）由仓库根 `compose.yml` 编排（R14）。需要 Docker（含 compose v2 插件）。干净环境三步：
@@ -104,7 +124,7 @@ memo/
 ├── DESIGN.md           # 机器可读设计系统（design.md 规范）
 ├── compose.yml        # 一键部署编排：db / prestart / backend / frontend（双卷持久化）
 ├── backend/            # 后端：FastAPI + SQLModel + PostgreSQL（alembic 迁移、初始种子）
-├── frontend/           # 生产前端：nginx 静态服务（PR-8 前为占位页）
+├── frontend/           # 生产前端：Vite + React + TS（R16），镜像为 Vite 构建 + nginx 静态服务
 ├── prototype/          # 前端原型：原生 JS ES 模块 + CSS，零运行时依赖
 │   ├── src/core/       # store（localStorage）、i18n、主题、常量
 │   ├── src/shell/      # 布局、视图引擎、渲染、骨架屏
