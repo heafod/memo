@@ -31,10 +31,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { PROJECT_STATUS_COLOR, type ProjectStatus } from '@/lib/domain/constants';
 import { daysFromToday } from '@/lib/domain/dates';
-import { activeProjects, canSee } from '@/lib/domain/tasks';
+import { canSee } from '@/lib/domain/tasks';
 import { useLogout } from '@/lib/query/auth';
 import { useMeId, useMembers, usePreferences, useProjects, useSnapshotLoader } from '@/lib/query/entities';
-import { useVisibleTasks } from '@/lib/query/visibility';
+import { useListedProjects, useVisibleTasks } from '@/lib/query/visibility';
 
 /**
  * 应用外壳（R1「应用外壳按 4_1-home.svg」；映射表「外壳 / 侧栏导航 / 工作区头 / 顶栏面包屑」行）。
@@ -89,6 +89,7 @@ function AppSidebar() {
   const members = useMembers();
   const projects = useProjects();
   const tasks = useVisibleTasks();
+  const listedProjects = useListedProjects();
   const prefs = usePreferences();
   const logout = useLogout();
   const projectMatch = useMatch('/projects/:projectId/*');
@@ -104,7 +105,9 @@ function AppSidebar() {
   const visibleIds = new Set(projects.filter(p => canSee(p, meId)).map(p => p.id));
   // 原型 renderSidebar：我的任务计数 = 分配给我、未完成、截止日 ≤ 今天（仅可见项目）
   const myDue = tasks.filter(x => x.assignee_id === meId && x.status !== 'done' && x.due && daysFromToday(x.due) <= 0 && visibleIds.has(x.project_id)).length;
-  const sideProjects = activeProjects(projects).filter(p => p.status !== 'complete');
+  // 侧栏：可见项目排除归档与已完成、按 order；不可见项目不论 status / archived 都照常列出，排在最后按名称升序
+  // （FRIDAY 裁定 #12 17:27 总 AC、17:38 archived、17:39 order 追加 AC；集合与顺序见 useListedProjects）
+  const sideProjects = listedProjects.filter(p => !visibleIds.has(p.id) || p.status !== 'complete');
 
   return (
     <Sidebar>
@@ -165,10 +168,11 @@ function AppSidebar() {
                     <SidebarMenuItem key={p.id}>
                       <SidebarMenuButton asChild isActive={p.id === currentProject}>
                         <Link to={`/projects/${p.id}`}>
-                          {/* 不可见项目只露出名称（FRIDAY 裁定第 6、7 条）：图标、色、状态点均不渲染，以锁形图标代替 */}
-                          {visible ? <ProjectIcon project={p} size="sm" /> : <Lock className="text-muted-foreground" />}
+                          {/* 按原型 shell/layout.js:123–126：项目图标 + 名称 + 私有锁；不可见项目同样显示图标（17:27 总 AC 允许名称、图标、负责人），
+                              状态点与子页面不渲染（状态为隐藏字段） */}
+                          <ProjectIcon project={p} size="sm" />
                           <span className="truncate">{p.name}</span>
-                          {p.private && visible && <Lock className="size-3! text-muted-foreground" aria-label={t('shell.nav.privateProject')} />}
+                          {p.private && <Lock className="size-3! text-muted-foreground" aria-label={t('shell.nav.privateProject')} />}
                           {visible && (
                             <span className="ml-auto size-1.5 shrink-0 rounded-full" style={{ background: PROJECT_STATUS_COLOR[p.status as ProjectStatus] }} />
                           )}
@@ -256,11 +260,9 @@ function Topbar({ ready }: { ready: boolean }) {
 function Crumbs({ pathname }: { pathname: string }) {
   const { t } = useTranslation();
   const projects = useProjects();
-  const meId = useMeId();
   const project = useMatch('/projects/:projectId/*');
   if (project) {
     const p = projects.find(x => x.id === project.params.projectId);
-    const visible = !!p && canSee(p, meId);
     return (
       <>
         <BreadcrumbItem>
@@ -273,7 +275,8 @@ function Crumbs({ pathname }: { pathname: string }) {
             <BreadcrumbSeparator />
             <BreadcrumbItem>
               <BreadcrumbPage className="flex items-center gap-1.5">
-                {visible && <ProjectIcon project={p} size="sm" />}
+                {/* 原型 shell/layout.js:172–177：面包屑项目名前为项目图标（不可见项目同样，17:27 总 AC 允许图标） */}
+                <ProjectIcon project={p} size="sm" />
                 {p.name}
               </BreadcrumbPage>
             </BreadcrumbItem>

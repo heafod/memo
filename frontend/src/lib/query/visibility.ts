@@ -1,4 +1,4 @@
-import { canSee } from '@/lib/domain/tasks';
+import { activeProjects, canSee } from '@/lib/domain/tasks';
 import {
   type Activity,
   type Comment,
@@ -24,6 +24,18 @@ export function useVisibleProjectIds(): ReadonlySet<string> {
   const meId = useMeId();
   const projects = useProjects();
   return new Set(projects.filter(p => canSee(p, meId)).map(p => p.id));
+}
+
+/**
+ * 侧栏与项目列表的项目集合：可见项目排除归档、按 order 排序；不可见项目不论 archived 都照常列出，
+ * 不按 order，一律排在所有可见项目之后、彼此按名称升序（FRIDAY 裁定 #12 17:38 archived、17:39 order 追加 AC）。
+ */
+export function useListedProjects(): Project[] {
+  const meId = useMeId();
+  const projects = useProjects();
+  const visible = activeProjects(projects.filter(p => canSee(p, meId)));
+  const hidden = projects.filter(p => !canSee(p, meId)).sort((a, b) => (a.name > b.name ? 1 : a.name < b.name ? -1 : 0));
+  return [...visible, ...hidden];
 }
 
 /** 是否为不可见项目（只可用名称、图标、负责人）。 */

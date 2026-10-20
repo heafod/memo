@@ -10,6 +10,8 @@ export default {
   layout: '布局',
   layouts: { grid: '网格', list: '列表', table: '表格' },
   empty: '还没有项目',
+  // 原型 core/zh/pages-a.js:211–212；「新建项目」按钮属 PR-9c
+  emptyHint: '创建第一个项目，开始整理你的工作。',
   noResults: '未找到结果',
   noResultsHint: '没有符合搜索或筛选条件的项目。请换个关键词试试。',
   clearFilters: '清除筛选',

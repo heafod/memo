@@ -12,9 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { PROJECT_STATUSES, type ProjectStatus } from '@/lib/domain/constants';
 import { fmtDate, timeAgo } from '@/lib/domain/format';
-import { activeProjects, progressOf } from '@/lib/domain/tasks';
-import { type Project, useMembers, useProjects, useTeams } from '@/lib/query/entities';
-import { useIsHiddenProject, useVisibleTasks } from '@/lib/query/visibility';
+import { progressOf } from '@/lib/domain/tasks';
+import { type Project, useMembers, useTeams } from '@/lib/query/entities';
+import { useIsHiddenProject, useListedProjects, useVisibleTasks } from '@/lib/query/visibility';
 
 const SORT_KEYS = ['recent', 'name', 'due', 'progress'] as const;
 type SortKey = (typeof SORT_KEYS)[number];
@@ -31,7 +31,6 @@ type Layout = (typeof LAYOUTS)[number][0];
  */
 export function ProjectsPage() {
   const { t } = useTranslation();
-  const projects = useProjects();
   const tasks = useVisibleTasks();
   const isHidden = useIsHiddenProject();
   const members = useMembers();
@@ -41,7 +40,8 @@ export function ProjectsPage() {
   const [sort, setSort] = useState<SortKey>('recent');
   const [layout, setLayout] = useState<Layout>('grid');
 
-  const all = activeProjects(projects);
+  // 不可见项目不论 archived 都照常列出（17:38 archived 追加 AC），可见项目排除归档
+  const all = useListedProjects();
   const query = q.trim().toLowerCase();
   const sorter: Record<SortKey, (p: Project) => string | number> = {
     recent: p => -Date.parse(p.last_active_at ?? '1970-01-01'),
@@ -152,6 +152,7 @@ export function ProjectsPage() {
                 <FolderKanban />
               </EmptyMedia>
               <EmptyTitle>{t('projects.empty')}</EmptyTitle>
+              <EmptyDescription>{t('projects.emptyHint')}</EmptyDescription>
             </EmptyHeader>
           </Empty>
         </Card>
