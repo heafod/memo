@@ -161,6 +161,21 @@ FILE_ID="$(curl -s -b "$COOKIE" -F "project_id=$PID" -F "file=@$WORK/持久化�
   "$BASE/api/files" | json 'd.get("id","")')"
 check "AC6 上传文件成功（id=$FILE_ID）" test -n "$FILE_ID"
 
+# ====================== 413：nginx 层 JSON 与后端透传 ======================
+say "== 413：经 nginx 上传 12MB → JSON 中文 detail；10.5MB → 后端 413 原样透传"
+head -c $((12 * 1024 * 1024)) /dev/zero >"$WORK/big-12mb.zip"
+head -c $((10 * 1024 * 1024 + 512 * 1024)) /dev/zero >"$WORK/mid-10_5mb.zip"
+resp="$(curl -s -b "$COOKIE" -o "$WORK/413.body" -w '%{http_code}|%{content_type}' \
+  -F "project_id=$PID" -F "file=@$WORK/big-12mb.zip" "$BASE/api/files")"
+body="$(cat "$WORK/413.body" 2>/dev/null)"
+check "413 nginx 拒绝 12MB：状态 413、Content-Type application/json、体为 {\"detail\":\"文件超过 10MB 上限\"}（实际 $resp $body）" \
+  test "${resp%%|*}" = "413" -a "${resp#*|}" = "application/json; charset=utf-8" -a "$body" = '{"detail":"文件超过 10MB 上限"}'
+resp="$(curl -s -b "$COOKIE" -o "$WORK/413b.body" -w '%{http_code}' \
+  -F "project_id=$PID" -F "file=@$WORK/mid-10_5mb.zip" "$BASE/api/files")"
+body="$(cat "$WORK/413b.body" 2>/dev/null)"
+check "413 后端透传 10.5MB：状态 413、体为后端 detail（实际 $resp $body）" \
+  test "$resp" = "413" -a "$body" = '{"detail":"文件过大，单个文件不能超过 10MB"}'
+
 # ====================== AC5：改密后重启不覆盖 ======================
 say "== AC5：API 改密 → 重启 → 新密码 200 / 旧密码拒绝，Owner 不重复"
 code="$(curl -s -o /dev/null -w '%{http_code}' -b "$COOKIE" -H 'content-type: application/json' \
@@ -174,10 +189,10 @@ check "AC5 新密码登录 → 200（实际 $code）" test "$code" = "200"
 owners="$(snapshot | json 'sum(1 for m in d["members"] if m.get("role")=="Owner")')"
 check "AC5 Owner 成员仅 1 条（实际 $owners）" test "$owners" = "1"
 code="$(login "$PW1")"
-# 登录失败码沿用 PR-3（R12）契约：400「用户名或密码错误」；未认证请求为 401
-check "AC5 旧密码登录被拒（实际 $code，PR-3 契约为 400）" test "$code" != "200" -a "$code" -ge 400
+# 登录失败码沿用 PR-3（R12）契约：400「用户名或密码错误」（FRIDAY 裁定，不改认证契约）
+check "AC5 旧密码登录 → 400（实际 $code）" test "$code" = "400"
 code="$(curl -s -o /dev/null -w '%{http_code}' -b "$COOKIE" "$BASE/api/auth/users/me")"
-check "AC5 旧密码未获会话（/api/auth/users/me → 401，实际 $code）" test "$code" = "401"
+check "AC5 旧密码未获会话：/api/auth/users/me → 401（实际 $code）" test "$code" = "401"
 login "$PW2" >/dev/null
 check "AC5 实体计数不增" test "$(counts)" = "$BASELINE"
 

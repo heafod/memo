@@ -352,6 +352,14 @@ def test_frontend_nginx_conf() -> None:  # R14
     assert "root /usr/share/nginx/html;" in conf
     assert "try_files $uri $uri/ /index.html;" in conf
     assert "location /api/" in conf and "proxy_pass http://backend:8000;" in conf
+    # >11MB 由 nginx 拒绝：命名 location 返回 JSON 中文 detail（R8、R4b）
+    assert "client_max_body_size 11m;" in conf
+    assert "error_page 413 @request_too_large;" in conf
+    assert "default_type application/json;" in conf
+    assert "charset_types application/json;" in conf
+    assert """return 413 '{"detail":"文件超过 10MB 上限"}';""" in conf
+    # 后端 10–11MB 的 413 须原样透传：不得开启代理错误拦截
+    assert "proxy_intercept_errors on" not in conf
     dockerfile = (REPO_ROOT / "frontend" / "Dockerfile").read_text()
     assert "FROM nginx:" in dockerfile
     assert "COPY docker/placeholder/ /usr/share/nginx/html/" in dockerfile
