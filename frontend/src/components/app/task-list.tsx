@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
 import { DueDate, LabelTag, MemberAvatar, PriorityPill, ProjectDot, StatusIcon, StatusPill } from '@/components/app/domain-ui';
 import { DropLine } from '@/components/app/drop-line';
+import { TaskContextItems } from '@/components/app/task-menu-items';
 import { FAV_TOAST_MS } from '@/components/app/fav-button';
 import { useAssigneeItems, usePriorityItems, useStatusItems } from '@/components/app/pick-items';
 import { DatePick, PickList } from '@/components/app/pickers';
@@ -37,6 +38,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -242,137 +244,143 @@ function TaskRow({
   };
   const cell = editable ? editCells(t, task, view, ctx, patch) : view;
   return (
-    <>
-      <div
-        ref={rowRef}
-        role="row"
-        data-task-row={task.id}
-        data-group={groupKey}
-        className={cn(
-          'group/row relative grid min-h-10 items-center gap-2 border-b border-border px-6 hover:bg-accent/50',
-          editable && 'pl-0',
-          selected && 'bg-primary/5',
-          task.status === 'done' && 'text-muted-foreground',
-          dragging && 'opacity-40',
-        )}
-        style={{ gridTemplateColumns: tpl }}
-      >
-        {edge && <DropLine edge={edge} />}
-        {editable && (
-          <span
-            ref={handleRef}
-            role="cell"
-            aria-hidden="true"
-            data-drag-handle={task.id}
-            className="grid h-full cursor-grab place-items-center text-[var(--text-4)] opacity-0 group-hover/row:opacity-100"
-          >
-            <GripVertical size={14} />
-          </span>
-        )}
-        {completable && (
-          <span role="cell">
-            <Checkbox
-              className="rounded-full"
-              aria-label={t('write.markTaskComplete', { title: task.title })}
-              checked={task.status === 'done'}
-              data-complete={task.id}
-              onCheckedChange={v => {
-                // 原型 actions.js toggleDone：完成时 toast「已完成「{title}」」+ 撤销；重新打开不弹（FRIDAY 19:40）
-                // 乐观弹出 toast：行可能因分组变化立刻卸载，onSuccess 回调不可靠；失败时收回（裁定允许，与星标 onSuccess 二选一）
-                if (v === true) {
-                  const prev = task.status as TaskStatus;
-                  const id = task.id;
-                  toast(t('write.drawer.completedToast', { title: task.title }), {
-                    id: `done-${id}`,
-                    duration: FAV_TOAST_MS,
-                    action: {
-                      label: t('write.undo'),
-                      onClick: () => update.mutate({ id, patch: { status: prev } }),
-                    },
-                  });
-                  update.mutate({ id, patch: { status: 'done' } });
-                } else {
-                  patch({ status: 'todo' });
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div
+          ref={rowRef}
+          role="row"
+          data-task-row={task.id}
+          data-ctx="task"
+          data-group={groupKey}
+          className={cn(
+            'group/row relative grid min-h-10 items-center gap-2 border-b border-border px-6 hover:bg-accent/50',
+            editable && 'pl-0',
+            selected && 'bg-primary/5',
+            task.status === 'done' && 'text-muted-foreground',
+            dragging && 'opacity-40',
+          )}
+          style={{ gridTemplateColumns: tpl }}
+        >
+          {edge && <DropLine edge={edge} />}
+          {editable && (
+            <span
+              ref={handleRef}
+              role="cell"
+              aria-hidden="true"
+              data-drag-handle={task.id}
+              className="grid h-full cursor-grab place-items-center text-[var(--text-4)] opacity-0 group-hover/row:opacity-100"
+            >
+              <GripVertical size={14} />
+            </span>
+          )}
+          {completable && (
+            <span role="cell">
+              <Checkbox
+                className="rounded-full"
+                aria-label={t('write.markTaskComplete', { title: task.title })}
+                checked={task.status === 'done'}
+                data-complete={task.id}
+                onCheckedChange={v => {
+                  // 原型 actions.js toggleDone：完成时 toast「已完成「{title}」」+ 撤销；重新打开不弹（FRIDAY 19:40）
+                  // 乐观弹出 toast：行可能因分组变化立刻卸载，onSuccess 回调不可靠；失败时收回（裁定允许，与星标 onSuccess 二选一）
+                  if (v === true) {
+                    const prev = task.status as TaskStatus;
+                    const id = task.id;
+                    toast(t('write.drawer.completedToast', { title: task.title }), {
+                      id: `done-${id}`,
+                      duration: FAV_TOAST_MS,
+                      action: {
+                        label: t('write.undo'),
+                        onClick: () => update.mutate({ id, patch: { status: prev } }),
+                      },
+                    });
+                    update.mutate({ id, patch: { status: 'done' } });
+                  } else {
+                    patch({ status: 'todo' });
+                  }
+                }}
+              />
+            </span>
+          )}
+          {selectable && (
+            <span role="cell">
+              <Checkbox aria-label={t('list.selectTask', { title: task.title })} checked={selected} onCheckedChange={v => onSelect(v === true)} />
+            </span>
+          )}
+          <span role="cell" className="flex min-w-0 items-center gap-2">
+            {subs.length > 0 ? (
+              <button
+                type="button"
+                className="-ml-1 grid size-5 shrink-0 place-items-center rounded hover:bg-accent"
+                aria-expanded={open}
+                aria-label={open ? t('list.hideSubtasks') : t('list.showSubtasks')}
+                onClick={() => setOpen(o => !o)}
+              >
+                {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+              </button>
+            ) : (
+              <span className="w-4 shrink-0" />
+            )}
+            <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground">{task.key}</span>
+            {editingTitle ? (
+              <TitleInput
+                title={task.title}
+                onDone={v => {
+                  setEditingTitle(false);
+                  if (v && v !== task.title) patch({ title: v });
+                }}
+              />
+            ) : (
+              <Link
+                to={`?task=${task.id}`}
+                className={cn('truncate hover:underline', task.status === 'done' && 'line-through')}
+                onClick={
+                  editable
+                    ? e => {
+                        if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                        e.preventDefault();
+                        window.clearTimeout(openTimer.current);
+                        if (e.detail <= 1) openTimer.current = window.setTimeout(() => void navigate(`?task=${task.id}`), DBL_MS);
+                      }
+                    : undefined
                 }
-              }}
-            />
+                onDoubleClick={
+                  editable
+                    ? e => {
+                        e.preventDefault();
+                        window.clearTimeout(openTimer.current);
+                        setEditingTitle(true);
+                      }
+                    : undefined
+                }
+              >
+                {task.title}
+              </Link>
+            )}
+            {task.recur && <Repeat size={11} className="shrink-0 text-muted-foreground" />}
+            {subs.length > 0 && (
+              <span className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground">
+                <ListChecks size={11} />
+                {doneSubs}/{subs.length}
+              </span>
+            )}
+            {nComments > 0 && (
+              <span className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground">
+                <MessageSquare size={11} />
+                {nComments}
+              </span>
+            )}
           </span>
-        )}
-        {selectable && (
-          <span role="cell">
-            <Checkbox aria-label={t('list.selectTask', { title: task.title })} checked={selected} onCheckedChange={v => onSelect(v === true)} />
-          </span>
-        )}
-        <span role="cell" className="flex min-w-0 items-center gap-2">
-          {subs.length > 0 ? (
-            <button
-              type="button"
-              className="-ml-1 grid size-5 shrink-0 place-items-center rounded hover:bg-accent"
-              aria-expanded={open}
-              aria-label={open ? t('list.hideSubtasks') : t('list.showSubtasks')}
-              onClick={() => setOpen(o => !o)}
-            >
-              {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-            </button>
-          ) : (
-            <span className="w-4 shrink-0" />
-          )}
-          <span className="shrink-0 font-mono text-[11.5px] text-muted-foreground">{task.key}</span>
-          {editingTitle ? (
-            <TitleInput
-              title={task.title}
-              onDone={v => {
-                setEditingTitle(false);
-                if (v && v !== task.title) patch({ title: v });
-              }}
-            />
-          ) : (
-            <Link
-              to={`?task=${task.id}`}
-              className={cn('truncate hover:underline', task.status === 'done' && 'line-through')}
-              onClick={
-                editable
-                  ? e => {
-                      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-                      e.preventDefault();
-                      window.clearTimeout(openTimer.current);
-                      if (e.detail <= 1) openTimer.current = window.setTimeout(() => void navigate(`?task=${task.id}`), DBL_MS);
-                    }
-                  : undefined
-              }
-              onDoubleClick={
-                editable
-                  ? e => {
-                      e.preventDefault();
-                      window.clearTimeout(openTimer.current);
-                      setEditingTitle(true);
-                    }
-                  : undefined
-              }
-            >
-              {task.title}
-            </Link>
-          )}
-          {task.recur && <Repeat size={11} className="shrink-0 text-muted-foreground" />}
-          {subs.length > 0 && (
-            <span className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground">
-              <ListChecks size={11} />
-              {doneSubs}/{subs.length}
+          {columns.map(c => (
+            <span role="cell" key={c} className="min-w-0">
+              {cell[c]}
             </span>
-          )}
-          {nComments > 0 && (
-            <span className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground">
-              <MessageSquare size={11} />
-              {nComments}
-            </span>
-          )}
-        </span>
-        {columns.map(c => (
-          <span role="cell" key={c} className="min-w-0">
-            {cell[c]}
-          </span>
-        ))}
-      </div>
+          ))}
+        </div>
+      </ContextMenuTrigger>
+      <ContextMenuContent data-task-ctx={task.id}>
+        <TaskContextItems task={task} />
+      </ContextMenuContent>
       {open &&
         subs.map(s => (
           <div
@@ -384,7 +392,7 @@ function TaskRow({
             <span role="cell">{s.title}</span>
           </div>
         ))}
-    </>
+    </ContextMenu>
   );
 }
 

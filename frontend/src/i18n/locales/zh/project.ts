@@ -1,6 +1,6 @@
-// 项目页：project.*（原型 pages/project.js、views/files.js + zh/views.js；9a 只放出 list / files 两个 tab）
+// 项目页：project.*（原型 pages/project.js、views/files.js；9d 放出 board，默认 board）
 export default {
-  tabs: { list: '列表', files: '文件' },
+  tabs: { board: '看板', list: '列表', files: '文件' },
   tabsLabel: '项目视图',
   files: {
     search: '搜索文件',

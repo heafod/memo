@@ -17,6 +17,21 @@ export default {
     movedUp: '{{name}} 已上移',
     movedDown: '{{name}} 已下移',
   },
+  taskMenu: {
+    open: '打开',
+    markComplete: '标为完成',
+    reopen: '重新打开',
+    delete: '删除',
+    more: '任务选项',
+  },
+  board: {
+    addTask: '添加任务',
+    addTo: '添加到{{name}}',
+    movedTo: '已将「{{title}}」移至{{col}}',
+    empty: '还没有任务',
+    emptyHint: '添加一个任务，让事情动起来。',
+    columnOptions: '列选项',
+  },
   fav: {
     favorite: '收藏',
     add: '添加到收藏',

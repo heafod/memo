@@ -1,4 +1,4 @@
-import { Calendar, List, Paperclip, Plus, User } from 'lucide-react';
+import { Calendar, List, Paperclip, Plus, SquareKanban, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -6,6 +6,7 @@ import { Navigate, useNavigate, useParams } from 'react-router';
 import { AvatarStack, MemberAvatar, PriorityIcon, ProjectIcon, ProjectStatusBadge, StatusIcon } from '@/components/app/domain-ui';
 import { ForbiddenState, NotFoundState } from '@/components/app/error-states';
 import { FavButton } from '@/components/app/fav-button';
+import { TaskBoard } from '@/components/app/task-board';
 import { type RowDrop, type TaskGroup, TaskList, ViewToolbar } from '@/components/app/task-list';
 import { useCreateDialogs } from '@/components/app/create-dialogs';
 import { Button } from '@/components/ui/button';
@@ -28,11 +29,9 @@ import { useVisibleComments, useVisibleSubtasks, useVisibleTasks } from '@/lib/q
 import { FilesView } from './project-files';
 
 /**
- * 项目页（R4 列表 / 文件视图；9a 读面，9c 写面；原型 pages/project.js）。
- * - 项目不存在 → 原地 404（project.js:33）；不可见项目 → 原地 403（project.js:34，canSee 见 core/store.js:113）。
- * - 视图类型：只放出 list / files 两个 tab，默认 list（FRIDAY 裁定第 3、4 条）；合法但未开放的类型
- *   （overview / board / table / calendar / timeline / activity）直接访问时回到默认 list tab（9a 行为；FRIDAY PR-9c 19:30 待裁定 1 改正 Q14，只有顶层未开放页面回 `/`）；
- *   不在合法集合内的显示 404（project.js:106）。
+ * 项目页（R4 列表 / 文件 / 看板；9a 读面，9c 写面，9d 看板；原型 pages/project.js）。
+ * - 项目不存在 → 原地 404；不可见 → 原地 403。
+ * - PR-9d：放出 board tab，默认 tab 为 board（project.js:35）；合法未开放的 tab 回默认 board。
  */
 export function ProjectPage() {
   const { projectId, tab } = useParams();
@@ -43,15 +42,24 @@ export function ProjectPage() {
 
   if (!project) return <NotFoundState />;
   if (!canSee(project, meId)) return <ForbiddenState project={project} lead={members.find(m => m.id === project.lead_id)} />;
-  if (tab && !(ENABLED_PROJECT_TABS as readonly string[]).includes(tab) && (PROJECT_TABS as readonly string[]).includes(tab))
-    return <Navigate to={`/projects/${project.id}`} replace />;
-  const known = !tab || (ENABLED_PROJECT_TABS as readonly string[]).includes(tab);
-  const current: EnabledProjectTab = known && tab ? (tab as EnabledProjectTab) : DEFAULT_PROJECT_TAB;
+  if (!tab) return <Navigate to={`/projects/${project.id}/${DEFAULT_PROJECT_TAB}`} replace />;
+  if (!(ENABLED_PROJECT_TABS as readonly string[]).includes(tab) && (PROJECT_TABS as readonly string[]).includes(tab))
+    return <Navigate to={`/projects/${project.id}/${DEFAULT_PROJECT_TAB}`} replace />;
+  const known = (ENABLED_PROJECT_TABS as readonly string[]).includes(tab);
+  const current: EnabledProjectTab = known ? (tab as EnabledProjectTab) : DEFAULT_PROJECT_TAB;
 
   return (
     <div className="flex flex-col">
       <ProjectHeader projectId={project.id} tab={known ? current : null} />
-      {!known ? <NotFoundState /> : current === 'files' ? <FilesView projectId={project.id} /> : <ListView projectId={project.id} />}
+      {!known ? (
+        <NotFoundState />
+      ) : current === 'files' ? (
+        <FilesView projectId={project.id} />
+      ) : current === 'board' ? (
+        <BoardView projectId={project.id} />
+      ) : (
+        <ListView projectId={project.id} />
+      )}
     </div>
   );
 }
@@ -95,10 +103,50 @@ function ProjectHeader({ projectId, tab }: { projectId: string; tab: EnabledProj
   );
 }
 
-const TAB_ICONS = { list: List, files: Paperclip } as const;
+const TAB_ICONS = { board: SquareKanban, list: List, files: Paperclip } as const;
 
 type GroupBy = 'status' | 'priority' | 'assignee' | 'due' | 'none';
 const GROUP_OPTIONS = ['status', 'priority', 'assignee', 'due', 'none'] as const;
+
+/** 看板视图（R4 看板 PR-9d；无分组切换，工具栏仅搜索 / 新建）。 */
+function BoardView({ projectId }: { projectId: string }) {
+  const { t } = useTranslation();
+  const { newTask } = useCreateDialogs();
+  const tasks = useVisibleTasks().filter(x => x.project_id === projectId);
+  const members = useMembers();
+  const [q, setQ] = useState('');
+  const query = q.trim().toLowerCase();
+  const shown = tasks.filter(x => !query || x.title.toLowerCase().includes(query) || x.key.toLowerCase().includes(query));
+  return (
+    <>
+      <ViewToolbar
+        q={q}
+        onQ={setQ}
+        sort={{ field: 'manual', dir: 1 }}
+        onSort={() => {}}
+        sortOptions={['manual']}
+        right={
+          <Button size="sm" onClick={() => newTask({ projectId })}>
+            <Plus />
+            {t('write.newTask.open')}
+          </Button>
+        }
+      />
+      {tasks.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
+          <p className="text-sm font-medium">{t('write.board.empty')}</p>
+          <p className="text-sm text-muted-foreground">{t('write.board.emptyHint')}</p>
+          <Button size="sm" onClick={() => newTask({ projectId })}>
+            <Plus />
+            {t('write.newTask.open')}
+          </Button>
+        </div>
+      ) : (
+        <TaskBoard tasks={shown} members={members} projectId={projectId} />
+      )}
+    </>
+  );
+}
 
 /** 列表视图（R4 列表；9a 分组、折叠与多选；9c 行拖拽排序与跨分组改字段、单元格编辑、批量操作栏、「新建任务」）。 */
 function ListView({ projectId }: { projectId: string }) {

@@ -30,6 +30,8 @@ export interface NewTaskDefaults {
   projectId?: string;
   assigneeId?: string | null;
   due?: string | null;
+  /** 看板列「添加任务」预填状态（PR-9d） */
+  status?: TaskStatus;
 }
 interface Ctx {
   newTask: (d?: NewTaskDefaults) => void;
@@ -81,7 +83,7 @@ function NewTaskDialog({ defaults, onClose }: { defaults: NewTaskDefaults; onClo
     title: '',
     desc: '',
     project: initial ?? '',
-    status: 'todo' as TaskStatus,
+    status: (defaults.status ?? 'todo') as TaskStatus,
     assignee: defaults.assigneeId === undefined ? meId : defaults.assigneeId,
     priority: 'medium' as Priority,
     due: defaults.due ?? null,
