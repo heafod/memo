@@ -1,4 +1,4 @@
-import { Calendar, List, Paperclip, Plus, SquareKanban, User } from 'lucide-react';
+import { Calendar, List, Paperclip, Plus, SquareKanban, Table2, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +7,8 @@ import { AvatarStack, MemberAvatar, PriorityIcon, ProjectIcon, ProjectStatusBadg
 import { ForbiddenState, NotFoundState } from '@/components/app/error-states';
 import { FavButton } from '@/components/app/fav-button';
 import { TaskBoard } from '@/components/app/task-board';
+import { TableColumnsButton, TaskTable } from '@/components/app/task-table';
+import { DEFAULT_TABLE_HIDDEN, type TableCol } from '@/lib/domain/table-cols';
 import { type RowDrop, type TaskGroup, TaskList, ViewToolbar } from '@/components/app/task-list';
 import { useCreateDialogs } from '@/components/app/create-dialogs';
 import { Button } from '@/components/ui/button';
@@ -22,16 +24,16 @@ import {
   type TaskStatus,
 } from '@/lib/domain/constants';
 import { daysFromToday } from '@/lib/domain/dates';
-import { canSee, isOverdue, type Sort, sortTasks } from '@/lib/domain/tasks';
-import { type Member, type Task, useMeId, useMembers, useProjects } from '@/lib/query/entities';
-import { type TaskPatch, useUpdateTask } from '@/lib/query/mutations';
+import { activeProjects, canSee, isOverdue, type Sort, sortTasks } from '@/lib/domain/tasks';
+import { type Member, type Preferences, type Task, useMeId, useMembers, usePreferences, useProjects } from '@/lib/query/entities';
+import { type TaskPatch, useUpdatePreferences, useUpdateTask } from '@/lib/query/mutations';
 import { useVisibleComments, useVisibleSubtasks, useVisibleTasks } from '@/lib/query/visibility';
 import { FilesView } from './project-files';
 
 /**
- * 项目页（R4 列表 / 文件 / 看板；9a 读面，9c 写面，9d 看板；原型 pages/project.js）。
+ * 项目页（R4 列表 / 文件 / 看板 / 表格；9a 读面，9c 写面，9d 看板，9e 表格；原型 pages/project.js）。
  * - 项目不存在 → 原地 404；不可见 → 原地 403。
- * - PR-9d：放出 board tab，默认 tab 为 board（project.js:35）；合法未开放的 tab 回默认 board。
+ * - PR-9d/9e：放出 board+table；默认 board（project.js:35）；合法未开放的 tab 回默认 board。
  */
 export function ProjectPage() {
   const { projectId, tab } = useParams();
@@ -57,6 +59,8 @@ export function ProjectPage() {
         <FilesView projectId={project.id} />
       ) : current === 'board' ? (
         <BoardView projectId={project.id} />
+      ) : current === 'table' ? (
+        <TableView projectId={project.id} />
       ) : (
         <ListView projectId={project.id} />
       )}
@@ -103,7 +107,7 @@ function ProjectHeader({ projectId, tab }: { projectId: string; tab: EnabledProj
   );
 }
 
-const TAB_ICONS = { board: SquareKanban, list: List, files: Paperclip } as const;
+const TAB_ICONS = { board: SquareKanban, list: List, table: Table2, files: Paperclip } as const;
 
 type GroupBy = 'status' | 'priority' | 'assignee' | 'due' | 'none';
 const GROUP_OPTIONS = ['status', 'priority', 'assignee', 'due', 'none'] as const;
@@ -144,6 +148,82 @@ function BoardView({ projectId }: { projectId: string }) {
       ) : (
         <TaskBoard tasks={shown} members={members} projectId={projectId} />
       )}
+    </>
+  );
+}
+
+/** 表格视图（R4 表格 PR-9e；列显隐/列宽经 preferences.tableViews 持久化）。 */
+function TableView({ projectId }: { projectId: string }) {
+  const { t } = useTranslation();
+  const { newTask } = useCreateDialogs();
+  const meId = useMeId();
+  const tasks = useVisibleTasks();
+  const members = useMembers();
+  const projects = useProjects();
+  const prefs = usePreferences();
+  const updatePrefs = useUpdatePreferences();
+  const [q, setQ] = useState('');
+  const [sort, setSort] = useState<Sort>({ field: 'manual', dir: 1 });
+  const [group, setGroup] = useState<GroupBy>('none');
+  const query = q.trim().toLowerCase();
+  const projectTasks = tasks.filter(
+    x => x.project_id === projectId && (!query || x.title.toLowerCase().includes(query) || x.key.toLowerCase().includes(query)),
+  );
+  const ts = sortTasks(projectTasks, sort, members);
+  const projectMembers = projects.find(p => p.id === projectId)?.member_ids ?? [];
+  const groups = groupTasks(t, ts, group, members, projectMembers);
+  const flat = groups.flatMap(g => g.tasks);
+
+  type TableViews = Record<string, { hidden?: string[]; colW?: Record<string, number> }>;
+  const stored = ((prefs as { tableViews?: TableViews }).tableViews ?? {})[projectId];
+  const hidden = (stored?.hidden as TableCol[] | undefined) ?? [...DEFAULT_TABLE_HIDDEN];
+  const colW = stored?.colW ?? {};
+
+  const persist = (next: { hidden: TableCol[]; colW: Record<string, number> }) => {
+    const prev = (prefs as { tableViews?: TableViews }).tableViews ?? {};
+    const data: Preferences = { ...prefs, tableViews: { ...prev, [projectId]: next } };
+    updatePrefs.mutate(data);
+  };
+  const toggleCol = (c: TableCol) => {
+    if (c === 'title') return;
+    const next = hidden.includes(c) ? hidden.filter(x => x !== c) : [...hidden, c];
+    persist({ hidden: next, colW: { ...colW } });
+  };
+  const setColWidth = (c: TableCol, w: number) => persist({ hidden: [...hidden], colW: { ...colW, [c]: w } });
+  const resetWidths = () => persist({ hidden: [...hidden], colW: {} });
+  const moveTargets = activeProjects(projects).filter(p => canSee(p, meId));
+
+  return (
+    <>
+      <ViewToolbar
+        q={q}
+        onQ={setQ}
+        sort={sort}
+        onSort={setSort}
+        group={group}
+        onGroup={g => setGroup(g as GroupBy)}
+        groupOptions={GROUP_OPTIONS}
+        right={
+          <>
+            <TableColumnsButton hidden={hidden} onToggle={toggleCol} onResetWidths={resetWidths} />
+            <Button size="sm" onClick={() => newTask({ projectId })}>
+              <Plus />
+              {t('write.newTask.open')}
+            </Button>
+          </>
+        }
+      />
+      <TaskTable
+        tasks={flat}
+        members={members}
+        projects={projects}
+        moveTargets={moveTargets}
+        allTasks={tasks}
+        hidden={hidden}
+        colW={colW}
+        onColWidth={setColWidth}
+        onNewTask={() => newTask({ projectId })}
+      />
     </>
   );
 }

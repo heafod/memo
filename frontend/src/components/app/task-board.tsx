@@ -1,6 +1,6 @@
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import { Check, Plus, RotateCcw } from 'lucide-react';
+import { ArrowDownWideNarrow, Check, CheckCheck, FoldHorizontal, MoreHorizontal, Plus, RotateCcw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -11,11 +11,19 @@ import { TaskContextItems } from '@/components/app/task-menu-items';
 import { useCreateDialogs } from '@/components/app/create-dialogs';
 import { Button } from '@/components/ui/button';
 import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '@/components/ui/context-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { FAV_TOAST_MS } from '@/components/app/fav-button';
-import { STATUSES, type TaskStatus } from '@/lib/domain/constants';
+import { PRIORITY_WEIGHT, type Priority, STATUSES, type TaskStatus } from '@/lib/domain/constants';
 import { orderAmongTasks } from '@/lib/domain/task-order';
 import type { Member, Task } from '@/lib/query/entities';
-import { useUpdateTask } from '@/lib/query/mutations';
+import { useBulkUpdateTasks, useUpdateTask } from '@/lib/query/mutations';
 import { useVisibleComments, useVisibleFiles, useVisibleSubtasks } from '@/lib/query/visibility';
 import { cn } from '@/lib/utils';
 
@@ -29,9 +37,12 @@ export function TaskBoard({ tasks, members, projectId }: { tasks: readonly Task[
   const { t } = useTranslation();
   const { newTask } = useCreateDialogs();
   const update = useUpdateTask();
+  const bulk = useBulkUpdateTasks();
   const subtasks = useVisibleSubtasks();
   const comments = useVisibleComments();
   const files = useVisibleFiles();
+  // 列折叠为会话 UI 态（原型 S.ui.collapsedCols，不持久化）
+  const [collapsed, setCollapsed] = useState<Partial<Record<TaskStatus, boolean>>>({});
 
   const onDropCard = (id: string, status: TaskStatus, beforeId: string | null) => {
     const moving = tasks.find(x => x.id === id);
@@ -47,10 +58,43 @@ export function TaskBoard({ tasks, members, projectId }: { tasks: readonly Task[
     }
   };
 
+  const markAllDone = (status: TaskStatus) => {
+    const ids = tasks.filter(x => x.status === status).map(x => x.id);
+    if (!ids.length) return;
+    bulk.mutate({ ids, patch: { status: 'done' } }, { onSuccess: () => toast(t('write.board.markedDone', { n: ids.length })) });
+  };
+
+  const sortByPriority = (status: TaskStatus) => {
+    const col = tasks.filter(x => x.status === status).sort((a, b) => PRIORITY_WEIGHT[b.priority as Priority] - PRIORITY_WEIGHT[a.priority as Priority]);
+    if (col.length < 2) return;
+    const base = Math.min(...col.map(x => x.order));
+    col.forEach((tk, i) => update.mutate({ id: tk.id, patch: { order: base + i * 0.001 } }));
+  };
+
   return (
     <div className="flex gap-3 overflow-x-auto px-6 py-4" data-board="" role="list">
       {STATUSES.map(status => {
         const col = tasks.filter(x => x.status === status).sort((a, b) => a.order - b.order);
+        if (collapsed[status]) {
+          return (
+            <button
+              key={status}
+              type="button"
+              data-drop-col={status}
+              data-col-collapsed={status}
+              className="flex w-12 shrink-0 flex-col items-center gap-2 rounded-xl border border-border bg-muted/30 py-3"
+              aria-label={t('write.board.expand', { name: t(`domain.status.${status}`) })}
+              title={t('write.board.expand', { name: t(`domain.status.${status}`) })}
+              onClick={() => setCollapsed(c => ({ ...c, [status]: false }))}
+            >
+              <StatusIcon status={status} />
+              <span className="text-[11px] text-muted-foreground tabular-nums">{col.length}</span>
+              <span className="mt-2 origin-center rotate-180 text-xs font-medium writing-mode-vertical" style={{ writingMode: 'vertical-rl' }}>
+                {t(`domain.status.${status}`)}
+              </span>
+            </button>
+          );
+        }
         return (
           <BoardColumn
             key={status}
@@ -62,6 +106,9 @@ export function TaskBoard({ tasks, members, projectId }: { tasks: readonly Task[
             files={files}
             onDropCard={onDropCard}
             onAdd={() => newTask({ projectId, status })}
+            onCollapse={() => setCollapsed(c => ({ ...c, [status]: true }))}
+            onMarkAllDone={() => markAllDone(status)}
+            onSortByPriority={() => sortByPriority(status)}
           />
         );
       })}
@@ -78,6 +125,9 @@ function BoardColumn({
   files,
   onDropCard,
   onAdd,
+  onCollapse,
+  onMarkAllDone,
+  onSortByPriority,
 }: {
   status: TaskStatus;
   tasks: readonly Task[];
@@ -87,6 +137,9 @@ function BoardColumn({
   files: ReturnType<typeof useVisibleFiles>;
   onDropCard: (id: string, status: TaskStatus, beforeId: string | null) => void;
   onAdd: () => void;
+  onCollapse: () => void;
+  onMarkAllDone: () => void;
+  onSortByPriority: () => void;
 }) {
   const { t } = useTranslation();
   const colRef = useRef<HTMLElement>(null);
@@ -132,6 +185,35 @@ function BoardColumn({
         >
           <Plus />
         </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="ghost" size="icon-xs" data-col-menu={status} aria-label={t('write.board.columnOptions')}>
+              <MoreHorizontal />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48" data-col-menu-content={status}>
+            <DropdownMenuLabel>{t(`domain.status.${status}`)}</DropdownMenuLabel>
+            <DropdownMenuItem data-col-menu-add={status} onSelect={onAdd}>
+              <Plus />
+              {t('write.board.addTask')}
+            </DropdownMenuItem>
+            <DropdownMenuItem data-col-menu-collapse={status} onSelect={onCollapse}>
+              <FoldHorizontal />
+              {t('write.board.collapse')}
+            </DropdownMenuItem>
+            {status !== 'done' && (
+              <DropdownMenuItem data-col-menu-done-all={status} onSelect={onMarkAllDone}>
+                <CheckCheck />
+                {t('write.board.markAllDone')}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem data-col-menu-sort={status} onSelect={onSortByPriority}>
+              <ArrowDownWideNarrow />
+              {t('write.board.sortByPriority')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       <div className="flex max-h-[calc(100vh-16rem)] flex-col gap-2 overflow-y-auto px-2 pb-2" data-col-body={status}>
         {tasks.map(tk => (
