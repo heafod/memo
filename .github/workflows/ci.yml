@@ -60,6 +60,9 @@ jobs:
       PROJECT_NAME: Memo
       SECRET_KEY: ci-only-not-a-production-secret
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/app
+      # PR-7：prestart 要求管理员变量显式提供且符合 R12 密码策略（CI 专用值）
+      FIRST_SUPERUSER: admin@example.com
+      FIRST_SUPERUSER_PASSWORD: ci-only-Passw0rd
     defaults:
       run:
         working-directory: backend

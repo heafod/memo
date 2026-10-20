@@ -1,3 +1,17 @@
+# Memo 一键部署编排（R14）：db + prestart（一次性：迁移 + 种子 / 管理员，幂等）
+# + backend + frontend（nginx 静态服务，/api 反代 backend）。
+# 数据库与上传文件双卷持久化（app-db-data / app-files-data）。
+# 用法见仓库根 README「一键部署」：cp .env.example .env → 填写 → docker compose up --build
+
+x-backend-env: &backend-env
+  PROJECT_NAME: ${PROJECT_NAME:?Variable not set}
+  SECRET_KEY: ${SECRET_KEY:?Variable not set}
+  DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Variable not set}@db:5432/app
+  FILES_DIR: /data/files
+  # 管理员账号（R12）：仅取自环境变量；缺失或不符密码策略由 prestart 中文报错并非零退出
+  FIRST_SUPERUSER: ${FIRST_SUPERUSER:-}
+  FIRST_SUPERUSER_PASSWORD: ${FIRST_SUPERUSER_PASSWORD:-}
+
 services:
 
   db:
@@ -14,17 +28,29 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?Variable not set}
       - POSTGRES_DB=app
 
+  # 一次性服务：等待数据库 → alembic upgrade head → initial_data（幂等，
+  # 既有管理员不覆盖密码、Owner 不重复）；失败则 backend 不启动
+  prestart:
+    image: backend:latest
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    command: bash scripts/prestart.sh
+    environment: *backend-env
+    restart: "no"
+
   backend:
     image: backend:latest
     depends_on:
       db:
         condition: service_healthy
         restart: true
-    environment:
-      PROJECT_NAME: ${PROJECT_NAME:?Variable not set}
-      SECRET_KEY: ${SECRET_KEY:?Variable not set}
-      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?Variable not set}@db:5432/app
-      FILES_DIR: /data/files
+      prestart:
+        condition: service_completed_successfully
+    environment: *backend-env
     # R4b：上传文件内容存卷（元数据入库），容器重建不丢
     volumes:
       - app-files-data:/data/files
@@ -37,6 +63,18 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+
+  # 前端静态服务（nginx）：PR-8 前为占位页；/api 反代 backend（同源）
+  frontend:
+    image: frontend:latest
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
 
 volumes:
   app-db-data:

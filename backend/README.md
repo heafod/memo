@@ -6,7 +6,7 @@ FastAPI + SQLModel + PostgreSQL，服务结构沿用
 
 ## 本地开发
 
-从仓库根启动数据库（compose 在 PR-2 只编排 db 与 backend；前端编排在 PR-7 落盘）：
+从仓库根启动数据库（完整一键部署见仓库根 README「一键部署」）：
 
 ```console
 $ docker compose up -d db
