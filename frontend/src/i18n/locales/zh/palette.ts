@@ -33,5 +33,8 @@ export default {
     toggleSidebar: '切换侧边栏',
     shortcuts: '快捷键说明',
     signOut: '退出登录',
+    settings: '设置',
+    appearance: '外观设置',
+    toggleTheme: '切换主题',
   },
 } as const;

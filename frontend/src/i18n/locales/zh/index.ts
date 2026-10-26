@@ -25,6 +25,7 @@ import tasks from './tasks';
 import timeline from './timeline';
 import ui from './ui';
 import write from './write';
+import settings from './settings';
 
 // 中文资源（首版唯一语言，R8）；en 资源在 PR-11 补齐，key 与本文件一一对应。
 export const zh = {
@@ -55,4 +56,5 @@ export const zh = {
   timeline,
   ui,
   write,
+  settings,
 } as const;

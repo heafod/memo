@@ -17,6 +17,7 @@ import { MembersPage } from '@/pages/members-page';
 import { MemberDetailPage } from '@/pages/member-detail-page';
 import { TeamDetailPage } from '@/pages/team-detail-page';
 import { ActivityPage } from '@/pages/activity-page';
+import { SettingsPage } from '@/pages/settings-page';
 import { GuestOnly, RequireAuth } from '@/routes/guards';
 
 // History 模式（createBrowserRouter）；生产由 nginx try_files 回退 index.html，刷新深链不 404。
@@ -25,7 +26,7 @@ import { GuestOnly, RequireAuth } from '@/routes/guards';
 // 原型 shell/render.js ROUTE_NAMES 中尚未开放的顶层路由（home / mytasks / projects / calendar / timeline，PR-10 起 favorites / overview / tasks 已开放），随所属 PR 开放。
 // 负范围或无 R# 的原型路径（notifications、system、states 及 signup / forgot / reset / verify / onboarding）不在此列，
 // 落到下方 `*` 显示中文 404（FRIDAY PR-9c 19:30 待裁定 2）。
-const UNOPENED_ROUTES = ['teams', 'settings/*', 'archive'];
+const UNOPENED_ROUTES = ['teams', 'archive'];
 
 export const router = createBrowserRouter([
   {
@@ -58,6 +59,7 @@ export const router = createBrowserRouter([
                   { path: 'members/:memberId', element: <MemberDetailPage /> },
                   { path: 'teams/:teamId', element: <TeamDetailPage /> },
                   { path: 'activity', element: <ActivityPage /> },
+                  { path: 'settings/:sec?', element: <SettingsPage /> },
                   { path: 'projects/:projectId/:tab?', element: <ProjectPage /> },
                   // 顶层尚未开放的合法页面回到 /（FRIDAY 裁定 #12 17:07 第 ④ 条、PR-9c 19:30 待裁定 1）；项目内未做的 tab 由 ProjectPage 回默认 list tab
                   ...UNOPENED_ROUTES.map(path => ({ path, element: <Navigate to="/" replace /> })),

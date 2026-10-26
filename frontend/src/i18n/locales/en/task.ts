@@ -1,0 +1,38 @@
+// English resources (R8); keys 1:1 with zh/task.ts
+export default {
+  dialogTitle: "Task: {{title}}",
+  completedAt: "Completed on {{when}}.",
+  completed: "Completed.",
+  overdueBy: "{{n}} days overdue.",
+  props: {
+    status: "Status",
+    priority: "Priority",
+    assignee: "Assignee",
+    due: "Due date",
+    start: "Start date",
+    project: "Projects",
+    labels: "Labels",
+    repeat: "Repeat",
+    estimate: "Estimate",
+    blockedBy: "Blocked by"
+  },
+  unassigned: "Unassigned",
+  none: "—",
+  noRepeat: "Does not repeat",
+  recur: {
+    Daily: "Daily",
+    Weekly: "Weekly",
+    "Every 2 weeks": "Every 2 weeks",
+    Monthly: "Monthly"
+  },
+  description: "Description",
+  noDescription: "No description yet.",
+  subtasks: "Subtasks",
+  attachments: "Attachments",
+  comments: "Comments",
+  activity: "Activity",
+  noComments: "No comments yet.",
+  taskCreated: "Task created",
+  download: "Download",
+  close: "Close"
+} as const;

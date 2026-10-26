@@ -7,7 +7,7 @@ import { TaskList, ViewToolbar } from '@/components/app/task-list';
 import { Button } from '@/components/ui/button';
 import { daysFromToday } from '@/lib/domain/dates';
 import { isOverdue, type Sort, sortTasks } from '@/lib/domain/tasks';
-import { useMeId, useMembers, useProjects } from '@/lib/query/entities';
+import { useEvents, useMeId, useMembers, useProjects } from '@/lib/query/entities';
 import { useVisibleComments, useVisibleSubtasks, useWorkspaceTasks } from '@/lib/query/visibility';
 import { cn } from '@/lib/utils';
 
@@ -25,6 +25,7 @@ export function MyTasksPage() {
   const { newTask } = useCreateDialogs();
   const members = useMembers();
   const projects = useProjects();
+  const events = useEvents();
   // R3 基础集合：所属项目可见且未归档（与工作区日历 / 时间线同一函数）
   const tasks = useWorkspaceTasks();
   const subtasks = useVisibleSubtasks();
@@ -98,7 +99,7 @@ export function MyTasksPage() {
       </div>
       <ViewToolbar q={q} onQ={setQ} sort={sort} onSort={setSort} />
       {mode === 'calendar' ? (
-        <TaskCalendar tasks={mine} members={members} projects={projects} showProject />
+        <TaskCalendar tasks={mine} events={events} members={members} projects={projects} showProject />
       ) : (
         <div className="overflow-x-auto">
           <TaskList

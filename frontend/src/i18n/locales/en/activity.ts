@@ -1,0 +1,27 @@
+// English resources (R8); keys 1:1 with zh/activity.ts
+export default {
+  you: "You",
+  someone: "Someone",
+  inProject: "in {{p}}",
+  created: "<who>{{who}}</who> <m>created</m> <obj>{{obj}}</obj>",
+  createdProject: "<who>{{who}}</who> <m>created project</m> <obj>{{obj}}</obj>",
+  completed: "<who>{{who}}</who> <m>completed</m> <obj>{{obj}}</obj>",
+  commented: "<who>{{who}}</who> <m>commented on</m> <obj>{{obj}}</obj>",
+  movedTo: "<who>{{who}}</who> <m>moved</m> <obj>{{obj}}</obj> <m>to {{x}}</m>",
+  movedFromTo: "<who>{{who}}</who> <m>moved</m> <obj>{{obj}}</obj> <m>from {{a}} to {{b}}</m>",
+  moved: "<who>{{who}}</who> <m>moved</m> <obj>{{obj}}</obj>",
+  assignedTo: "<who>{{who}}</who> <m>assigned</m> <obj>{{obj}}</obj> <m>to {{x}}</m>",
+  assigned: "<who>{{who}}</who> <m>changed assignee on</m> <obj>{{obj}}</obj>",
+  priorityTo: "<who>{{who}}</who> <m>set priority of</m> <obj>{{obj}}</obj> <m>to {{x}}</m>",
+  priority: "<who>{{who}}</who> <m>changed priority on</m> <obj>{{obj}}</obj>",
+  dueDate: "<who>{{who}}</who> <m>changed due date on</m> <obj>{{obj}}</obj>",
+  startDate: "<who>{{who}}</who> <m>changed start date on</m> <obj>{{obj}}</obj>",
+  labels: "<who>{{who}}</who> <m>updated labels on</m> <obj>{{obj}}</obj>",
+  deps: "<who>{{who}}</who> <m>updated dependencies on</m> <obj>{{obj}}</obj>",
+  renamed: "<who>{{who}}</who> <m>renamed</m> <obj>{{obj}}</obj>",
+  repeat: "<who>{{who}}</who> <m>set repeat on</m> <obj>{{obj}}</obj>",
+  estimated: "<who>{{who}}</who> <m>changed estimate on</m> <obj>{{obj}}</obj>",
+  fileAdded: "<who>{{who}}</who> <m>added file {{x}} to</m> <obj>{{obj}}</obj>",
+  archived: "<who>{{who}}</who> <m>archived</m> <obj>{{obj}}</obj>",
+  updated: "<who>{{who}}</who> <m>updated</m> <obj>{{obj}}</obj>"
+} as const;

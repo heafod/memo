@@ -14,6 +14,7 @@ import {
   LogOut,
   Plus,
   Search,
+  Settings,
   Star,
   UserPlus,
   Users,
@@ -23,6 +24,9 @@ import { type CSSProperties, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink, Outlet, useLocation, useMatch } from 'react-router';
 import { CreateDialogsProvider, useCreateDialogs } from '@/components/app/create-dialogs';
+import { EventDialogsProvider } from '@/components/app/event-dialogs';
+import { SavedViewDialogsProvider } from '@/components/app/saved-view-dialogs';
+import { PrefsApplier } from '@/components/app/prefs-applier';
 import { KeyboardProvider } from '@/components/app/keyboard';
 import { ShortcutsDialogProvider } from '@/components/app/shortcuts-dialog';
 import { SidebarProjectList } from '@/components/app/sidebar-project';
@@ -74,28 +78,33 @@ export function AppShell() {
   return (
     <TooltipProvider>
       <CreateDialogsProvider>
-        <ShortcutsDialogProvider>
-          <SidebarProvider>
-            <KeyboardProvider>
-              {snapshot.isSuccess ? <AppSidebar /> : <Sidebar />}
-              <SidebarInset>
-                <Topbar ready={snapshot.isSuccess} />
-                <div id="main-content" tabIndex={-1} className="flex-1 outline-none">
-                  {snapshot.isSuccess ? (
-                    <>
-                      <Outlet />
-                      <TaskDrawer />
-                    </>
-                  ) : snapshot.isError ? (
-                    <FailedState />
-                  ) : (
-                    <ContentSkeleton />
-                  )}
-                </div>
-              </SidebarInset>
-            </KeyboardProvider>
-          </SidebarProvider>
-        </ShortcutsDialogProvider>
+        <EventDialogsProvider>
+          <SavedViewDialogsProvider>
+          <ShortcutsDialogProvider>
+            <SidebarProvider>
+              <KeyboardProvider>
+                {snapshot.isSuccess ? <PrefsApplier /> : null}
+                {snapshot.isSuccess ? <AppSidebar /> : <Sidebar />}
+                <SidebarInset>
+                  <Topbar ready={snapshot.isSuccess} />
+                  <div id="main-content" tabIndex={-1} className="flex-1 outline-none">
+                    {snapshot.isSuccess ? (
+                      <>
+                        <Outlet />
+                        <TaskDrawer />
+                      </>
+                    ) : snapshot.isError ? (
+                      <FailedState />
+                    ) : (
+                      <ContentSkeleton />
+                    )}
+                  </div>
+                </SidebarInset>
+              </KeyboardProvider>
+            </SidebarProvider>
+          </ShortcutsDialogProvider>
+          </SavedViewDialogsProvider>
+        </EventDialogsProvider>
       </CreateDialogsProvider>
       {/* 原型 overlays.css .toast：右下 20px、深底（--text）浅字（--text-inv）、默认 4200ms；收藏提示单独 1.8s（Q11） */}
       <Toaster
@@ -162,6 +171,9 @@ function AppSidebar() {
   const onMemberDetail = useMatch('/members/:memberId');
   const onMembers = onMembersList !== null || onMemberDetail !== null;
   const onActivity = useMatch('/activity') !== null;
+  const onSettingsExact = useMatch('/settings');
+  const onSettingsSec = useMatch('/settings/:sec');
+  const onSettings = onSettingsExact !== null || onSettingsSec !== null;
 
   const me = members.find(m => m.id === meId);
   const ws = (prefs as { workspace?: { name?: string } }).workspace;
@@ -281,6 +293,14 @@ function AppSidebar() {
                     <NavLink to="/activity" data-nav="activity">
                       <Activity />
                       <span>{t('shell.nav.activity')}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={onSettings}>
+                    <NavLink to="/settings/appearance" data-nav="settings">
+                      <Settings />
+                      <span>{t('shell.nav.settings')}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

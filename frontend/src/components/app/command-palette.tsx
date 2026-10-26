@@ -7,8 +7,11 @@ import {
   Inbox,
   Keyboard,
   LogOut,
+  Moon,
   PanelLeft,
   Search,
+  Settings,
+  Sun,
   UserPlus,
   Users,
   Activity,
@@ -16,6 +19,7 @@ import {
   ChartGantt,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useCreateDialogs } from '@/components/app/create-dialogs';
@@ -32,12 +36,13 @@ import {
 } from '@/components/ui/command';
 import { useSidebar } from '@/components/ui/sidebar';
 import { pushRecentSearch, runSearch } from '@/lib/domain/search';
+import { effectiveDark, mergePrefs, type PrefsData, type ThemePref } from '@/lib/domain/prefs';
 import { type Preferences, useMembers, usePreferences, useProjects } from '@/lib/query/entities';
 import { useLogout } from '@/lib/query/auth';
 import { useUpdatePreferences } from '@/lib/query/mutations';
 import { useVisibleComments, useVisibleFiles, useVisibleProjectIds, useVisibleTasks } from '@/lib/query/visibility';
 
-// 命令面板（R6；cmdk）。10b：无外观/主题/Settings/Switch workspace（PR-11）。
+// 命令面板（R6；cmdk）。PR-11：放出外观/主题/Settings；仍无 Switch workspace。
 
 type Mode = 'cmd' | 'search';
 
@@ -194,9 +199,33 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                   <Search />
                   {t('palette.cmds.search')}
                 </CommandItem>
+                <CommandItem data-cmd="nav-settings" onSelect={() => go('/settings/appearance')}>
+                  <Settings />
+                  {t('palette.cmds.settings')}
+                </CommandItem>
               </CommandGroup>
               <CommandSeparator />
               <CommandGroup heading={t('palette.groups.misc')}>
+                <CommandItem data-cmd="appearance" onSelect={() => go('/settings/appearance')}>
+                  <Sun />
+                  {t('palette.cmds.appearance')}
+                </CommandItem>
+                <CommandItem
+                  data-cmd="toggle-theme"
+                  onSelect={() =>
+                    run(() => {
+                      const merged = mergePrefs(prefs as PrefsData);
+                      const next: ThemePref = effectiveDark(merged.theme) ? 'light' : 'dark';
+                      updatePrefs.mutate(
+                        { ...merged, theme: next },
+                        { onSuccess: () => toast(t(next === 'dark' ? 'settings.darkOn' : 'settings.lightOn')) },
+                      );
+                    })
+                  }
+                >
+                  <Moon />
+                  {t('palette.cmds.toggleTheme')}
+                </CommandItem>
                 <CommandItem data-cmd="toggle-sidebar" onSelect={() => run(() => toggleSidebar())}>
                   <PanelLeft />
                   {t('palette.cmds.toggleSidebar')}

@@ -2,7 +2,7 @@ import { createContext, type ReactNode, useContext, useMemo, useState } from 're
 import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-// 快捷键说明对话框（R6）。10b 只列已实现键；不含 g n / g s / ⌘⇧L / E。
+// 快捷键说明对话框（R6）。PR-11：含 g s / ⌘⇧L；仍不含 g n / E。
 
 type Ctx = { open: () => void; close: () => void };
 const ShortcutsCtx = createContext<Ctx>({ open: () => {}, close: () => {} });
@@ -23,7 +23,9 @@ type LabelKey =
   | 'gInbox'
   | 'gCalendar'
   | 'gMembers'
-  | 'gActivity';
+  | 'gActivity'
+  | 'gSettings'
+  | 'toggleTheme';
 
 const ROWS: { keys: string[]; labelKey: LabelKey }[] = [
   { keys: ['⌘', 'K'], labelKey: 'palette' },
@@ -40,6 +42,8 @@ const ROWS: { keys: string[]; labelKey: LabelKey }[] = [
   { keys: ['G', 'C'], labelKey: 'gCalendar' },
   { keys: ['G', 'M'], labelKey: 'gMembers' },
   { keys: ['G', 'A'], labelKey: 'gActivity' },
+  { keys: ['G', 'S'], labelKey: 'gSettings' },
+  { keys: ['⌘', '⇧', 'L'], labelKey: 'toggleTheme' },
 ];
 
 export function ShortcutsDialogProvider({ children }: { children: ReactNode }) {

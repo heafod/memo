@@ -20,6 +20,8 @@ export type Activity = Schemas['ActivityPublic'];
 export type FileItem = Schemas['FilePublic'];
 export type Preferences = Snapshot['preferences'];
 export type Notif = Schemas['NotifPublic'];
+export type Event = Schemas['EventPublic'];
+export type SavedView = Schemas['SavedViewPublic'];
 
 const ENTITY_KEYS = [
   'members',
@@ -132,4 +134,5 @@ export function useNotifs(): Notif[] {
   });
 }
 export const usePreferences = () => useEntity('preferences');
-
+export const useEvents = () => useEntity('events');
+export const useSavedViews = () => useEntity('savedViews');

@@ -1,0 +1,71 @@
+// English resources (R8); keys 1:1 with zh/members.ts
+export default {
+  title: "Members",
+  subtitle: "Manage members, teams, and role permissions",
+  searchPh: "Search members",
+  searchAria: "Search members",
+  all: "All roles",
+  newMember: "New member",
+  newTeam: "New team",
+  you: "You",
+  teamsCount: "{{n}} teams",
+  noTeams: "No teams yet",
+  noTeamsHint: "Create a team to group members",
+  noMatch: "No matching members",
+  noMatchHint: "Try another search or role filter",
+  teamMeta: "{{members}} members · {{projects}} projects",
+  permission: "Permissions",
+  allowed: "Allow",
+  notAllowed: "Not allowed",
+  tabs: {
+    members: "Members",
+    teams: "Teams",
+    roles: "Roles & permissions"
+  },
+  cols: {
+    member: "Members",
+    role: "Roles",
+    team: "Teams",
+    tasks: "Tasks",
+    activeProjects: "Active projects",
+    lastActive: "Recently active",
+    status: "Status"
+  },
+  status: {
+    active: "Active",
+    invited: "Invited",
+    disabled: "Deactivated"
+  },
+  perms: {
+    view: "View workspace",
+    comment: "Comments",
+    editTasks: "Edit task",
+    createProjects: "Create projects",
+    invite: "Invite member",
+    manageRoles: "Manage roles",
+    workspaceSettings: "Workspace settings",
+    billing: "Billing",
+    deleteWorkspace: "Delete workspace"
+  },
+  detail: {
+    activeProjects: "Active projects",
+    assigned: "Active tasks",
+    completed: "Completed tasks",
+    assignedTasks: "Assigned tasks",
+    noProjects: "No active projects",
+    noTasks: "No active tasks",
+    members: "Members ({{n}})",
+    projects: "Projects ({{n}})",
+    edit: "Edit",
+    delete: "Delete",
+    editMember: "Edit member",
+    editTeam: "Edit team",
+    save: "Save",
+    deleteMemberTitle: "Delete member?",
+    deleteMemberBody: "Permanently delete “{{name}}”. This cannot be undone.",
+    deleteTeamTitle: "Delete team?",
+    deleteTeamBody: "Permanently delete “{{name}}”. Members are kept; only team membership is removed.",
+    saved: "Saved",
+    deleted: "Deleted"
+  }
+} as const;

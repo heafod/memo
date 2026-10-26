@@ -16,4 +16,6 @@ export default {
   gCalendar: '前往日历',
   gMembers: '前往成员',
   gActivity: '前往动态',
+  gSettings: '前往设置',
+  toggleTheme: '切换浅色 / 深色主题',
 } as const;
