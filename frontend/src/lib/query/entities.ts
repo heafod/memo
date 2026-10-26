@@ -20,6 +20,8 @@ export type Activity = Schemas['ActivityPublic'];
 export type FileItem = Schemas['FilePublic'];
 export type Preferences = Snapshot['preferences'];
 export type Notif = Schemas['NotifPublic'];
+export type Event = Schemas['EventPublic'];
+export type SavedView = Schemas['SavedViewPublic'];
 
 const ENTITY_KEYS = [
   'members',
@@ -53,7 +55,10 @@ async function loadSnapshot(): Promise<Snapshot> {
   const meId = me?.owner_member_id;
   for (const key of ENTITY_KEYS) {
     if (key === 'notifs' && meId) {
-      queryClient.setQueryData([key], snap.notifs.filter(n => n.member_id === meId));
+      queryClient.setQueryData(
+        [key],
+        snap.notifs.filter(n => n.member_id === meId),
+      );
     } else {
       queryClient.setQueryData([key], snap[key]);
     }
@@ -132,4 +137,20 @@ export function useNotifs(): Notif[] {
   });
 }
 export const usePreferences = () => useEntity('preferences');
-
+/**
+ * 工作区日历事件（R17；FRIDAY 2208 / 对齐 1727·1833·2110）：
+ * 无关联项目的事件仍可展示；有 project_id 时须所属项目可见且未归档。
+ * 芯片、日弹层、日计数共用本钩子，不在视图层再补过滤。
+ */
+export function useEvents(): Event[] {
+  const meId = useMeId();
+  const all = useEntity('events');
+  const projects = useEntity('projects');
+  return all.filter(e => {
+    if (!e.project_id) return true;
+    const p = projects.find(x => x.id === e.project_id);
+    if (!p) return false;
+    return canSee(p, meId) && !p.archived;
+  });
+}
+export const useSavedViews = () => useEntity('savedViews');

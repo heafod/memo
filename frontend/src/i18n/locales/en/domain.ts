@@ -1,0 +1,50 @@
+// English resources (R8); keys 1:1 with zh/domain.ts
+export default {
+  status: {
+    backlog: 'Backlog',
+    todo: 'To Do',
+    progress: 'In progress',
+    review: 'In review',
+    done: 'Completed',
+  },
+  priority: {
+    urgent: 'Urgent',
+    high: 'High',
+    medium: 'Medium',
+    low: 'Low',
+    none: 'No priority',
+  },
+  label: {
+    design: 'Design',
+    frontend: 'Frontend',
+    backend: 'Backend',
+    research: 'Research',
+    content: 'Content',
+    bug: 'Bug',
+    qa: 'Test',
+    growth: 'Growth',
+  },
+  projectStatus: {
+    planning: 'Planning',
+    active: 'In progress',
+    risk: 'At Risk',
+    hold: 'Paused',
+    complete: 'Completed',
+  },
+  role: {
+    Owner: 'the owner',
+    Admin: 'Admin',
+    Member: 'Members',
+    Guest: 'Guest',
+  },
+  fileType: {
+    fig: 'Figma',
+    pdf: 'PDF',
+    zip: 'Archive',
+    img: 'Image',
+    sheet: 'Table',
+    doc: 'Docs',
+    code: 'Code',
+    other: 'Files',
+  },
+} as const;

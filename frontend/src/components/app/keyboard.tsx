@@ -4,6 +4,11 @@ import { CommandPalette } from '@/components/app/command-palette';
 import { useCreateDialogs } from '@/components/app/create-dialogs';
 import { useShortcutsDialog } from '@/components/app/shortcuts-dialog';
 import { useSidebar } from '@/components/ui/sidebar';
+import { effectiveDark, mergePrefs, type PrefsData, type ThemePref } from '@/lib/domain/prefs';
+import { usePreferences } from '@/lib/query/entities';
+import { useUpdatePreferences } from '@/lib/query/mutations';
+import { useTranslation } from 'react-i18next';
+import { toast } from 'sonner';
 
 // 全局快捷键（R6）。可编辑控件内忽略除 Esc/⌘K 外的键。
 
@@ -20,6 +25,9 @@ export function KeyboardProvider({ children }: { children: ReactNode }) {
   const { newTask, newProject } = useCreateDialogs();
   const { open: openShortcuts } = useShortcutsDialog();
   const { toggleSidebar } = useSidebar();
+  const prefs = usePreferences() as PrefsData;
+  const updatePrefs = useUpdatePreferences();
+  const { t } = useTranslation();
   const pendingG = useRef(false);
   const gTimer = useRef<number | null>(null);
 
@@ -37,6 +45,13 @@ export function KeyboardProvider({ children }: { children: ReactNode }) {
       if (meta && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault();
         setPaletteOpen(o => !o);
+        return;
+      }
+      if (meta && e.shiftKey && (e.key === 'l' || e.key === 'L')) {
+        e.preventDefault();
+        const merged = mergePrefs(prefs);
+        const next: ThemePref = effectiveDark(merged.theme) ? 'light' : 'dark';
+        updatePrefs.mutate({ ...merged, theme: next }, { onSuccess: () => toast(t(next === 'dark' ? 'settings.darkOn' : 'settings.lightOn')) });
         return;
       }
       if (e.key === 'Escape') {
@@ -62,6 +77,7 @@ export function KeyboardProvider({ children }: { children: ReactNode }) {
           c: '/calendar',
           m: '/members',
           a: '/activity',
+          s: '/settings/appearance',
         };
         if (map[k]) {
           e.preventDefault();
@@ -101,7 +117,7 @@ export function KeyboardProvider({ children }: { children: ReactNode }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [paletteOpen, navigate, newTask, newProject, openShortcuts, toggleSidebar, clearG]);
+  }, [paletteOpen, navigate, newTask, newProject, openShortcuts, toggleSidebar, clearG, prefs, updatePrefs, t]);
 
   return (
     <>
@@ -110,4 +126,3 @@ export function KeyboardProvider({ children }: { children: ReactNode }) {
     </>
   );
 }
-

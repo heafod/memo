@@ -6,13 +6,13 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { MemberAvatar, PriorityIcon, ProjectDot, StatusIcon } from '@/components/app/domain-ui';
-import { useCreateDialogs } from '@/components/app/create-dialogs';
+import { EventChip, useEventDialogs } from '@/components/app/event-dialogs';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { projectColor } from '@/lib/domain/constants';
 import { addDays, daysFromToday, diffDays, isoDate, parseDate, startOfWeek, today, WEEKDAY_KEYS, weekdayKey } from '@/lib/domain/dates';
 import { fmtDate } from '@/lib/domain/format';
-import type { Member, Project, Task } from '@/lib/query/entities';
+import type { Event, Member, Project, Task } from '@/lib/query/entities';
 import { useUpdateTask } from '@/lib/query/mutations';
 import { cn } from '@/lib/utils';
 
@@ -26,29 +26,32 @@ export type CalMode = 'month' | 'week';
 /**
  * 日历视图（R4 / R3 Calendar，PR-9f；原型 views/calendar.js + drag-drop.js type 'cal'）。
  * 仅渲染调用方传入的可见任务（按 due 落格）；拖到日期格改 due，有 start+due 时保留时长。
- * 不渲染 R17 事件（归 PR-11）。
+ * R17 事件：与任务同格渲染；格「+」与日弹层为事件入口（规格口径；原型 + 为任务）。
  */
 export function TaskCalendar({
   tasks,
+  events = [],
   members,
   projects,
   projectId,
   showProject = true,
 }: {
   tasks: readonly Task[];
+  events?: readonly Event[];
   members: readonly Member[];
   projects: readonly Project[];
-  /** 项目页传入：新建任务预填项目。 */
+  /** 项目页传入：新建任务 / 事件预填项目。 */
   projectId?: string;
   showProject?: boolean;
 }) {
   const { t } = useTranslation();
-  const { newTask } = useCreateDialogs();
+  const { openNew: newEvent } = useEventDialogs();
   const update = useUpdateTask();
   const [mode, setMode] = useState<CalMode>('month');
   const [cursor, setCursor] = useState(() => isoDate(today()));
 
   const withDue = useMemo(() => tasks.filter(x => !!x.due), [tasks]);
+  const scopedEvents = useMemo(() => (projectId ? events.filter(e => e.project_id === projectId) : events), [events, projectId]);
 
   const onDropDay = (id: string, day: string) => {
     const tk = tasks.find(x => x.id === id);
@@ -146,21 +149,23 @@ export function TaskCalendar({
         <MonthGrid
           cursor={cur}
           tasks={withDue}
+          events={scopedEvents}
           members={members}
           projects={projects}
           showProject={showProject}
           onDropDay={onDropDay}
-          onAdd={due => newTask({ projectId, due })}
+          onAdd={date => newEvent({ date, projectId })}
         />
       ) : (
         <WeekGrid
           cursor={cur}
           tasks={withDue}
+          events={scopedEvents}
           members={members}
           projects={projects}
           showProject={showProject}
           onDropDay={onDropDay}
-          onAdd={due => newTask({ projectId, due })}
+          onAdd={date => newEvent({ date, projectId })}
         />
       )}
     </div>
@@ -170,6 +175,7 @@ export function TaskCalendar({
 function MonthGrid({
   cursor,
   tasks,
+  events,
   members,
   projects,
   showProject,
@@ -178,6 +184,7 @@ function MonthGrid({
 }: {
   cursor: Date;
   tasks: readonly Task[];
+  events: readonly Event[];
   members: readonly Member[];
   projects: readonly Project[];
   showProject: boolean;
@@ -205,6 +212,7 @@ function MonthGrid({
         {trimmed.map(d => {
           const ds = isoDate(d);
           const items = tasks.filter(x => x.due === ds);
+          const dayEv = events.filter(e => e.date === ds);
           const isToday = daysFromToday(ds) === 0;
           const out = d.getMonth() !== cursor.getMonth();
           return (
@@ -215,6 +223,7 @@ function MonthGrid({
               today={isToday}
               out={out}
               items={items}
+              events={dayEv}
               members={members}
               projects={projects}
               showProject={showProject}
@@ -232,6 +241,7 @@ function MonthGrid({
 function WeekGrid({
   cursor,
   tasks,
+  events,
   members,
   projects,
   showProject,
@@ -240,6 +250,7 @@ function WeekGrid({
 }: {
   cursor: Date;
   tasks: readonly Task[];
+  events: readonly Event[];
   members: readonly Member[];
   projects: readonly Project[];
   showProject: boolean;
@@ -255,6 +266,7 @@ function WeekGrid({
       {days.map(d => {
         const ds = isoDate(d);
         const items = tasks.filter(x => x.due === ds);
+        const dayEv = events.filter(e => e.date === ds);
         const isToday = daysFromToday(ds) === 0;
         return (
           <div key={ds} className="flex min-w-0 flex-col border-r border-border last:border-r-0">
@@ -262,7 +274,7 @@ function WeekGrid({
               <span className="text-sm font-semibold tabular-nums">{d.getDate()}</span>
               <span className="text-xs text-muted-foreground">{t(`date.weekday.${weekdayKey(d)}`)}</span>
               <span className="flex-1" />
-              <Button type="button" variant="ghost" size="icon-xs" aria-label={t('calendar.addTask')} onClick={() => onAdd(ds)}>
+              <Button type="button" variant="ghost" size="icon-xs" aria-label={t('calendar.addEvent')} onClick={() => onAdd(ds)}>
                 <Plus />
               </Button>
             </div>
@@ -272,6 +284,7 @@ function WeekGrid({
               today={isToday}
               out={false}
               items={items}
+              events={dayEv}
               members={members}
               projects={projects}
               showProject={showProject}
@@ -293,6 +306,7 @@ function DayCell({
   today: isToday,
   out,
   items,
+  events,
   members,
   projects,
   showProject,
@@ -306,6 +320,7 @@ function DayCell({
   today: boolean;
   out: boolean;
   items: readonly Task[];
+  events: readonly Event[];
   members: readonly Member[];
   projects: readonly Project[];
   showProject: boolean;
@@ -334,8 +349,12 @@ function DayCell({
     });
   }, [day, onDropDay]);
 
-  const shown = variant === 'month' ? items.slice(0, 3) : items;
-  const more = variant === 'month' ? items.length - 3 : 0;
+  const total = items.length + events.length;
+  const budget = variant === 'month' ? 3 : total;
+  const shownEv = events.slice(0, budget);
+  const remain = budget - shownEv.length;
+  const shownTk = items.slice(0, Math.max(0, remain));
+  const more = variant === 'month' ? total - shownEv.length - shownTk.length : 0;
 
   return (
     <div
@@ -363,7 +382,7 @@ function DayCell({
             variant="ghost"
             size="icon-xs"
             className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [.relative:hover_&]:opacity-100"
-            aria-label={t('calendar.addOn', { date: fmtDate(t, day) })}
+            aria-label={t('calendar.addEventOn', { date: fmtDate(t, day) })}
             data-cal-add={day}
             onClick={onAdd}
           >
@@ -372,11 +391,16 @@ function DayCell({
         </div>
       )}
       <div className={cn('flex min-h-0 flex-col gap-0.5', variant === 'week' && 'flex-1 overflow-y-auto px-0.5 pb-1')}>
-        {shown.map(tk => (
+        {shownEv.map(ev => (
+          <EventChip key={ev.id} event={ev} variant={variant} />
+        ))}
+        {shownTk.map(tk => (
           <CalChip key={tk.id} task={tk} members={members} projects={projects} showProject={showProject} variant={variant} />
         ))}
-        {more > 0 && <DayMore day={day} count={more} tasks={items} members={members} projects={projects} showProject={showProject} />}
-        {variant === 'week' && items.length === 0 && <span className="px-1 py-1 text-xs text-muted-foreground">{t('calendar.noTasks')}</span>}
+        {more > 0 && (
+          <DayMore day={day} count={more} tasks={items} events={events} members={members} projects={projects} showProject={showProject} onAdd={onAdd} />
+        )}
+        {variant === 'week' && total === 0 && <span className="px-1 py-1 text-xs text-muted-foreground">{t('calendar.noTasks')}</span>}
       </div>
     </div>
   );
@@ -386,16 +410,20 @@ function DayMore({
   day,
   count,
   tasks,
+  events,
   members,
   projects,
   showProject,
+  onAdd,
 }: {
   day: string;
   count: number;
   tasks: readonly Task[];
+  events: readonly Event[];
   members: readonly Member[];
   projects: readonly Project[];
   showProject: boolean;
+  onAdd: () => void;
 }) {
   const { t } = useTranslation();
   return (
@@ -410,8 +438,16 @@ function DayMore({
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-2" align="start" data-pop="daylist">
-        <div className="mb-1.5 px-1 text-xs font-medium text-muted-foreground">{t('calendar.dayList', { date: fmtDate(t, day) })}</div>
+        <div className="mb-1.5 flex items-center gap-2 px-1">
+          <span className="flex-1 text-xs font-medium text-muted-foreground">{t('calendar.dayList', { date: fmtDate(t, day) })}</span>
+          <Button type="button" variant="ghost" size="icon-xs" aria-label={t('calendar.addEvent')} data-daylist-add="" onClick={onAdd}>
+            <Plus />
+          </Button>
+        </div>
         <div className="flex max-h-72 flex-col gap-1 overflow-y-auto">
+          {events.map(ev => (
+            <EventChip key={ev.id} event={ev} variant="month" />
+          ))}
           {tasks.map(tk => (
             <CalChip key={tk.id} task={tk} members={members} projects={projects} showProject={showProject} variant="month" />
           ))}

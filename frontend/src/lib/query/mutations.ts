@@ -252,7 +252,6 @@ export function useUpdatePreferences() {
   });
 }
 
-
 export type MemberCreate = Schemas['MemberCreate'];
 export type MemberUpdate = Schemas['MemberUpdate'];
 export type TeamCreate = Schemas['TeamCreate'];
@@ -367,6 +366,75 @@ export function useDeleteTeam() {
     mutationFn: async (id: string) => {
       await unwrap(api.DELETE('/api/teams/{team_id}', { params: { path: { team_id: id } } }));
     },
+    onError: notifyError,
+  });
+}
+
+/* ---------- 事件 / 保存视图 / 改密（PR-11：R17 / R18 / R7） ---------- */
+
+export type EventCreate = Schemas['EventCreate'];
+export type EventPut = Schemas['EventPut'];
+export type EventPublic = Schemas['EventPublic'];
+export type SavedViewCreate = Schemas['SavedViewCreate'];
+export type SavedViewPut = Schemas['SavedViewPut'];
+export type SavedViewPublic = Schemas['SavedViewPublic'];
+
+export function useCreateEvent() {
+  return useMutation({
+    meta: { invalidates: [['events']] as const },
+    mutationFn: async (body: EventCreate) => unwrap(api.POST('/api/events', { body })),
+    onError: notifyError,
+  });
+}
+
+export function useUpdateEvent() {
+  return useMutation({
+    meta: { invalidates: [['events']] as const },
+    mutationFn: async ({ id, body }: { id: string; body: EventPut }) => unwrap(api.PUT('/api/events/{event_id}', { params: { path: { event_id: id } }, body })),
+    onError: notifyError,
+  });
+}
+
+export function useDeleteEvent() {
+  return useMutation({
+    meta: { invalidates: [['events']] as const },
+    mutationFn: async (id: string) => {
+      await unwrap(api.DELETE('/api/events/{event_id}', { params: { path: { event_id: id } } }));
+    },
+    onError: notifyError,
+  });
+}
+
+export function useCreateSavedView() {
+  return useMutation({
+    meta: { invalidates: [['savedViews']] as const },
+    mutationFn: async (body: SavedViewCreate) => unwrap(api.POST('/api/saved-views', { body })),
+    onError: notifyError,
+  });
+}
+
+export function useUpdateSavedView() {
+  return useMutation({
+    meta: { invalidates: [['savedViews']] as const },
+    mutationFn: async ({ id, body }: { id: string; body: SavedViewPut }) =>
+      unwrap(api.PUT('/api/saved-views/{saved_view_id}', { params: { path: { saved_view_id: id } }, body })),
+    onError: notifyError,
+  });
+}
+
+export function useDeleteSavedView() {
+  return useMutation({
+    meta: { invalidates: [['savedViews']] as const },
+    mutationFn: async (id: string) => {
+      await unwrap(api.DELETE('/api/saved-views/{saved_view_id}', { params: { path: { saved_view_id: id } } }));
+    },
+    onError: notifyError,
+  });
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: async (body: { old_password: string; new_password: string }) => unwrap(api.POST('/api/auth/password', { body })),
     onError: notifyError,
   });
 }

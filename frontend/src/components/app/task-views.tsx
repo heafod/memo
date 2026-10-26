@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { type Priority, PRIORITIES, STATUSES, type TaskStatus } from '@/lib/domain/constants';
 import { DAY_MS, daysFromToday, nowMs } from '@/lib/domain/dates';
 import { DEFAULT_TABLE_HIDDEN, type TableCol } from '@/lib/domain/table-cols';
+import { applyFilters, type ViewFilter } from '@/lib/domain/filters';
 import { activeProjects, canSee, isOverdue, type Sort, sortTasks } from '@/lib/domain/tasks';
 import { type Member, type Preferences, type Project, type Task, useMeId, useMembers, usePreferences, useProjects } from '@/lib/query/entities';
 import { type TaskPatch, useUpdatePreferences, useUpdateTask } from '@/lib/query/mutations';
@@ -32,14 +33,18 @@ export interface ViewScope {
   hideToolbarNewTask?: boolean;
   /** 首页 goTasks 预设筛选（URL `?f=`；列表 / 看板 / 表格均生效）。 */
   presetFilter?: TasksPresetFilter;
+  /** 保存视图过滤条件（R18；应用时取默认排序/分组）。 */
+  viewFilters?: readonly ViewFilter[];
 }
 
 /** 视图任务集合：项目内 = 该项目可见任务；工作区 = useWorkspaceTasks；可选 goTasks 预设筛选。 */
-function useScopeTasks(projectId: string | undefined, presetFilter?: TasksPresetFilter): Task[] {
+function useScopeTasks(projectId: string | undefined, presetFilter?: TasksPresetFilter, viewFilters?: readonly ViewFilter[]): Task[] {
   const visible = useVisibleTasks();
   const workspace = useWorkspaceTasks();
-  const base = projectId ? visible.filter(x => x.project_id === projectId) : workspace;
-  return presetFilter ? base.filter(x => matchesTasksPreset(x, presetFilter)) : base;
+  let base = projectId ? visible.filter(x => x.project_id === projectId) : workspace;
+  if (presetFilter) base = base.filter(x => matchesTasksPreset(x, presetFilter));
+  if (viewFilters?.length) base = applyFilters(base, viewFilters);
+  return base;
 }
 
 const matches = (query: string) => (x: Task) => !query || x.title.toLowerCase().includes(query) || x.key.toLowerCase().includes(query);
@@ -64,9 +69,9 @@ function NewTaskButton({ projectId }: { projectId?: string }) {
 }
 
 /** 看板视图（R4 看板 PR-9d；无分组切换，工具栏仅搜索 / 新建）。 */
-export function BoardView({ projectId, toolbarRight, hideToolbarNewTask, presetFilter }: ViewScope) {
+export function BoardView({ projectId, toolbarRight, hideToolbarNewTask, presetFilter, viewFilters }: ViewScope) {
   const { t } = useTranslation();
-  const tasks = useScopeTasks(projectId, presetFilter);
+  const tasks = useScopeTasks(projectId, presetFilter, viewFilters);
   const members = useMembers();
   const [q, setQ] = useState('');
   const shown = tasks.filter(matches(q.trim().toLowerCase()));
@@ -103,12 +108,12 @@ type GroupBy = 'status' | 'priority' | 'assignee' | 'project' | 'due' | 'none';
 const GROUP_OPTIONS = ['status', 'priority', 'assignee', 'project', 'due', 'none'] as const;
 
 /** 表格视图（R4 表格 PR-9e；列显隐 / 列宽经 preferences.tableViews[viewKey] 持久化）。 */
-export function TableView({ projectId, viewKey, toolbarRight, hideToolbarNewTask, presetFilter }: ViewScope) {
+export function TableView({ projectId, viewKey, toolbarRight, hideToolbarNewTask, presetFilter, viewFilters }: ViewScope) {
   const { t } = useTranslation();
   const { newTask } = useCreateDialogs();
   const meId = useMeId();
   const tasks = useVisibleTasks();
-  const scope = useScopeTasks(projectId, presetFilter);
+  const scope = useScopeTasks(projectId, presetFilter, viewFilters);
   const members = useMembers();
   const projects = useProjects();
   const prefs = usePreferences();
@@ -187,13 +192,14 @@ export function ListView({
   toolbarRight,
   hideToolbarNewTask,
   presetFilter,
+  viewFilters,
   ariaLabel,
 }: ViewScope & { columns: Column[]; statusFilter?: TaskStatus; onClearStatus?: () => void; ariaLabel: string }) {
   const { t } = useTranslation();
   const update = useUpdateTask();
   const meId = useMeId();
   const tasks = useVisibleTasks();
-  const scope = useScopeTasks(projectId, presetFilter);
+  const scope = useScopeTasks(projectId, presetFilter, viewFilters);
   const members = useMembers();
   const projects = useProjects();
   const subtasks = useVisibleSubtasks();

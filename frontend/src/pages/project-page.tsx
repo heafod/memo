@@ -1,4 +1,4 @@
-import { CalendarDays, ChartGantt, LayoutDashboard, List, Paperclip, Plus, SquareKanban, Table2 } from 'lucide-react';
+import { CalendarDays, ChartGantt, LayoutDashboard, List, ListFilter, Paperclip, Plus, SquareKanban, Table2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
@@ -11,51 +11,67 @@ import { projectMilestones } from '@/lib/domain/timeline';
 import { ViewToolbar } from '@/components/app/task-list';
 import { BoardView, ListView, TableView } from '@/components/app/task-views';
 import { useCreateDialogs } from '@/components/app/create-dialogs';
+import { useSavedViewDialogs } from '@/components/app/saved-view-dialogs';
 import { Button } from '@/components/ui/button';
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DEFAULT_PROJECT_TAB, ENABLED_PROJECT_TABS, type EnabledProjectTab, PROJECT_TABS, STATUSES, type TaskStatus } from '@/lib/domain/constants';
+import { DEFAULT_PROJECT_TAB, ENABLED_PROJECT_TABS, PROJECT_TABS, STATUSES, type TaskStatus } from '@/lib/domain/constants';
+import { parseFilters, type ViewFilter } from '@/lib/domain/filters';
 import { canSee } from '@/lib/domain/tasks';
-import { useMeId, useMembers, useProjects } from '@/lib/query/entities';
+import { type SavedView, useEvents, useMeId, useMembers, useProjects, useSavedViews } from '@/lib/query/entities';
 import { useVisibleTasks } from '@/lib/query/visibility';
 import { FilesView } from './project-files';
 import { ProjectOverview } from './project-overview';
 
 /**
- * 项目页（R4 列表 / 文件 / 看板 / 表格 / 日历 / 时间线；9a 读面，9c 写面，9d 看板，9e 表格，9f 日历，9g 时间线；R21 概览 tab PR-10；原型 pages/project.js）。
- * - 项目不存在 → 原地 404；不可见 → 原地 403。
- * - PR-9d–9g：放出 board+table+calendar+timeline；PR-10 放出 overview；默认 board（project.js:35）；合法未开放的 tab（activity）回默认 board。
+ * Project page (R4 views + R18 saved-view tabs; prototype pages/project.js).
+ * Missing project -> 404; invisible -> 403; missing saved view tab -> in-place 404.
  */
 export function ProjectPage() {
   const { projectId, tab } = useParams();
   const meId = useMeId();
   const projects = useProjects();
   const members = useMembers();
+  const savedViews = useSavedViews().filter(v => v.project_id === projectId);
   const project = projects.find(p => p.id === projectId);
 
   if (!project) return <NotFoundState />;
   if (!canSee(project, meId)) return <ForbiddenState project={project} lead={members.find(m => m.id === project.lead_id)} />;
   if (!tab) return <Navigate to={`/projects/${project.id}/${DEFAULT_PROJECT_TAB}`} replace />;
-  if (!(ENABLED_PROJECT_TABS as readonly string[]).includes(tab) && (PROJECT_TABS as readonly string[]).includes(tab))
-    return <Navigate to={`/projects/${project.id}/${DEFAULT_PROJECT_TAB}`} replace />;
-  const known = (ENABLED_PROJECT_TABS as readonly string[]).includes(tab);
-  const current: EnabledProjectTab = known ? (tab as EnabledProjectTab) : DEFAULT_PROJECT_TAB;
+
+  const isSaved = tab.startsWith('v:');
+  const saved = isSaved ? savedViews.find(v => `v:${v.id}` === tab) : undefined;
+
+  if (!isSaved) {
+    if (!(ENABLED_PROJECT_TABS as readonly string[]).includes(tab) && (PROJECT_TABS as readonly string[]).includes(tab))
+      return <Navigate to={`/projects/${project.id}/${DEFAULT_PROJECT_TAB}`} replace />;
+  }
+
+  const knownBuiltin = (ENABLED_PROJECT_TABS as readonly string[]).includes(tab);
+  const headerTab = isSaved ? tab : knownBuiltin ? tab : null;
 
   return (
     <div className="flex flex-col">
-      <ProjectHeader projectId={project.id} tab={known ? current : null} />
-      {!known ? (
+      <ProjectHeader projectId={project.id} tab={headerTab} savedViews={savedViews} />
+      {isSaved ? (
+        saved ? (
+          <SavedViewBody projectId={project.id} view={saved} />
+        ) : (
+          <NotFoundState />
+        )
+      ) : !knownBuiltin ? (
         <NotFoundState />
-      ) : current === 'overview' ? (
+      ) : tab === 'overview' ? (
         <ProjectOverview projectId={project.id} />
-      ) : current === 'files' ? (
+      ) : tab === 'files' ? (
         <FilesView projectId={project.id} />
-      ) : current === 'board' ? (
+      ) : tab === 'board' ? (
         <BoardView projectId={project.id} viewKey={project.id} />
-      ) : current === 'table' ? (
+      ) : tab === 'table' ? (
         <TableView projectId={project.id} viewKey={project.id} />
-      ) : current === 'calendar' ? (
+      ) : tab === 'calendar' ? (
         <CalendarView projectId={project.id} />
-      ) : current === 'timeline' ? (
+      ) : tab === 'timeline' ? (
         <TimelineView projectId={project.id} />
       ) : (
         <ProjectListView projectId={project.id} />
@@ -64,12 +80,26 @@ export function ProjectPage() {
   );
 }
 
-function ProjectHeader({ projectId, tab }: { projectId: string; tab: EnabledProjectTab | null }) {
+function ProjectHeader({ projectId, tab, savedViews }: { projectId: string; tab: string | null; savedViews: readonly SavedView[] }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const projects = useProjects();
   const members = useMembers();
+  const { openSave, openRename, openDelete } = useSavedViewDialogs();
+  const [params] = useSearchParams();
   const p = projects.find(x => x.id === projectId)!;
+
+  const currentFilters = (): ViewFilter[] => {
+    const raw = params.get('status');
+    if (raw && (STATUSES as readonly string[]).includes(raw)) return [{ f: 'status', op: 'is', v: [raw] }];
+    return [];
+  };
+
+  const defaultLayout = (): 'list' | 'board' | 'table' => {
+    if (tab === 'board' || tab === 'table' || tab === 'list') return tab;
+    return 'list';
+  };
+
   return (
     <div className="border-b border-border px-6 pt-5">
       <div className="flex items-center gap-3">
@@ -80,8 +110,6 @@ function ProjectHeader({ projectId, tab }: { projectId: string; tab: EnabledProj
         <span className="flex-1" />
         <AvatarStack ids={p.member_ids} members={members} max={4} />
       </div>
-      {/* tab 样式按原型 components.css `.tabs` / `.tab`（高 36、左右 10、图标 14 间距 6、--fs-sm 500、未选 --text-2；
-          选中下划线 2px var(--text)、左右内缩 8px、贴底 -1px、圆角 2px），FRIDAY PR-9c 18:18 Q13 */}
       <Tabs value={tab ?? ''} onValueChange={v => void navigate(`/projects/${p.id}/${v}`)} className="mt-3 gap-0">
         <TabsList variant="line" aria-label={t('project.tabsLabel')} className="gap-[2px] p-0 group-data-horizontal/tabs:h-auto">
           {ENABLED_PROJECT_TABS.map(k => {
@@ -97,6 +125,35 @@ function ProjectHeader({ projectId, tab }: { projectId: string; tab: EnabledProj
               </TabsTrigger>
             );
           })}
+          {savedViews.map(sv => (
+            <ContextMenu key={sv.id}>
+              <ContextMenuTrigger asChild>
+                <TabsTrigger
+                  value={`v:${sv.id}`}
+                  data-saved-view={sv.id}
+                  className="flex-none gap-[6px] rounded-none px-[10px] py-0 text-(length:--fs-sm) font-medium text-[var(--text-2)] hover:text-[var(--text)] data-active:text-[var(--text)] group-data-horizontal/tabs:h-[36px] group-data-horizontal/tabs:after:inset-x-[8px] group-data-horizontal/tabs:after:bottom-[-1px] group-data-horizontal/tabs:after:h-[2px] after:rounded-[2px] after:bg-[var(--text)]"
+                >
+                  <ListFilter size={14} className="size-[14px]" />
+                  {sv.name}
+                </TabsTrigger>
+              </ContextMenuTrigger>
+              <ContextMenuContent data-saved-view-ctx={sv.id}>
+                <ContextMenuItem onSelect={() => openRename(sv)}>{t('project.savedView.rename')}</ContextMenuItem>
+                <ContextMenuItem variant="destructive" onSelect={() => openDelete(sv)}>
+                  {t('project.savedView.delete')}
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
+          ))}
+          <button
+            type="button"
+            className="inline-flex h-[36px] flex-none items-center gap-[6px] rounded-none px-[10px] text-(length:--fs-sm) font-medium text-[var(--text-2)] hover:text-[var(--text)]"
+            aria-label={t('project.savedView.save')}
+            data-save-view=""
+            onClick={() => openSave({ projectId: p.id, filters: currentFilters(), defaultLayout: defaultLayout() })}
+          >
+            <Plus size={14} className="size-[14px]" />
+          </button>
         </TabsList>
       </Tabs>
     </div>
@@ -113,13 +170,32 @@ const TAB_ICONS = {
   files: Paperclip,
 } as const;
 
-/** 日历视图（R4 日历 PR-9f；拖改 due，保留时长）。 */
+function SavedViewBody({ projectId, view }: { projectId: string; view: SavedView }) {
+  const { t } = useTranslation();
+  const filters = parseFilters(view.filters);
+  const layout = view.layout === 'board' || view.layout === 'table' ? view.layout : 'list';
+  const viewKey = `sv:${view.id}`;
+  if (layout === 'board') return <BoardView projectId={projectId} viewKey={viewKey} viewFilters={filters} />;
+  if (layout === 'table') return <TableView projectId={projectId} viewKey={viewKey} viewFilters={filters} />;
+  return (
+    <ListView
+      projectId={projectId}
+      viewKey={viewKey}
+      viewFilters={filters}
+      ariaLabel={view.name || t('project.tabs.list')}
+      columns={['status', 'assignee', 'priority', 'due', 'labels']}
+    />
+  );
+}
+
+/** Calendar view (R4 / R17). */
 function CalendarView({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
   const { newTask } = useCreateDialogs();
   const tasks = useVisibleTasks().filter(x => x.project_id === projectId);
   const members = useMembers();
   const projects = useProjects();
+  const events = useEvents();
   const [q, setQ] = useState('');
   const query = q.trim().toLowerCase();
   const shown = tasks.filter(x => !query || x.title.toLowerCase().includes(query) || x.key.toLowerCase().includes(query));
@@ -138,12 +214,12 @@ function CalendarView({ projectId }: { projectId: string }) {
           </Button>
         }
       />
-      <TaskCalendar tasks={shown} members={members} projects={projects} projectId={projectId} showProject={false} />
+      <TaskCalendar tasks={shown} events={events} members={members} projects={projects} projectId={projectId} showProject={false} />
     </>
   );
 }
 
-/** 时间线视图（R4 时间线 PR-9g；甘特条整体拖移、依赖箭头、本项目里程碑车道；默认按状态分组）。 */
+/** Timeline view (R4). */
 function TimelineView({ projectId }: { projectId: string }) {
   const tasks = useVisibleTasks().filter(x => x.project_id === projectId);
   const projects = useProjects();
@@ -151,7 +227,7 @@ function TimelineView({ projectId }: { projectId: string }) {
   return <TimelineSection tasks={tasks} projects={projects} milestones={projectMilestones(p, false)} projectId={projectId} defaultGroup="status" />;
 }
 
-/** 列表 tab：?status= 来自概览 tab 状态计数（R21；原型 goFilteredList 设 status 筛选并按状态分组）。 */
+/** List tab with optional ?status= from overview (R21). */
 function ProjectListView({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();

@@ -16,6 +16,7 @@ export default {
     members: '成员',
     activity: '动态',
     search: '搜索',
+    settings: '设置',
     teams: '团队',
     list: '列表',
     files: '文件',

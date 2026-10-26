@@ -7,8 +7,11 @@ import {
   Inbox,
   Keyboard,
   LogOut,
+  Moon,
   PanelLeft,
   Search,
+  Settings,
+  Sun,
   UserPlus,
   Users,
   Activity,
@@ -16,28 +19,21 @@ import {
   ChartGantt,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useCreateDialogs } from '@/components/app/create-dialogs';
 import { useShortcutsDialog } from '@/components/app/shortcuts-dialog';
-import {
-  Command,
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from '@/components/ui/command';
+import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { useSidebar } from '@/components/ui/sidebar';
 import { pushRecentSearch, runSearch } from '@/lib/domain/search';
+import { effectiveDark, mergePrefs, type PrefsData, type ThemePref } from '@/lib/domain/prefs';
 import { type Preferences, useMembers, usePreferences, useProjects } from '@/lib/query/entities';
 import { useLogout } from '@/lib/query/auth';
 import { useUpdatePreferences } from '@/lib/query/mutations';
 import { useVisibleComments, useVisibleFiles, useVisibleProjectIds, useVisibleTasks } from '@/lib/query/visibility';
 
-// 命令面板（R6；cmdk）。10b：无外观/主题/Settings/Switch workspace（PR-11）。
+// 命令面板（R6；cmdk）。PR-11：放出外观/主题/Settings；仍无 Switch workspace。
 
 type Mode = 'cmd' | 'search';
 
@@ -99,13 +95,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   };
 
   return (
-    <CommandDialog
-      open={open}
-      onOpenChange={handleOpenChange}
-      title={t('palette.title')}
-      description={t('palette.desc')}
-      data-command-palette=""
-    >
+    <CommandDialog open={open} onOpenChange={handleOpenChange} title={t('palette.title')} description={t('palette.desc')} data-command-palette="">
       <Command shouldFilter={mode === 'cmd'} className="max-h-[70vh]" data-palette-mode={mode}>
         <CommandInput
           placeholder={mode === 'search' ? t('palette.searchPh') : t('palette.cmdPh')}
@@ -121,10 +111,26 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
           }}
         />
         <div className="flex gap-2 border-b border-border px-3 py-1.5 text-[11.5px] text-muted-foreground">
-          <button type="button" className={mode === 'cmd' ? 'font-medium text-foreground' : ''} onClick={() => { setMode('cmd'); setQ(''); }} data-palette-tab="cmd">
+          <button
+            type="button"
+            className={mode === 'cmd' ? 'font-medium text-foreground' : ''}
+            onClick={() => {
+              setMode('cmd');
+              setQ('');
+            }}
+            data-palette-tab="cmd"
+          >
             {t('palette.modeCmd')}
           </button>
-          <button type="button" className={mode === 'search' ? 'font-medium text-foreground' : ''} onClick={() => { setMode('search'); setQ(''); }} data-palette-tab="search">
+          <button
+            type="button"
+            className={mode === 'search' ? 'font-medium text-foreground' : ''}
+            onClick={() => {
+              setMode('search');
+              setQ('');
+            }}
+            data-palette-tab="search"
+          >
             {t('palette.modeSearch')} <kbd className="ml-1 rounded border border-border px-1">{t('palette.tabKey')}</kbd>
           </button>
         </div>
@@ -194,9 +200,30 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                   <Search />
                   {t('palette.cmds.search')}
                 </CommandItem>
+                <CommandItem data-cmd="nav-settings" onSelect={() => go('/settings/appearance')}>
+                  <Settings />
+                  {t('palette.cmds.settings')}
+                </CommandItem>
               </CommandGroup>
               <CommandSeparator />
               <CommandGroup heading={t('palette.groups.misc')}>
+                <CommandItem data-cmd="appearance" onSelect={() => go('/settings/appearance')}>
+                  <Sun />
+                  {t('palette.cmds.appearance')}
+                </CommandItem>
+                <CommandItem
+                  data-cmd="toggle-theme"
+                  onSelect={() =>
+                    run(() => {
+                      const merged = mergePrefs(prefs as PrefsData);
+                      const next: ThemePref = effectiveDark(merged.theme) ? 'light' : 'dark';
+                      updatePrefs.mutate({ ...merged, theme: next }, { onSuccess: () => toast(t(next === 'dark' ? 'settings.darkOn' : 'settings.lightOn')) });
+                    })
+                  }
+                >
+                  <Moon />
+                  {t('palette.cmds.toggleTheme')}
+                </CommandItem>
                 <CommandItem data-cmd="toggle-sidebar" onSelect={() => run(() => toggleSidebar())}>
                   <PanelLeft />
                   {t('palette.cmds.toggleSidebar')}
