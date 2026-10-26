@@ -24,7 +24,7 @@ import { DAY_MS, daysFromToday, nowMs, today, weekdayKey } from '@/lib/domain/da
 import { fmtDate } from '@/lib/domain/format';
 import { activeProjects, canSee, isOverdue, progressOf, sortTasks } from '@/lib/domain/tasks';
 import { type Task, useMeId, useMembers, useProjects } from '@/lib/query/entities';
-import { useVisibleActivity, useVisibleTasks } from '@/lib/query/visibility';
+import { useVisibleActivity, useVisibleTasks, useWorkspaceTasks } from '@/lib/query/visibility';
 import { cn } from '@/lib/utils';
 
 const HOME_TABS = ['upcoming', 'overdue', 'completed'] as const;
@@ -39,13 +39,14 @@ export function HomePage() {
   const projects = useProjects();
   // 不可见项目的任务与动态在数据层已排除（FRIDAY 裁定 #12 17:27 总 AC）
   const tasks = useVisibleTasks();
+  // 统计卡任务计数、我的任务（今日待办）、到期分组：工作区任务集合（所属项目可见且未归档；FRIDAY 18:52 第 2 条）。项目卡仍用 tasks。
+  const all = useWorkspaceTasks();
   const activity = useVisibleActivity();
   const [tab, setTab] = useState<HomeTab>('upcoming');
 
   const me = members.find(m => m.id === meId);
   const visible = activeProjects(projects).filter(p => canSee(p, meId));
   const visibleIds = new Set(projects.filter(p => !p.archived && canSee(p, meId)).map(p => p.id));
-  const all = tasks.filter(x => visibleIds.has(x.project_id));
   const mine = all.filter(x => x.assignee_id === meId);
   const activeP = visible.filter(p => p.status !== 'complete');
   const open = all.filter(x => x.status !== 'done');
