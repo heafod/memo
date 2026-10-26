@@ -60,12 +60,15 @@ export function MembersPage() {
   }, [members, q, role]);
 
   const setTab = (v: string) =>
-    setParams(prev => {
-      const next = new URLSearchParams(prev);
-      if (v === 'members') next.delete('tab');
-      else next.set('tab', v);
-      return next;
-    }, { replace: true });
+    setParams(
+      prev => {
+        const next = new URLSearchParams(prev);
+        if (v === 'members') next.delete('tab');
+        else next.set('tab', v);
+        return next;
+      },
+      { replace: true },
+    );
 
   const pending = members.filter(m => m.status === 'invited').length;
 
@@ -74,9 +77,7 @@ export function MembersPage() {
       <div className="flex items-start gap-3">
         <div className="flex-1">
           <h1 className="text-2xl font-semibold">{t('members.title')}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t('members.subtitle', { a: members.length, ws, b: pending })}
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{t('members.subtitle', { a: members.length, ws, b: pending })}</p>
         </div>
         <Button onClick={() => newMember()} data-action="new-member">
           <UserPlus />
@@ -114,10 +115,7 @@ export function MembersPage() {
                   key={r}
                   type="button"
                   data-role-filter={r}
-                  className={cn(
-                    'h-7 rounded-md px-2.5 text-[12.5px]',
-                    role === r ? 'bg-accent font-medium' : 'text-muted-foreground hover:bg-accent/50',
-                  )}
+                  className={cn('h-7 rounded-md px-2.5 text-[12.5px]', role === r ? 'bg-accent font-medium' : 'text-muted-foreground hover:bg-accent/50')}
                   onClick={() => setRole(r)}
                 >
                   {r === 'all' ? t('members.all') : t(`domain.role.${r as Role}`)}
@@ -152,9 +150,7 @@ export function MembersPage() {
                 <tbody>
                   {filtered.map(m => {
                     const team = teams.find(x => x.id === m.team_id);
-                    const ap = projects.filter(
-                      p => visibleIds.has(p.id) && !p.archived && p.status !== 'complete' && p.member_ids.includes(m.id),
-                    ).length;
+                    const ap = projects.filter(p => visibleIds.has(p.id) && !p.archived && p.status !== 'complete' && p.member_ids.includes(m.id)).length;
                     const ot = tasks.filter(x => x.assignee_id === m.id && x.status !== 'done').length;
                     return (
                       <tr key={m.id} className="border-b border-border/70 last:border-0" data-member-row={m.id}>
@@ -183,9 +179,7 @@ export function MembersPage() {
                         </td>
                         <td className="px-3 py-2 text-right tabular-nums">{ap}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{ot}</td>
-                        <td className="px-3 py-2 text-muted-foreground">
-                          {m.last_active_at ? timeAgo(t, m.last_active_at) : '—'}
-                        </td>
+                        <td className="px-3 py-2 text-muted-foreground">{m.last_active_at ? timeAgo(t, m.last_active_at) : '—'}</td>
                         <td className="px-3 py-2">
                           <span
                             className={cn(
@@ -247,9 +241,7 @@ export function MembersPage() {
                       <span className="font-medium">{tm.name}</span>
                     </div>
                     {tm.desc && <p className="line-clamp-2 text-[12.5px] text-muted-foreground">{tm.desc}</p>}
-                    <p className="text-[12px] text-muted-foreground">
-                      {t('members.teamMeta', { members: n, projects: ps })}
-                    </p>
+                    <p className="text-[12px] text-muted-foreground">{t('members.teamMeta', { members: n, projects: ps })}</p>
                   </Link>
                 );
               })}

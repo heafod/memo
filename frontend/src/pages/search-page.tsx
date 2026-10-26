@@ -79,12 +79,15 @@ function SearchPageInner() {
   };
 
   const setTab = (v: string) =>
-    setParams(prev => {
-      const next = new URLSearchParams(prev);
-      if (v === 'all') next.delete('tab');
-      else next.set('tab', v);
-      return next;
-    }, { replace: true });
+    setParams(
+      prev => {
+        const next = new URLSearchParams(prev);
+        if (v === 'all') next.delete('tab');
+        else next.set('tab', v);
+        return next;
+      },
+      { replace: true },
+    );
 
   const showTasks = tab === 'all' || tab === 'tasks';
   const showProjects = tab === 'all' || tab === 'projects';
@@ -173,7 +176,12 @@ function SearchPageInner() {
               {showProjects && results.projects.length > 0 && (
                 <Section title={t('search.tabs.projects')} count={counts.projects}>
                   {results.projects.map(p => (
-                    <Link key={p.id} to={`/projects/${p.id}/overview`} className="flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-accent/50" data-hit="project">
+                    <Link
+                      key={p.id}
+                      to={`/projects/${p.id}/overview`}
+                      className="flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-accent/50"
+                      data-hit="project"
+                    >
                       <ProjectGlyph icon={p.icon ?? 'folder'} size={14} />
                       <span className="flex-1 truncate">{p.name}</span>
                     </Link>
