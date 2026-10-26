@@ -51,10 +51,7 @@ export function KeyboardProvider({ children }: { children: ReactNode }) {
         e.preventDefault();
         const merged = mergePrefs(prefs);
         const next: ThemePref = effectiveDark(merged.theme) ? 'light' : 'dark';
-        updatePrefs.mutate(
-          { ...merged, theme: next },
-          { onSuccess: () => toast(t(next === 'dark' ? 'settings.darkOn' : 'settings.lightOn')) },
-        );
+        updatePrefs.mutate({ ...merged, theme: next }, { onSuccess: () => toast(t(next === 'dark' ? 'settings.darkOn' : 'settings.lightOn')) });
         return;
       }
       if (e.key === 'Escape') {
@@ -129,4 +126,3 @@ export function KeyboardProvider({ children }: { children: ReactNode }) {
     </>
   );
 }
-

@@ -114,9 +114,7 @@ export function SavedViewDialogsProvider({ children }: { children: ReactNode }) 
                 </Select>
               </div>
               <p className="text-[12.5px] text-muted-foreground">
-                {save.filters.length
-                  ? t('project.savedView.filtersHint', { n: save.filters.length })
-                  : t('project.savedView.filtersNone')}
+                {save.filters.length ? t('project.savedView.filtersHint', { n: save.filters.length }) : t('project.savedView.filtersNone')}
               </p>
               <DialogFooter>
                 <Button type="button" variant="secondary" onClick={() => setSave(null)}>
@@ -148,9 +146,7 @@ export function SavedViewDialogsProvider({ children }: { children: ReactNode }) 
                     id: rename.sv.id,
                     body: {
                       name,
-                      layout: (['list', 'board', 'table'].includes(rename.sv.layout)
-                        ? rename.sv.layout
-                        : 'list') as Layout,
+                      layout: (['list', 'board', 'table'].includes(rename.sv.layout) ? rename.sv.layout : 'list') as Layout,
                       filters: rename.sv.filters,
                     },
                   },
@@ -165,13 +161,7 @@ export function SavedViewDialogsProvider({ children }: { children: ReactNode }) 
             >
               <div className="space-y-1.5">
                 <Label htmlFor="sv-rename">{t('project.savedView.name')}</Label>
-                <Input
-                  id="sv-rename"
-                  value={rename.name}
-                  onChange={e => setRename({ ...rename, name: e.target.value })}
-                  autoFocus
-                  data-sv-rename=""
-                />
+                <Input id="sv-rename" value={rename.name} onChange={e => setRename({ ...rename, name: e.target.value })} autoFocus data-sv-rename="" />
               </div>
               <DialogFooter>
                 <Button type="button" variant="secondary" onClick={() => setRename(null)}>

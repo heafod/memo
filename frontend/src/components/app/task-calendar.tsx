@@ -51,11 +51,7 @@ export function TaskCalendar({
   const [cursor, setCursor] = useState(() => isoDate(today()));
 
   const withDue = useMemo(() => tasks.filter(x => !!x.due), [tasks]);
-  const scopedEvents = useMemo(
-    () => (projectId ? events.filter(e => e.project_id === projectId) : events),
-    [events, projectId],
-  );
-
+  const scopedEvents = useMemo(() => (projectId ? events.filter(e => e.project_id === projectId) : events), [events, projectId]);
 
   const onDropDay = (id: string, day: string) => {
     const tk = tasks.find(x => x.id === id);
@@ -402,16 +398,7 @@ function DayCell({
           <CalChip key={tk.id} task={tk} members={members} projects={projects} showProject={showProject} variant={variant} />
         ))}
         {more > 0 && (
-          <DayMore
-            day={day}
-            count={more}
-            tasks={items}
-            events={events}
-            members={members}
-            projects={projects}
-            showProject={showProject}
-            onAdd={onAdd}
-          />
+          <DayMore day={day} count={more} tasks={items} events={events} members={members} projects={projects} showProject={showProject} onAdd={onAdd} />
         )}
         {variant === 'week' && total === 0 && <span className="px-1 py-1 text-xs text-muted-foreground">{t('calendar.noTasks')}</span>}
       </div>

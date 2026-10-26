@@ -24,16 +24,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
 import { useCreateDialogs } from '@/components/app/create-dialogs';
 import { useShortcutsDialog } from '@/components/app/shortcuts-dialog';
-import {
-  Command,
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from '@/components/ui/command';
+import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { useSidebar } from '@/components/ui/sidebar';
 import { pushRecentSearch, runSearch } from '@/lib/domain/search';
 import { effectiveDark, mergePrefs, type PrefsData, type ThemePref } from '@/lib/domain/prefs';
@@ -104,13 +95,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   };
 
   return (
-    <CommandDialog
-      open={open}
-      onOpenChange={handleOpenChange}
-      title={t('palette.title')}
-      description={t('palette.desc')}
-      data-command-palette=""
-    >
+    <CommandDialog open={open} onOpenChange={handleOpenChange} title={t('palette.title')} description={t('palette.desc')} data-command-palette="">
       <Command shouldFilter={mode === 'cmd'} className="max-h-[70vh]" data-palette-mode={mode}>
         <CommandInput
           placeholder={mode === 'search' ? t('palette.searchPh') : t('palette.cmdPh')}
@@ -126,10 +111,26 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
           }}
         />
         <div className="flex gap-2 border-b border-border px-3 py-1.5 text-[11.5px] text-muted-foreground">
-          <button type="button" className={mode === 'cmd' ? 'font-medium text-foreground' : ''} onClick={() => { setMode('cmd'); setQ(''); }} data-palette-tab="cmd">
+          <button
+            type="button"
+            className={mode === 'cmd' ? 'font-medium text-foreground' : ''}
+            onClick={() => {
+              setMode('cmd');
+              setQ('');
+            }}
+            data-palette-tab="cmd"
+          >
             {t('palette.modeCmd')}
           </button>
-          <button type="button" className={mode === 'search' ? 'font-medium text-foreground' : ''} onClick={() => { setMode('search'); setQ(''); }} data-palette-tab="search">
+          <button
+            type="button"
+            className={mode === 'search' ? 'font-medium text-foreground' : ''}
+            onClick={() => {
+              setMode('search');
+              setQ('');
+            }}
+            data-palette-tab="search"
+          >
             {t('palette.modeSearch')} <kbd className="ml-1 rounded border border-border px-1">{t('palette.tabKey')}</kbd>
           </button>
         </div>
@@ -216,10 +217,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                     run(() => {
                       const merged = mergePrefs(prefs as PrefsData);
                       const next: ThemePref = effectiveDark(merged.theme) ? 'light' : 'dark';
-                      updatePrefs.mutate(
-                        { ...merged, theme: next },
-                        { onSuccess: () => toast(t(next === 'dark' ? 'settings.darkOn' : 'settings.lightOn')) },
-                      );
+                      updatePrefs.mutate({ ...merged, theme: next }, { onSuccess: () => toast(t(next === 'dark' ? 'settings.darkOn' : 'settings.lightOn')) });
                     })
                   }
                 >

@@ -55,7 +55,10 @@ async function loadSnapshot(): Promise<Snapshot> {
   const meId = me?.owner_member_id;
   for (const key of ENTITY_KEYS) {
     if (key === 'notifs' && meId) {
-      queryClient.setQueryData([key], snap.notifs.filter(n => n.member_id === meId));
+      queryClient.setQueryData(
+        [key],
+        snap.notifs.filter(n => n.member_id === meId),
+      );
     } else {
       queryClient.setQueryData([key], snap[key]);
     }

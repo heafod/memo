@@ -80,29 +80,29 @@ export function AppShell() {
       <CreateDialogsProvider>
         <EventDialogsProvider>
           <SavedViewDialogsProvider>
-          <ShortcutsDialogProvider>
-            <SidebarProvider>
-              <KeyboardProvider>
-                {snapshot.isSuccess ? <PrefsApplier /> : null}
-                {snapshot.isSuccess ? <AppSidebar /> : <Sidebar />}
-                <SidebarInset>
-                  <Topbar ready={snapshot.isSuccess} />
-                  <div id="main-content" tabIndex={-1} className="flex-1 outline-none">
-                    {snapshot.isSuccess ? (
-                      <>
-                        <Outlet />
-                        <TaskDrawer />
-                      </>
-                    ) : snapshot.isError ? (
-                      <FailedState />
-                    ) : (
-                      <ContentSkeleton />
-                    )}
-                  </div>
-                </SidebarInset>
-              </KeyboardProvider>
-            </SidebarProvider>
-          </ShortcutsDialogProvider>
+            <ShortcutsDialogProvider>
+              <SidebarProvider>
+                <KeyboardProvider>
+                  {snapshot.isSuccess ? <PrefsApplier /> : null}
+                  {snapshot.isSuccess ? <AppSidebar /> : <Sidebar />}
+                  <SidebarInset>
+                    <Topbar ready={snapshot.isSuccess} />
+                    <div id="main-content" tabIndex={-1} className="flex-1 outline-none">
+                      {snapshot.isSuccess ? (
+                        <>
+                          <Outlet />
+                          <TaskDrawer />
+                        </>
+                      ) : snapshot.isError ? (
+                        <FailedState />
+                      ) : (
+                        <ContentSkeleton />
+                      )}
+                    </div>
+                  </SidebarInset>
+                </KeyboardProvider>
+              </SidebarProvider>
+            </ShortcutsDialogProvider>
           </SavedViewDialogsProvider>
         </EventDialogsProvider>
       </CreateDialogsProvider>
@@ -420,9 +420,7 @@ function BellLink() {
     <Button variant="ghost" size="icon-sm" asChild aria-label={t('shell.bell')} data-topbar-bell="" data-unread={unread}>
       <Link to="/inbox" className="relative">
         <Bell />
-        {unread > 0 && (
-          <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-destructive" data-unread-dot="" aria-hidden />
-        )}
+        {unread > 0 && <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-destructive" data-unread-dot="" aria-hidden />}
       </Link>
     </Button>
   );

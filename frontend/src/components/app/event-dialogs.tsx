@@ -128,44 +128,21 @@ export function EventDialogsProvider({ children }: { children: ReactNode }) {
             >
               <div className="grid gap-1.5">
                 <Label htmlFor="ev-title">{t('calendar.eventTitle')}</Label>
-                <Input
-                  id="ev-title"
-                  value={draft.title}
-                  onChange={e => setDraft({ ...draft, title: e.target.value })}
-                  data-ev-title=""
-                  autoFocus
-                  required
-                />
+                <Input id="ev-title" value={draft.title} onChange={e => setDraft({ ...draft, title: e.target.value })} data-ev-title="" autoFocus required />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="grid gap-1.5">
                   <Label htmlFor="ev-date">{t('calendar.eventDate')}</Label>
-                  <Input
-                    id="ev-date"
-                    type="date"
-                    value={draft.date}
-                    onChange={e => setDraft({ ...draft, date: e.target.value })}
-                    data-ev-date=""
-                    required
-                  />
+                  <Input id="ev-date" type="date" value={draft.date} onChange={e => setDraft({ ...draft, date: e.target.value })} data-ev-date="" required />
                 </div>
                 <div className="grid gap-1.5">
                   <Label htmlFor="ev-time">{t('calendar.eventTime')}</Label>
-                  <Input
-                    id="ev-time"
-                    type="time"
-                    value={draft.time}
-                    onChange={e => setDraft({ ...draft, time: e.target.value })}
-                    data-ev-time=""
-                  />
+                  <Input id="ev-time" type="time" value={draft.time} onChange={e => setDraft({ ...draft, time: e.target.value })} data-ev-time="" />
                 </div>
               </div>
               <div className="grid gap-1.5">
                 <Label>{t('calendar.eventProject')}</Label>
-                <Select
-                  value={draft.project_id || NONE}
-                  onValueChange={v => setDraft({ ...draft, project_id: v === NONE ? '' : v })}
-                >
+                <Select value={draft.project_id || NONE} onValueChange={v => setDraft({ ...draft, project_id: v === NONE ? '' : v })}>
                   <SelectTrigger data-ev-project="">
                     <SelectValue placeholder={t('calendar.eventProjectNone')} />
                   </SelectTrigger>
@@ -213,9 +190,7 @@ export function EventDialogsProvider({ children }: { children: ReactNode }) {
         <AlertDialogContent data-event-delete-confirm="">
           <AlertDialogHeader>
             <AlertDialogTitle>{t('calendar.eventDeleteTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('calendar.eventDeleteBody', { title: confirmEv?.title ?? '' })}
-            </AlertDialogDescription>
+            <AlertDialogDescription>{t('calendar.eventDeleteBody', { title: confirmEv?.title ?? '' })}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('write.cancel')}</AlertDialogCancel>
@@ -241,13 +216,7 @@ export function EventDialogsProvider({ children }: { children: ReactNode }) {
 }
 
 /** Event chip: click opens popover; Open project → overview (R21 / R17). */
-export function EventChip({
-  event,
-  variant = 'month',
-}: {
-  event: Event;
-  variant?: 'month' | 'week';
-}) {
+export function EventChip({ event, variant = 'month' }: { event: Event; variant?: 'month' | 'week' }) {
   const { t } = useTranslation();
   const projects = useProjects();
   const { openEdit } = useEventDialogs();
@@ -312,13 +281,7 @@ export function EventChip({
               <Link to={`/projects/${project.id}/overview`}>{t('calendar.eventOpenProject')}</Link>
             </Button>
           ) : null}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start"
-            data-event-edit=""
-            onClick={() => openEdit(event)}
-          >
+          <Button variant="ghost" size="sm" className="w-full justify-start" data-event-edit="" onClick={() => openEdit(event)}>
             {t('calendar.eventEdit')}
           </Button>
         </div>

@@ -252,7 +252,6 @@ export function useUpdatePreferences() {
   });
 }
 
-
 export type MemberCreate = Schemas['MemberCreate'];
 export type MemberUpdate = Schemas['MemberUpdate'];
 export type TeamCreate = Schemas['TeamCreate'];
@@ -391,8 +390,7 @@ export function useCreateEvent() {
 export function useUpdateEvent() {
   return useMutation({
     meta: { invalidates: [['events']] as const },
-    mutationFn: async ({ id, body }: { id: string; body: EventPut }) =>
-      unwrap(api.PUT('/api/events/{event_id}', { params: { path: { event_id: id } }, body })),
+    mutationFn: async ({ id, body }: { id: string; body: EventPut }) => unwrap(api.PUT('/api/events/{event_id}', { params: { path: { event_id: id } }, body })),
     onError: notifyError,
   });
 }
@@ -436,8 +434,7 @@ export function useDeleteSavedView() {
 
 export function useChangePassword() {
   return useMutation({
-    mutationFn: async (body: { old_password: string; new_password: string }) =>
-      unwrap(api.POST('/api/auth/password', { body })),
+    mutationFn: async (body: { old_password: string; new_password: string }) => unwrap(api.POST('/api/auth/password', { body })),
     onError: notifyError,
   });
 }

@@ -37,10 +37,7 @@ export interface PrefsData {
 }
 
 export const DEFAULT_PREFS: Required<
-  Pick<
-    PrefsData,
-    'theme' | 'accent' | 'side' | 'density' | 'motion' | 'weekStart' | 'dateFmt' | 'timeFmt' | 'tz' | 'home' | 'openTasks' | 'confirmDelete'
-  >
+  Pick<PrefsData, 'theme' | 'accent' | 'side' | 'density' | 'motion' | 'weekStart' | 'dateFmt' | 'timeFmt' | 'tz' | 'home' | 'openTasks' | 'confirmDelete'>
 > = {
   theme: 'system',
   accent: 'indigo',

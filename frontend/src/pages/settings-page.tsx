@@ -133,9 +133,7 @@ function SettingsLayout({ sec }: { sec: Sec }) {
       <nav className="w-56 shrink-0 border-r border-border px-2 py-4" aria-label={t('settings.navLabel')} data-settings-nav="">
         {SET_NAV.map(g => (
           <div key={g.section} className="mb-3">
-            <div className="px-2.5 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-              {t(`settings.sections.${g.section}`)}
-            </div>
+            <div className="px-2.5 pb-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{t(`settings.sections.${g.section}`)}</div>
             {g.items.map(it => {
               const Icon = it.icon;
               const on = sec === it.id;
@@ -314,17 +312,7 @@ function AppearanceSec() {
   );
 }
 
-function Seg({
-  value,
-  options,
-  onChange,
-  dataAttr,
-}: {
-  value: string;
-  options: [string, string][];
-  onChange: (v: string) => void;
-  dataAttr: string;
-}) {
+function Seg({ value, options, onChange, dataAttr }: { value: string; options: [string, string][]; onChange: (v: string) => void; dataAttr: string }) {
   return (
     <div className="inline-flex rounded-md border border-border p-0.5" data-seg={dataAttr}>
       {options.map(([v, label]) => (
@@ -380,12 +368,7 @@ function DatetimeSec() {
     <div>
       <Heading title={t('settings.datetime.heading')} desc={t('settings.datetime.desc')} />
       <Srow title={t('settings.datetime.tz')}>
-        <Input
-          className="w-64"
-          value={prefs.tz ?? ''}
-          data-pref="tz"
-          onChange={e => patch({ tz: e.target.value })}
-        />
+        <Input className="w-64" value={prefs.tz ?? ''} data-pref="tz" onChange={e => patch({ tz: e.target.value })} />
       </Srow>
       <Srow title={t('settings.datetime.dateFmt')}>
         <Select value={prefs.dateFmt ?? 'MMM d'} onValueChange={v => patch({ dateFmt: v })}>
@@ -587,11 +570,29 @@ function PasswordSec() {
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="pw-new">{t('settings.password.new')}</Label>
-          <Input id="pw-new" type="password" autoComplete="new-password" value={neu} data-pw="new" onChange={e => setNeu(e.target.value)} required minLength={10} />
+          <Input
+            id="pw-new"
+            type="password"
+            autoComplete="new-password"
+            value={neu}
+            data-pw="new"
+            onChange={e => setNeu(e.target.value)}
+            required
+            minLength={10}
+          />
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="pw-confirm">{t('settings.password.confirm')}</Label>
-          <Input id="pw-confirm" type="password" autoComplete="new-password" value={confirm} data-pw="confirm" onChange={e => setConfirm(e.target.value)} required minLength={10} />
+          <Input
+            id="pw-confirm"
+            type="password"
+            autoComplete="new-password"
+            value={confirm}
+            data-pw="confirm"
+            onChange={e => setConfirm(e.target.value)}
+            required
+            minLength={10}
+          />
         </div>
         <Button type="submit" disabled={change.isPending} data-pw-submit="">
           {t('settings.password.submit')}
@@ -720,4 +721,3 @@ function PermissionsSec() {
     </div>
   );
 }
-

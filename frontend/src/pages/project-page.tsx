@@ -80,15 +80,7 @@ export function ProjectPage() {
   );
 }
 
-function ProjectHeader({
-  projectId,
-  tab,
-  savedViews,
-}: {
-  projectId: string;
-  tab: string | null;
-  savedViews: readonly SavedView[];
-}) {
+function ProjectHeader({ projectId, tab, savedViews }: { projectId: string; tab: string | null; savedViews: readonly SavedView[] }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const projects = useProjects();

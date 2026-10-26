@@ -38,11 +38,7 @@ export interface ViewScope {
 }
 
 /** 视图任务集合：项目内 = 该项目可见任务；工作区 = useWorkspaceTasks；可选 goTasks 预设筛选。 */
-function useScopeTasks(
-  projectId: string | undefined,
-  presetFilter?: TasksPresetFilter,
-  viewFilters?: readonly ViewFilter[],
-): Task[] {
+function useScopeTasks(projectId: string | undefined, presetFilter?: TasksPresetFilter, viewFilters?: readonly ViewFilter[]): Task[] {
   const visible = useVisibleTasks();
   const workspace = useWorkspaceTasks();
   let base = projectId ? visible.filter(x => x.project_id === projectId) : workspace;
