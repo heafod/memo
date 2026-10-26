@@ -4,7 +4,7 @@ import i18n from '@/i18n';
 import { api, ApiError } from '@/lib/api/client';
 import type { components } from '@/lib/api/schema';
 import { queryClient } from './client';
-import type { Comment, FileItem, Preferences, Project, Task } from './entities';
+import type { Comment, FileItem, Member, Notif, Preferences, Project, Task, Team } from './entities';
 import { assertVisibleProject, HiddenProjectError, taskProject } from './visibility';
 
 // 写操作（PR-9c）。约定见 docs/query-conventions.md「全局失效约定」：成功后经 meta.invalidates 统一失效。
@@ -249,5 +249,124 @@ export function useUpdatePreferences() {
       const body = res as { data?: Preferences };
       queryClient.setQueryData(['preferences'], body.data ?? res);
     },
+  });
+}
+
+
+export type MemberCreate = Schemas['MemberCreate'];
+export type MemberUpdate = Schemas['MemberUpdate'];
+export type TeamCreate = Schemas['TeamCreate'];
+export type TeamUpdate = Schemas['TeamUpdate'];
+
+/** 单条通知已读切换（R2；PATCH /api/notifs/{id}）。 */
+export function useMarkNotifRead() {
+  return useMutation({
+    meta: { invalidates: [['notifs']] as const },
+    mutationFn: async ({ id, read }: { id: string; read: boolean }) => {
+      return unwrap(api.PATCH('/api/notifs/{notif_id}', { params: { path: { notif_id: id } }, body: { read } }));
+    },
+    onMutate: async ({ id, read }) => {
+      await queryClient.cancelQueries({ queryKey: ['notifs'] });
+      const rollback = optimistic<Notif>(['notifs'], id, { read });
+      return { rollback };
+    },
+    onError: (e, _v, ctx) => {
+      ctx?.rollback?.();
+      notifyError(e);
+    },
+  });
+}
+
+/** 全部标为已读（R2；POST /api/notifs/read-all）。 */
+export function useMarkAllNotifsRead() {
+  return useMutation({
+    meta: { invalidates: [['notifs']] as const },
+    mutationFn: async () => unwrap(api.POST('/api/notifs/read-all', {})),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['notifs'] });
+      const prev = queryClient.getQueryData<Notif[]>(['notifs']);
+      queryClient.setQueryData<Notif[]>(['notifs'], list => list?.map(n => ({ ...n, read: true })));
+      return { prev };
+    },
+    onError: (e, _v, ctx) => {
+      if (ctx?.prev !== undefined) queryClient.setQueryData(['notifs'], ctx.prev);
+      notifyError(e);
+    },
+  });
+}
+
+/** 新建成员（R5 / R6「新建成员」表单；纯数据实体）。 */
+export function useCreateMember() {
+  return useMutation({
+    meta: { invalidates: [['members']] as const },
+    mutationFn: async (body: MemberCreate) => unwrap(api.POST('/api/members', { body })),
+    onError: notifyError,
+  });
+}
+
+/** 更新成员。 */
+export function useUpdateMember() {
+  return useMutation({
+    meta: { invalidates: [['members']] as const },
+    mutationFn: async ({ id, patch }: { id: string; patch: MemberUpdate }) =>
+      unwrap(api.PATCH('/api/members/{member_id}', { params: { path: { member_id: id } }, body: patch })),
+    onMutate: async ({ id, patch }) => {
+      await queryClient.cancelQueries({ queryKey: ['members'] });
+      const rollback = optimistic<Member>(['members'], id, patch as Partial<Member>);
+      return { rollback };
+    },
+    onError: (e, _v, ctx) => {
+      ctx?.rollback?.();
+      notifyError(e);
+    },
+  });
+}
+
+/** 删除成员。 */
+export function useDeleteMember() {
+  return useMutation({
+    meta: { invalidates: [['members']] as const },
+    mutationFn: async (id: string) => {
+      await unwrap(api.DELETE('/api/members/{member_id}', { params: { path: { member_id: id } } }));
+    },
+    onError: notifyError,
+  });
+}
+
+/** 新建团队。 */
+export function useCreateTeam() {
+  return useMutation({
+    meta: { invalidates: [['teams']] as const },
+    mutationFn: async (body: TeamCreate) => unwrap(api.POST('/api/teams', { body })),
+    onError: notifyError,
+  });
+}
+
+/** 更新团队。 */
+export function useUpdateTeam() {
+  return useMutation({
+    meta: { invalidates: [['teams']] as const },
+    mutationFn: async ({ id, patch }: { id: string; patch: TeamUpdate }) =>
+      unwrap(api.PATCH('/api/teams/{team_id}', { params: { path: { team_id: id } }, body: patch })),
+    onMutate: async ({ id, patch }) => {
+      await queryClient.cancelQueries({ queryKey: ['teams'] });
+      const rollback = optimistic<Team>(['teams'], id, patch as Partial<Team>);
+      return { rollback };
+    },
+    onError: (e, _v, ctx) => {
+      ctx?.rollback?.();
+      notifyError(e);
+    },
+  });
+}
+
+/** 删除团队。 */
+export function useDeleteTeam() {
+  return useMutation({
+    meta: { invalidates: [['teams']] as const },
+    mutationFn: async (id: string) => {
+      await unwrap(api.DELETE('/api/teams/{team_id}', { params: { path: { team_id: id } } }));
+    },
+    onError: notifyError,
   });
 }

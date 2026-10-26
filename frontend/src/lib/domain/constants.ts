@@ -94,3 +94,6 @@ export const PROJECT_TEMPLATES = [
   { id: 'personal', icon: 'heart' },
 ] as const;
 export type ProjectTemplateId = (typeof PROJECT_TEMPLATES)[number]['id'];
+
+export const ROLES = ['Owner', 'Admin', 'Member', 'Guest'] as const;
+export type Role = (typeof ROLES)[number];

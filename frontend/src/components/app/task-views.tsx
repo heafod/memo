@@ -44,11 +44,11 @@ function useScopeTasks(projectId: string | undefined, presetFilter?: TasksPreset
 
 const matches = (query: string) => (x: Task) => !query || x.title.toLowerCase().includes(query) || x.key.toLowerCase().includes(query);
 
-/** 首页统计卡 goTasks 预设筛选（原型 actions.js:212；FRIDAY 2008 #3）。 */
+/** 首页统计卡预设筛选（FRIDAY 2008 #3；done 用 completed_at，对齐 R1 卡计数，FRIDAY 2028）。 */
 export type TasksPresetFilter = 'open' | 'done' | 'overdue';
 function matchesTasksPreset(x: Task, f: TasksPresetFilter): boolean {
   if (f === 'open') return x.status !== 'done';
-  if (f === 'done') return x.status === 'done' && nowMs() - Date.parse(x.updated_at) <= 7 * DAY_MS;
+  if (f === 'done') return x.status === 'done' && !!x.completed_at && nowMs() - Date.parse(x.completed_at) < 7 * DAY_MS;
   return isOverdue(x);
 }
 

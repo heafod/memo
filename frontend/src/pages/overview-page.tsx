@@ -162,9 +162,15 @@ export function OverviewPage() {
             bodyClassName="px-[15px] py-3"
             data-panel="workload"
           >
-            {/* 原型行可点进成员页；成员页属 R5，见 PR 描述待决问题，未开放前只显示 */}
+            {/* R20：工作负载行进成员页（R5，PR-10b） */}
             {load.map(l => (
-              <div key={l.m.id} className="flex h-[30px] items-center gap-2 text-[13px]" data-workload={l.m.id} data-n={l.ts.length}>
+              <Link
+                key={l.m.id}
+                to={`/members/${l.m.id}`}
+                className="flex h-[30px] items-center gap-2 text-[13px] hover:bg-accent/40"
+                data-workload={l.m.id}
+                data-n={l.ts.length}
+              >
                 <MemberAvatar member={l.m} />
                 <span className="w-24 truncate">{l.m.name.split(' ')[0]}</span>
                 <span className="flex h-2 flex-1 overflow-hidden rounded bg-muted">
@@ -176,7 +182,7 @@ export function OverviewPage() {
                   </span>
                 </span>
                 <span className="w-[22px] text-right text-muted-foreground tabular-nums">{l.ts.length}</span>
-              </div>
+              </Link>
             ))}
           </Panel>
           <Panel title={t('overview.workspace.milestones')} bodyClassName="px-[15px] py-2" data-panel="milestones">

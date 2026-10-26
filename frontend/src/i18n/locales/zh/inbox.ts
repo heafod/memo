@@ -1,0 +1,26 @@
+// 收件箱：inbox.*（R2；原型 pages/inbox.js + zh）
+export default {
+  title: '收件箱',
+  subtitle: '提及、分配与更新',
+  markAllRead: '全部标为已读',
+  markRead: '标为已读',
+  markUnread: '标为未读',
+  emptyTitle: '收件箱为空',
+  emptyDesc: '没有符合条件的通知',
+  selectTitle: '选择一条通知',
+  selectDesc: '从左侧列表选择，查看详情与相关任务',
+  noThread: '这条通知没有关联内容',
+  openTask: '打开任务',
+  openProject: '打开项目',
+  reply: '回复',
+  replyPlaceholder: '写一条回复…',
+  system: '系统',
+  tabs: {
+    all: '全部',
+    assign: '分配',
+    comment: '评论',
+    mention: '提及',
+    update: '更新',
+    system: '系统',
+  },
+} as const;

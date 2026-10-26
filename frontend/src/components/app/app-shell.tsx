@@ -1,4 +1,6 @@
 import {
+  Activity,
+  Bell,
   CalendarDays,
   ChartGantt,
   ChevronDown,
@@ -6,23 +8,37 @@ import {
   FolderKanban,
   FolderPlus,
   House,
+  Inbox,
   LayoutDashboard,
   ListChecks,
   LogOut,
   Plus,
+  Search,
   Star,
+  UserPlus,
+  Users,
+  UsersRound,
 } from 'lucide-react';
 import { type CSSProperties, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink, Outlet, useLocation, useMatch } from 'react-router';
 import { CreateDialogsProvider, useCreateDialogs } from '@/components/app/create-dialogs';
+import { KeyboardProvider } from '@/components/app/keyboard';
+import { ShortcutsDialogProvider } from '@/components/app/shortcuts-dialog';
 import { SidebarProjectList } from '@/components/app/sidebar-project';
 import { Button } from '@/components/ui/button';
 import { FailedState } from '@/components/app/error-states';
 import { MemberAvatar, ProjectIcon } from '@/components/app/domain-ui';
 import { TaskDrawer } from '@/components/app/task-drawer';
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuShortcut,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Sidebar,
   SidebarContent,
@@ -45,37 +61,41 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { daysFromToday } from '@/lib/domain/dates';
 import { canSee } from '@/lib/domain/tasks';
 import { useLogout } from '@/lib/query/auth';
-import { useMeId, useMembers, usePreferences, useProjects, useSnapshotLoader } from '@/lib/query/entities';
+import { useMeId, useMembers, useNotifs, usePreferences, useProjects, useSnapshotLoader } from '@/lib/query/entities';
 import { useListedProjects, useVisibleTasks } from '@/lib/query/visibility';
 
 /**
  * 应用外壳（R1「应用外壳按 4_1-home.svg」；映射表「外壳 / 侧栏导航 / 工作区头 / 顶栏面包屑」行）。
- * FRIDAY 裁定第 5 条：指向未完成页面的入口一律不渲染（收件箱、收藏、通知、概览、任务、时间线、成员、动态、
- * 归档、团队、设置、帮助、搜索、新建、铃铛、语言切换），由各自批次放出。工作区头不可点（切换工作区属负范围）。
+ * PR-10b 放出：收件箱 / 搜索 / 成员 / 动态 / 铃铛到 inbox / 命令面板与快捷键；设置/外观/主题仍属 PR-11。
+ * 工作区头不可点（切换工作区属负范围）。/notifications 保持 404。
  */
 export function AppShell() {
   const snapshot = useSnapshotLoader();
   return (
     <TooltipProvider>
       <CreateDialogsProvider>
-        <SidebarProvider>
-          {snapshot.isSuccess ? <AppSidebar /> : <Sidebar />}
-          <SidebarInset>
-            <Topbar ready={snapshot.isSuccess} />
-            <div id="main-content" tabIndex={-1} className="flex-1 outline-none">
-              {snapshot.isSuccess ? (
-                <>
-                  <Outlet />
-                  <TaskDrawer />
-                </>
-              ) : snapshot.isError ? (
-                <FailedState />
-              ) : (
-                <ContentSkeleton />
-              )}
-            </div>
-          </SidebarInset>
-        </SidebarProvider>
+        <ShortcutsDialogProvider>
+          <SidebarProvider>
+            <KeyboardProvider>
+              {snapshot.isSuccess ? <AppSidebar /> : <Sidebar />}
+              <SidebarInset>
+                <Topbar ready={snapshot.isSuccess} />
+                <div id="main-content" tabIndex={-1} className="flex-1 outline-none">
+                  {snapshot.isSuccess ? (
+                    <>
+                      <Outlet />
+                      <TaskDrawer />
+                    </>
+                  ) : snapshot.isError ? (
+                    <FailedState />
+                  ) : (
+                    <ContentSkeleton />
+                  )}
+                </div>
+              </SidebarInset>
+            </KeyboardProvider>
+          </SidebarProvider>
+        </ShortcutsDialogProvider>
       </CreateDialogsProvider>
       {/* 原型 overlays.css .toast：右下 20px、深底（--text）浅字（--text-inv）、默认 4200ms；收藏提示单独 1.8s（Q11） */}
       <Toaster
@@ -137,6 +157,11 @@ function AppSidebar() {
   const onFavorites = useMatch('/favorites') !== null;
   const onOverview = useMatch('/overview') !== null;
   const onTasks = useMatch('/tasks') !== null;
+  const onInbox = useMatch('/inbox') !== null;
+  const onMembersList = useMatch('/members');
+  const onMemberDetail = useMatch('/members/:memberId');
+  const onMembers = onMembersList !== null || onMemberDetail !== null;
+  const onActivity = useMatch('/activity') !== null;
 
   const me = members.find(m => m.id === meId);
   const ws = (prefs as { workspace?: { name?: string } }).workspace;
@@ -181,6 +206,14 @@ function AppSidebar() {
                     </NavLink>
                   </SidebarMenuButton>
                   {myDue > 0 && <SidebarMenuBadge>{myDue}</SidebarMenuBadge>}
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={onInbox}>
+                    <NavLink to="/inbox" data-nav="inbox">
+                      <Inbox />
+                      <span>{t('shell.nav.inbox')}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={onFavorites}>
@@ -232,6 +265,22 @@ function AppSidebar() {
                     <NavLink to="/timeline">
                       <ChartGantt />
                       <span>{t('shell.nav.timeline')}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={onMembers}>
+                    <NavLink to="/members" data-nav="members">
+                      <Users />
+                      <span>{t('shell.nav.members')}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={onActivity}>
+                    <NavLink to="/activity" data-nav="activity">
+                      <Activity />
+                      <span>{t('shell.nav.activity')}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -290,16 +339,25 @@ function Topbar({ ready }: { ready: boolean }) {
         <BreadcrumbList>{ready && <Crumbs pathname={pathname} />}</BreadcrumbList>
       </Breadcrumb>
       <span className="flex-1" />
-      {ready && <CreateMenu />}
+      {ready && (
+        <>
+          <Button variant="ghost" size="icon-sm" asChild aria-label={t('shell.search')} data-topbar-search="">
+            <Link to="/search">
+              <Search />
+            </Link>
+          </Button>
+          <BellLink />
+          <CreateMenu />
+        </>
+      )}
     </header>
   );
 }
 
-/** 顶栏「新建」菜单（原型 layout.js:200 + popovers.js case 'create'；FRIDAY 裁定第 5 条「新建归 9c」）。
- *  团队、邀请成员归 PR-10，快捷键 N / P 未做，均不渲染。 */
+/** 顶栏「新建」菜单（PR-10b：任务/项目 + N/P；团队与新建成员）。 */
 function CreateMenu() {
   const { t } = useTranslation();
-  const { newTask, newProject } = useCreateDialogs();
+  const { newTask, newProject, newMember, newTeam } = useCreateDialogs();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -311,16 +369,42 @@ function CreateMenu() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[220px]">
         <DropdownMenuLabel>{t('shell.create.heading')}</DropdownMenuLabel>
-        <DropdownMenuItem onSelect={() => newTask()}>
+        <DropdownMenuItem onSelect={() => newTask()} data-create="task">
           <CircleCheck />
           {t('shell.create.task')}
+          <DropdownMenuShortcut>N</DropdownMenuShortcut>
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => newProject()}>
+        <DropdownMenuItem onSelect={() => newProject()} data-create="project">
           <FolderPlus />
           {t('shell.create.project')}
+          <DropdownMenuShortcut>P</DropdownMenuShortcut>
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => newTeam()} data-create="team">
+          <UsersRound />
+          {t('shell.create.team')}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => newMember()} data-create="member">
+          <UserPlus />
+          {t('shell.create.member')}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function BellLink() {
+  const { t } = useTranslation();
+  const notifs = useNotifs();
+  const unread = notifs.filter(n => !n.read).length;
+  return (
+    <Button variant="ghost" size="icon-sm" asChild aria-label={t('shell.bell')} data-topbar-bell="" data-unread={unread}>
+      <Link to="/inbox" className="relative">
+        <Bell />
+        {unread > 0 && (
+          <span className="absolute top-1.5 right-1.5 size-1.5 rounded-full bg-destructive" data-unread-dot="" aria-hidden />
+        )}
+      </Link>
+    </Button>
   );
 }
 
@@ -358,21 +442,31 @@ function Crumbs({ pathname }: { pathname: string }) {
   const name =
     pathname === '/my-tasks'
       ? t('shell.nav.myTasks')
-      : pathname === '/favorites'
-        ? t('shell.nav.favorites')
-        : pathname === '/overview'
-          ? t('shell.nav.overview')
-          : pathname === '/tasks'
-            ? t('shell.nav.tasks')
-            : pathname === '/calendar'
-              ? t('shell.nav.calendar')
-              : pathname === '/timeline'
-                ? t('shell.nav.timeline')
-                : pathname === '/projects'
-                  ? t('shell.nav.projects')
-                  : pathname === '/'
-                    ? t('shell.nav.home')
-                    : t('shell.notFound');
+      : pathname === '/inbox'
+        ? t('shell.nav.inbox')
+        : pathname === '/favorites'
+          ? t('shell.nav.favorites')
+          : pathname === '/overview'
+            ? t('shell.nav.overview')
+            : pathname === '/tasks'
+              ? t('shell.nav.tasks')
+              : pathname === '/calendar'
+                ? t('shell.nav.calendar')
+                : pathname === '/timeline'
+                  ? t('shell.nav.timeline')
+                  : pathname === '/projects'
+                    ? t('shell.nav.projects')
+                    : pathname === '/members' || pathname.startsWith('/members/')
+                      ? t('shell.nav.members')
+                      : pathname === '/activity'
+                        ? t('shell.nav.activity')
+                        : pathname === '/search' || pathname.startsWith('/search')
+                          ? t('shell.nav.search')
+                          : pathname.startsWith('/teams/')
+                            ? t('shell.nav.teams')
+                            : pathname === '/'
+                              ? t('shell.nav.home')
+                              : t('shell.notFound');
   return (
     <BreadcrumbItem>
       <BreadcrumbPage>{name}</BreadcrumbPage>

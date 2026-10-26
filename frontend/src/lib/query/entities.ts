@@ -1,7 +1,7 @@
 import { queryOptions, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api/client';
 import type { components } from '@/lib/api/schema';
-import { useMe } from './auth';
+import { authKeys, type CurrentUser, useMe } from './auth';
 import { queryClient } from './client';
 
 // 快照与实体 key（docs/query-conventions.md「实体 key」）：登录后只拉一次 GET /api/snapshot，
@@ -18,6 +18,7 @@ export type Comment = Schemas['CommentPublic'];
 export type Activity = Schemas['ActivityPublic'];
 export type FileItem = Schemas['FilePublic'];
 export type Preferences = Snapshot['preferences'];
+export type Notif = Schemas['NotifPublic'];
 
 const ENTITY_KEYS = [
   'members',
@@ -46,7 +47,16 @@ async function fetchSnapshot(): Promise<Snapshot> {
 /** 拉快照并拆分写回全部实体 key（首次加载与「重拉快照」共用，保证一致）。 */
 async function loadSnapshot(): Promise<Snapshot> {
   const snap = await fetchSnapshot();
-  for (const key of ENTITY_KEYS) queryClient.setQueryData([key], snap[key]);
+  // notifs：快照含全员；列表端点与 PATCH 仅当前用户。写入实体 key 时按 me 过滤，与 GET /api/notifs 对齐（R2）。
+  const me = queryClient.getQueryData<CurrentUser | null>(authKeys.me);
+  const meId = me?.owner_member_id;
+  for (const key of ENTITY_KEYS) {
+    if (key === 'notifs' && meId) {
+      queryClient.setQueryData([key], snap.notifs.filter(n => n.member_id === meId));
+    } else {
+      queryClient.setQueryData([key], snap[key]);
+    }
+  }
   return snap;
 }
 
@@ -98,7 +108,13 @@ export const useSubtasks = () => useEntity('subtasks');
 export const useComments = () => useEntity('comments');
 export const useActivity = () => useEntity('activity');
 export const useFiles = () => useEntity('files');
-export const usePreferences = () => useEntity('preferences');
-
 /** 「我」= 管理员关联的 Owner 成员（R5；UserPublic.owner_member_id）。 */
 export const useMeId = (): string | null => useMe().data?.owner_member_id ?? null;
+
+export function useNotifs(): Notif[] {
+  const meId = useMeId();
+  const all = useEntity('notifs');
+  return meId ? all.filter(n => n.member_id === meId) : all;
+}
+export const usePreferences = () => useEntity('preferences');
+

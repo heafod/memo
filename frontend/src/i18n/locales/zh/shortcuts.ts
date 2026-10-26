@@ -1,0 +1,19 @@
+// 快捷键说明：shortcuts.*（R6；仅已实现键）
+export default {
+  title: '键盘快捷键',
+  desc: '在可编辑控件外生效（Esc 与 ⌘K 除外）',
+  palette: '打开或关闭命令面板',
+  search: '打开搜索页',
+  newTask: '新建任务',
+  newProject: '新建项目',
+  sidebar: '切换侧边栏',
+  help: '打开本说明',
+  esc: '关闭当前浮层',
+  gHome: '前往首页',
+  gTasks: '前往我的任务',
+  gProjects: '前往项目',
+  gInbox: '前往收件箱',
+  gCalendar: '前往日历',
+  gMembers: '前往成员',
+  gActivity: '前往动态',
+} as const;
