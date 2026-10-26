@@ -1,4 +1,4 @@
-import { CalendarDays, ChevronDown, CircleCheck, FolderKanban, FolderPlus, House, LogOut, Plus } from 'lucide-react';
+import { CalendarDays, ChartGantt, ChevronDown, CircleCheck, FolderKanban, FolderPlus, House, LogOut, Plus } from 'lucide-react';
 import { type CSSProperties, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink, Outlet, useLocation, useMatch } from 'react-router';
@@ -120,6 +120,7 @@ function AppSidebar() {
   const onMyTasks = useMatch('/my-tasks') !== null;
   const onProjects = useMatch('/projects') !== null;
   const onCalendar = useMatch('/calendar') !== null;
+  const onTimeline = useMatch('/timeline') !== null;
 
   const me = members.find(m => m.id === meId);
   const ws = (prefs as { workspace?: { name?: string } }).workspace;
@@ -183,6 +184,14 @@ function AppSidebar() {
                     <NavLink to="/calendar">
                       <CalendarDays />
                       <span>{t('shell.nav.calendar')}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={onTimeline}>
+                    <NavLink to="/timeline">
+                      <ChartGantt />
+                      <span>{t('shell.nav.timeline')}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -308,11 +317,13 @@ function Crumbs({ pathname }: { pathname: string }) {
       ? t('shell.nav.myTasks')
       : pathname === '/calendar'
         ? t('shell.nav.calendar')
-        : pathname === '/projects'
-          ? t('shell.nav.projects')
-          : pathname === '/'
-            ? t('shell.nav.home')
-            : t('shell.notFound');
+        : pathname === '/timeline'
+          ? t('shell.nav.timeline')
+          : pathname === '/projects'
+            ? t('shell.nav.projects')
+            : pathname === '/'
+              ? t('shell.nav.home')
+              : t('shell.notFound');
   return (
     <BreadcrumbItem>
       <BreadcrumbPage>{name}</BreadcrumbPage>
