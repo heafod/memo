@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# verify-compose.sh —— R14 一键部署实测（001-plan PR-7，FRIDAY 验收 AC1–AC6 + 413）
+# verify-compose.sh —— R14 一键部署实测（001-plan PR-7/PR-12，AC1–AC6 + 413 + EDITH + snapshot bench）
 #
 # 在装有 docker（含 compose v2 插件）的机器上、仓库任意目录执行：
 #   bash backend/scripts/verify-compose.sh
@@ -162,6 +162,18 @@ step_ac1() {
   code="$(curl -s -o "$WORK/spa.html" -w '%{http_code}' "$BASE/some/spa/route")"
   page="$(cat "$WORK/spa.html" 2>/dev/null)"
   check "AC1 前端 SPA 回退：状态 200（实际 $code）且返回构建后的登录页入口" spa_ok "$code" "$page"
+  code="$(curl -s -o "$WORK/spa-root.html" -w '%{http_code}' "$BASE/")"
+  page="$(cat "$WORK/spa-root.html" 2>/dev/null)"
+  check "AC1 GET / → 200 且为构建后的登录页入口（实际 $code）" spa_ok "$code" "$page"
+  # AC1：backend 仅在 prestart 成功完成后启动（StartedAt ≥ prestart FinishedAt）
+  local pre_fin back_start
+  pre_fin="$(docker inspect -f '{{.State.FinishedAt}}' "$(container_id "$PROJECT" "$WORK/.env" prestart)" 2>/dev/null || true)"
+  back_start="$(docker inspect -f '{{.State.StartedAt}}' "$(container_id "$PROJECT" "$WORK/.env" backend)" 2>/dev/null || true)"
+  if python3 -c "import sys; a,b=sys.argv[1:3]; sys.exit(0 if a and b and b>=a else 1)" "$pre_fin" "$back_start"; then
+    pass "AC1 backend 在 prestart 完成后启动（prestart FinishedAt=$pre_fin，backend StartedAt=$back_start）"
+  else
+    fail "AC1 backend 在 prestart 完成后启动（prestart FinishedAt=$pre_fin，backend StartedAt=$back_start）"
+  fi
 }
 
 # ====================== AC2：幂等（restart + 二次 up） ======================
@@ -204,23 +216,30 @@ step_upload() {
   check "AC6 上传文件成功（id=$FILE_ID）" test -n "$FILE_ID"
 }
 
-# ====================== 413：nginx 层 JSON 与后端透传 ======================
+# ====================== 413：nginx 层 JSON 与后端透传；EDITH：10.5MB CT + 恰 10MB 201 ======================
 TOO_LARGE_BODY='{"detail":"文件过大，单个文件不能超过 10MB"}'
 step_413() {
-  say "== 413：经 nginx 上传 12MB → nginx JSON；10.5MB → 后端 413 原样透传（两层 detail 逐字节一致）"
-  local resp body
+  say "== 413 / EDITH：经 nginx 12MB→413 JSON；10.5MB→后端 413+Content-Type；恰 10MB→201"
+  local resp body ct code
   head -c $((12 * 1024 * 1024)) /dev/zero >"$WORK/big-12mb.zip"
   head -c $((10 * 1024 * 1024 + 512 * 1024)) /dev/zero >"$WORK/mid-10_5mb.zip"
+  head -c $((10 * 1024 * 1024)) /dev/zero >"$WORK/exact-10mb.zip"
   resp="$(curl -s -b "$COOKIE" -o "$WORK/413.body" -w '%{http_code}|%{content_type}' \
     -F "project_id=$PID" -F "file=@$WORK/big-12mb.zip" "$BASE/api/files")"
   body="$(cat "$WORK/413.body" 2>/dev/null)"
   check "413 nginx 拒绝 12MB：状态 413、Content-Type application/json、体为 $TOO_LARGE_BODY（实际 $resp $body）" \
     test "${resp%%|*}" = "413" -a "${resp#*|}" = "application/json; charset=utf-8" -a "$body" = "$TOO_LARGE_BODY"
-  resp="$(curl -s -b "$COOKIE" -o "$WORK/413b.body" -w '%{http_code}' \
+  resp="$(curl -s -b "$COOKIE" -o "$WORK/413b.body" -w '%{http_code}|%{content_type}' \
     -F "project_id=$PID" -F "file=@$WORK/mid-10_5mb.zip" "$BASE/api/files")"
   body="$(cat "$WORK/413b.body" 2>/dev/null)"
-  check "413 后端透传 10.5MB：状态 413、体为后端 detail（实际 $resp $body）" \
-    test "$resp" = "413" -a "$body" = "$TOO_LARGE_BODY"
+  code="${resp%%|*}"
+  ct="${resp#*|}"
+  # EDITH 非阻断补强：10.5MB 须 Content-Type application/json（允许 charset）
+  check "413 后端透传 10.5MB：状态 413、Content-Type application/json、体为后端 detail（实际 $resp $body）" \
+    test "$code" = "413" -a "$body" = "$TOO_LARGE_BODY" -a "${ct#application/json}" != "$ct"
+  code="$(curl -s -b "$COOKIE" -o "$WORK/exact10.body" -w '%{http_code}' \
+    -F "project_id=$PID" -F "file=@$WORK/exact-10mb.zip;filename=exact-10mb.zip" "$BASE/api/files")"
+  check "EDITH 恰 10MB 上传 → 201（实际 $code）" test "$code" = "201"
 }
 
 # ====================== AC5：改密后重启不覆盖 ======================
@@ -303,6 +322,56 @@ step_ac4() {
   run_bad_case weak-password "$ADMIN" "short1" "不符合密码策略"
 }
 
+# ====================== 部署验证：snapshot 大小与 p95（100 次，超标不阻断） ======================
+step_snapshot_bench() {
+  say "== SNAPSHOT_BENCH：种子环境 100 次采样（大小 ≤5MB、p95 ≤500ms；超标 WARNING 不阻断）"
+  local i body_file size code ms
+  login "$PW2" >/dev/null || login "$PW1" >/dev/null
+  body_file="$WORK/snapshot-bench.json"
+  : >"$WORK/snapshot-bench.sizes"
+  : >"$WORK/snapshot-bench.ms"
+  for i in $(seq 1 100); do
+    # curl -w 写出 http_code 与 time_total；体写入文件
+    ms_line="$(curl -s -b "$COOKIE" -o "$body_file" -w '%{http_code} %{time_total}' "$BASE/api/snapshot" || echo "000 9.999")"
+    code="${ms_line%% *}"
+    ms="$(python3 -c "print(int(float('${ms_line#* }')*1000))")"
+    size="$(wc -c <"$body_file" | tr -d ' ')"
+    printf '%s\n' "$size" >>"$WORK/snapshot-bench.sizes"
+    printf '%s\n' "$ms" >>"$WORK/snapshot-bench.ms"
+    if [[ "$code" != "200" ]]; then
+      fail "SNAPSHOT_BENCH 第 ${i} 次 → $code（期望 200）"
+      return
+    fi
+  done
+  # 取末次 size（种子稳定）与 p95
+  size="$(tail -n1 "$WORK/snapshot-bench.sizes")"
+  local p95
+  p95="$(python3 -c "
+import statistics
+ms=[int(x) for x in open('$WORK/snapshot-bench.ms') if x.strip()]
+ms.sort()
+# nearest-rank p95
+idx=max(0, min(len(ms)-1, int(0.95*len(ms)+0.999)-1))
+print(ms[idx])
+")"
+  local over_size=0 over_p95=0
+  (( size > 5 * 1024 * 1024 )) && over_size=1
+  (( p95 > 500 )) && over_p95=1
+  say "SNAPSHOT_BENCH size_bytes=$size p95_ms=$p95 samples=100 limit_size_bytes=5242880 limit_p95_ms=500 over_size=$over_size over_p95=$over_p95"
+  # 机器可读行供 CI / PR 描述抓取
+  printf 'SNAPSHOT_BENCH size_bytes=%s p95_ms=%s samples=100 over_size=%s over_p95=%s\n' \
+    "$size" "$p95" "$over_size" "$over_p95" | tee "$WORK/snapshot-bench.summary"
+  # 持久化到仓库 .tmp/（cleanup 只删 $WORK）或 VERIFY_BENCH_OUT，供 CI Step Summary
+  local bench_out="${VERIFY_BENCH_OUT:-$REPO/.tmp/snapshot-bench.summary}"
+  mkdir -p "$(dirname "$bench_out")"
+  cp "$WORK/snapshot-bench.summary" "$bench_out"
+  say "SNAPSHOT_BENCH 已写入 $bench_out"
+  if (( over_size || over_p95 )); then
+    say "WARNING：snapshot 超标（over_size=$over_size over_p95=$over_p95）——不阻断 CI，回产品负责人评估"
+  fi
+  pass "SNAPSHOT_BENCH 采样完成（size=${size}B p95=${p95}ms；超标不阻断）"
+}
+
 main() {
   local tool
   for tool in docker curl python3; do
@@ -324,6 +393,7 @@ main() {
   step_413
   step_ac5
   step_ac6
+  step_snapshot_bench
   step_ac4
 
   say ""
@@ -333,7 +403,7 @@ main() {
     say "RESULT: FAIL"
     exit 1
   fi
-  say "RESULT: PASS（AC1–AC6 + 413）"
+  say "RESULT: PASS（AC1–AC6 + 413 + EDITH + SNAPSHOT_BENCH）"
 }
 
 if [[ "${VERIFY_SOURCE_ONLY:-0}" != "1" ]]; then

@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    # edited：仅供读 PR_BODY 的 pr-guards；其它 job 见各自 if != edited（FRIDAY 2236）
     types: [opened, synchronize, reopened, edited]
 
 permissions:
@@ -16,6 +17,8 @@ concurrency:
 jobs:
   prototype:
     name: prototype lint / format / build
+    # FRIDAY 2236：改正文不重跑不读 PR_BODY 的 job
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # npm 命令在 prototype/ 下执行（仓库根没有工程 package.json）
@@ -40,6 +43,7 @@ jobs:
 
   backend:
     name: backend lint / tests
+    if: github.event.action != 'edited'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -107,3 +111,100 @@ jobs:
         run: bash .github/scripts/check-pr-subset.sh
       - name: 测试标注的 R# 须在对应 spec 中存在
         run: bash .github/scripts/check-r-refs.sh
+
+  frontend:
+    name: frontend lint / tsc / build / gen:api
+    if: github.event.action != 'edited'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Set up uv（gen:api 导出 OpenAPI 需要）
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: "0.12.6"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Install backend deps（frozen，供 gen:api）
+        working-directory: backend
+        run: uv sync --frozen
+      - name: Install frontend deps
+        run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run format:check
+      - run: npm run build
+      - name: gen:api 重跑后无 diff
+        run: |
+          npm run gen:api
+          git diff --exit-code -- openapi.json src/lib/api/schema.d.ts
+
+  chinese-detail:
+    name: 中文 detail 扫描
+    if: github.event.action != 'edited'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: grep 模板英文固定串
+        run: bash backend/scripts/check-chinese-detail.sh
+
+  compose-smoke:
+    name: compose 冒烟（R14）
+    if: github.event.action != 'edited'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: verify-compose（AC1–AC6 + 413 + EDITH + snapshot bench）
+        env:
+          VERIFY_BENCH_OUT: ${{ github.workspace }}/.tmp/snapshot-bench.summary
+        run: bash backend/scripts/verify-compose.sh
+      - name: 写出 snapshot bench 到 Step Summary
+        if: always()
+        env:
+          VERIFY_BENCH_OUT: ${{ github.workspace }}/.tmp/snapshot-bench.summary
+        run: |
+          # 与 verify 步同一绝对路径（FRIDAY 2236 cosmetic）；缺文件时从本 job 日志兜底摘行
+          {
+            echo '## Snapshot bench（部署验证，超标不阻断）'
+            echo
+            if [[ -n "${VERIFY_BENCH_OUT:-}" && -f "$VERIFY_BENCH_OUT" ]]; then
+              echo '```'
+              cat "$VERIFY_BENCH_OUT"
+              echo '```'
+            elif [[ -f .tmp/snapshot-bench.summary ]]; then
+              echo '```'
+              cat .tmp/snapshot-bench.summary
+              echo '```'
+            else
+              echo '_未找到 summary 文件；以下若有内容则来自本 job 日志兜底：_'
+              echo '```'
+              # 仅本 job 已下载的日志不可用；提示看 verify 步 SNAPSHOT_BENCH 行
+              echo '(见上方 verify-compose 步骤日志中的 SNAPSHOT_BENCH 行)'
+              echo '```'
+            fi
+            echo
+            echo '| 指标 | 上限 |'
+            echo '| --- | --- |'
+            echo '| 响应体大小 | ≤ 5 MB |'
+            echo '| p95 延迟 | ≤ 500 ms（100 次采样） |'
+          } >> "$GITHUB_STEP_SUMMARY"

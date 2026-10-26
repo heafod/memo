@@ -41,7 +41,7 @@ export function ActivityPage() {
         }
         if (person !== 'all' && a.by_id !== person) return false;
         if (qq) {
-          const task = a.task_id ? tasks.find(x => x.id === a.task_id)?.title.toLowerCase() ?? '' : '';
+          const task = a.task_id ? (tasks.find(x => x.id === a.task_id)?.title.toLowerCase() ?? '') : '';
           const proj = projects.find(p => p.id === a.project_id)?.name.toLowerCase() ?? '';
           if (!task.includes(qq) && !proj.includes(qq) && !a.verb.toLowerCase().includes(qq)) return false;
         }
@@ -65,23 +65,14 @@ export function ActivityPage() {
         <p className="mt-1 text-sm text-muted-foreground">{t('orgActivity.subtitle')}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Input
-          className="h-8 w-48"
-          value={q}
-          onChange={e => setQ(e.target.value)}
-          placeholder={t('orgActivity.searchPh')}
-          data-activity-search=""
-        />
+        <Input className="h-8 w-48" value={q} onChange={e => setQ(e.target.value)} placeholder={t('orgActivity.searchPh')} data-activity-search="" />
         <div className="flex flex-wrap gap-1 rounded-lg border border-border p-0.5">
           {TYPES.map(k => (
             <button
               key={k}
               type="button"
               data-activity-type={k}
-              className={cn(
-                'h-7 rounded-md px-2.5 text-[12.5px]',
-                type === k ? 'bg-accent font-medium' : 'text-muted-foreground hover:bg-accent/50',
-              )}
+              className={cn('h-7 rounded-md px-2.5 text-[12.5px]', type === k ? 'bg-accent font-medium' : 'text-muted-foreground hover:bg-accent/50')}
               onClick={() => setType(k)}
             >
               {t(`orgActivity.types.${k}`)}

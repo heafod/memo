@@ -76,12 +76,13 @@ export function InboxPage() {
   };
 
   const task = selected?.task_id ? tasks.find(x => x.id === selected.task_id) : undefined;
-  const project = selected?.project_id
-    ? projects.find(p => p.id === selected.project_id)
-    : task
-      ? projects.find(p => p.id === task.project_id)
-      : undefined;
-  const thread = task ? comments.filter(c => c.task_id === task.id).sort((a, b) => Date.parse(a.at) - Date.parse(b.at)).slice(-4) : [];
+  const project = selected?.project_id ? projects.find(p => p.id === selected.project_id) : task ? projects.find(p => p.id === task.project_id) : undefined;
+  const thread = task
+    ? comments
+        .filter(c => c.task_id === task.id)
+        .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+        .slice(-4)
+    : [];
   const by = selected?.by_id ? members.find(m => m.id === selected.by_id) : undefined;
 
   const buckets: { label: string; items: Notif[] }[] = [];
@@ -104,12 +105,7 @@ export function InboxPage() {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5" data-inbox-unread-toggle="">
-            <Checkbox
-              id="inbox-unread-only"
-              checked={unreadOnly}
-              onCheckedChange={v => setUnreadOnly(v === true)}
-              data-action="unread-only"
-            />
+            <Checkbox id="inbox-unread-only" checked={unreadOnly} onCheckedChange={v => setUnreadOnly(v === true)} data-action="unread-only" />
             <Label htmlFor="inbox-unread-only" className="text-sm font-normal cursor-pointer">
               {t('inbox.unreadOnly')}
             </Label>
@@ -131,9 +127,7 @@ export function InboxPage() {
           {TABS.map(k => (
             <TabsTrigger key={k} value={k} data-inbox-tab={k} className="gap-1.5">
               {t(`inbox.tabs.${k}`)}
-              {unreadBy(k) > 0 && (
-                <span className="rounded-full bg-primary/15 px-1.5 text-[11px] tabular-nums text-primary">{unreadBy(k)}</span>
-              )}
+              {unreadBy(k) > 0 && <span className="rounded-full bg-primary/15 px-1.5 text-[11px] tabular-nums text-primary">{unreadBy(k)}</span>}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -173,7 +167,13 @@ export function InboxPage() {
                         )}
                         onClick={() => select(n)}
                       >
-                        {who ? <MemberAvatar member={who} /> : <span className="grid size-7 place-items-center rounded-full bg-muted"><Bell size={14} /></span>}
+                        {who ? (
+                          <MemberAvatar member={who} />
+                        ) : (
+                          <span className="grid size-7 place-items-center rounded-full bg-muted">
+                            <Bell size={14} />
+                          </span>
+                        )}
                         <span className="min-w-0 flex-1">
                           <span className={cn('line-clamp-2 text-[13px]', !n.read && 'font-medium')}>{n.text}</span>
                           <span className="mt-0.5 block text-[11.5px] text-muted-foreground">{timeAgo(t, n.at)}</span>
@@ -210,12 +210,7 @@ export function InboxPage() {
                     {by ? by.name : t('inbox.system')} · {timeAgo(t, selected.at)}
                   </p>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  data-action="toggle-read"
-                  onClick={() => mark.mutate({ id: selected.id, read: !selected.read })}
-                >
+                <Button variant="ghost" size="sm" data-action="toggle-read" onClick={() => mark.mutate({ id: selected.id, read: !selected.read })}>
                   {selected.read ? t('inbox.markUnread') : t('inbox.markRead')}
                 </Button>
               </div>
@@ -230,9 +225,7 @@ export function InboxPage() {
                 )}
                 {task && (
                   <Button asChild variant="secondary" size="sm" data-action="open-task">
-                    <Link to={`?task=${task.id}`}>
-                      {t('inbox.openTask')}
-                    </Link>
+                    <Link to={`?task=${task.id}`}>{t('inbox.openTask')}</Link>
                   </Button>
                 )}
               </div>
@@ -270,10 +263,7 @@ export function InboxPage() {
                     onKeyDown={e => {
                       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && reply.trim()) {
                         e.preventDefault();
-                        createComment.mutate(
-                          { task_id: task.id, text: reply.trim() },
-                          { onSuccess: () => setReply('') },
-                        );
+                        createComment.mutate({ task_id: task.id, text: reply.trim() }, { onSuccess: () => setReply('') });
                       }
                     }}
                   />
@@ -281,12 +271,7 @@ export function InboxPage() {
                     <Button
                       size="sm"
                       disabled={!reply.trim() || createComment.isPending}
-                      onClick={() =>
-                        createComment.mutate(
-                          { task_id: task.id, text: reply.trim() },
-                          { onSuccess: () => setReply('') },
-                        )
-                      }
+                      onClick={() => createComment.mutate({ task_id: task.id, text: reply.trim() }, { onSuccess: () => setReply('') })}
                     >
                       {t('inbox.reply')}
                     </Button>
