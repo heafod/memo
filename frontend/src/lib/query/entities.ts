@@ -137,5 +137,20 @@ export function useNotifs(): Notif[] {
   });
 }
 export const usePreferences = () => useEntity('preferences');
-export const useEvents = () => useEntity('events');
+/**
+ * 工作区日历事件（R17；FRIDAY 2208 / 对齐 1727·1833·2110）：
+ * 无关联项目的事件仍可展示；有 project_id 时须所属项目可见且未归档。
+ * 芯片、日弹层、日计数共用本钩子，不在视图层再补过滤。
+ */
+export function useEvents(): Event[] {
+  const meId = useMeId();
+  const all = useEntity('events');
+  const projects = useEntity('projects');
+  return all.filter(e => {
+    if (!e.project_id) return true;
+    const p = projects.find(x => x.id === e.project_id);
+    if (!p) return false;
+    return canSee(p, meId) && !p.archived;
+  });
+}
 export const useSavedViews = () => useEntity('savedViews');

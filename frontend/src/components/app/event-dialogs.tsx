@@ -22,7 +22,7 @@ import { fmtDate } from '@/lib/domain/format';
 import { projectColor } from '@/lib/domain/constants';
 import { type Event, useEvents, useProjects } from '@/lib/query/entities';
 import { useCreateEvent, useDeleteEvent, useUpdateEvent } from '@/lib/query/mutations';
-import { useListedProjects } from '@/lib/query/visibility';
+import { useWorkspaceProjects } from '@/lib/query/visibility';
 import { ApiError } from '@/lib/api/client';
 
 type Draft = { id?: string; title: string; date: string; time: string; project_id: string };
@@ -43,7 +43,7 @@ export function EventDialogsProvider({ children }: { children: ReactNode }) {
   const create = useCreateEvent();
   const update = useUpdateEvent();
   const del = useDeleteEvent();
-  const projects = useListedProjects();
+  const projects = useWorkspaceProjects();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const events = useEvents();
