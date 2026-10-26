@@ -138,7 +138,7 @@ export function TaskList({
       {groups.map(g => (
         <Collapsible key={g.key} defaultOpen={!g.defaultCollapsed}>
           {showGroupHeaders && (
-            <div role="row" className="flex h-11 items-center gap-2 border-b border-border px-4 font-semibold">
+            <div role="row" data-group-header={g.key} className="flex h-11 items-center gap-2 border-b border-border px-4 font-semibold">
               <CollapsibleTrigger className="group/trigger grid size-5 place-items-center rounded hover:bg-accent" aria-label={t('list.toggleGroup')}>
                 <ChevronRight className="size-3.5 group-data-[state=open]/trigger:hidden" />
                 <ChevronDown className="hidden size-3.5 group-data-[state=open]/trigger:block" />
@@ -414,7 +414,7 @@ export function ViewToolbar({
   onSort: (s: Sort) => void;
   group?: string;
   onGroup?: (g: string) => void;
-  groupOptions?: readonly ('status' | 'priority' | 'assignee' | 'due' | 'none')[];
+  groupOptions?: readonly ('status' | 'priority' | 'assignee' | 'project' | 'due' | 'none')[];
   sortOptions?: readonly SortField[];
   /** 工具栏右侧（原型 viewToolbar opts.right，如「新建任务」）。 */
   right?: ReactNode;

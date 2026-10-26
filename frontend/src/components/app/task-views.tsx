@@ -2,17 +2,17 @@ import { Calendar, Plus, User, X } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-import { MemberAvatar, PriorityIcon, StatusIcon } from '@/components/app/domain-ui';
+import { MemberAvatar, PriorityIcon, ProjectDot, StatusIcon } from '@/components/app/domain-ui';
 import { TaskBoard } from '@/components/app/task-board';
 import { TableColumnsButton, TaskTable } from '@/components/app/task-table';
 import { type Column, type RowDrop, type TaskGroup, TaskList, ViewToolbar } from '@/components/app/task-list';
 import { useCreateDialogs } from '@/components/app/create-dialogs';
 import { Button } from '@/components/ui/button';
 import { type Priority, PRIORITIES, STATUSES, type TaskStatus } from '@/lib/domain/constants';
-import { daysFromToday } from '@/lib/domain/dates';
+import { DAY_MS, daysFromToday, nowMs } from '@/lib/domain/dates';
 import { DEFAULT_TABLE_HIDDEN, type TableCol } from '@/lib/domain/table-cols';
 import { activeProjects, canSee, isOverdue, type Sort, sortTasks } from '@/lib/domain/tasks';
-import { type Member, type Preferences, type Task, useMeId, useMembers, usePreferences, useProjects } from '@/lib/query/entities';
+import { type Member, type Preferences, type Project, type Task, useMeId, useMembers, usePreferences, useProjects } from '@/lib/query/entities';
 import { type TaskPatch, useUpdatePreferences, useUpdateTask } from '@/lib/query/mutations';
 import { useVisibleComments, useVisibleSubtasks, useVisibleTasks, useWorkspaceTasks } from '@/lib/query/visibility';
 
@@ -30,16 +30,27 @@ export interface ViewScope {
   toolbarRight?: ReactNode;
   /** 页头已有「新建任务」时不在工具栏重复放（全部任务页，原型 tasks.js 页头按钮）。 */
   hideToolbarNewTask?: boolean;
+  /** 首页 goTasks 预设筛选（URL `?f=`；列表 / 看板 / 表格均生效）。 */
+  presetFilter?: TasksPresetFilter;
 }
 
-/** 视图任务集合：项目内 = 该项目可见任务；工作区 = useWorkspaceTasks。 */
-function useScopeTasks(projectId: string | undefined): Task[] {
+/** 视图任务集合：项目内 = 该项目可见任务；工作区 = useWorkspaceTasks；可选 goTasks 预设筛选。 */
+function useScopeTasks(projectId: string | undefined, presetFilter?: TasksPresetFilter): Task[] {
   const visible = useVisibleTasks();
   const workspace = useWorkspaceTasks();
-  return projectId ? visible.filter(x => x.project_id === projectId) : workspace;
+  const base = projectId ? visible.filter(x => x.project_id === projectId) : workspace;
+  return presetFilter ? base.filter(x => matchesTasksPreset(x, presetFilter)) : base;
 }
 
 const matches = (query: string) => (x: Task) => !query || x.title.toLowerCase().includes(query) || x.key.toLowerCase().includes(query);
+
+/** 首页统计卡 goTasks 预设筛选（原型 actions.js:212；FRIDAY 2008 #3）。 */
+export type TasksPresetFilter = 'open' | 'done' | 'overdue';
+function matchesTasksPreset(x: Task, f: TasksPresetFilter): boolean {
+  if (f === 'open') return x.status !== 'done';
+  if (f === 'done') return x.status === 'done' && nowMs() - Date.parse(x.updated_at) <= 7 * DAY_MS;
+  return isOverdue(x);
+}
 
 function NewTaskButton({ projectId }: { projectId?: string }) {
   const { t } = useTranslation();
@@ -53,9 +64,9 @@ function NewTaskButton({ projectId }: { projectId?: string }) {
 }
 
 /** 看板视图（R4 看板 PR-9d；无分组切换，工具栏仅搜索 / 新建）。 */
-export function BoardView({ projectId, toolbarRight, hideToolbarNewTask }: ViewScope) {
+export function BoardView({ projectId, toolbarRight, hideToolbarNewTask, presetFilter }: ViewScope) {
   const { t } = useTranslation();
-  const tasks = useScopeTasks(projectId);
+  const tasks = useScopeTasks(projectId, presetFilter);
   const members = useMembers();
   const [q, setQ] = useState('');
   const shown = tasks.filter(matches(q.trim().toLowerCase()));
@@ -87,16 +98,17 @@ export function BoardView({ projectId, toolbarRight, hideToolbarNewTask }: ViewS
   );
 }
 
-type GroupBy = 'status' | 'priority' | 'assignee' | 'due' | 'none';
-const GROUP_OPTIONS = ['status', 'priority', 'assignee', 'due', 'none'] as const;
+type GroupBy = 'status' | 'priority' | 'assignee' | 'project' | 'due' | 'none';
+/** 列表与表格分组选项（含「项目」；FRIDAY 2008 裁定 #1；看板不提供分组）。 */
+const GROUP_OPTIONS = ['status', 'priority', 'assignee', 'project', 'due', 'none'] as const;
 
 /** 表格视图（R4 表格 PR-9e；列显隐 / 列宽经 preferences.tableViews[viewKey] 持久化）。 */
-export function TableView({ projectId, viewKey, toolbarRight, hideToolbarNewTask }: ViewScope) {
+export function TableView({ projectId, viewKey, toolbarRight, hideToolbarNewTask, presetFilter }: ViewScope) {
   const { t } = useTranslation();
   const { newTask } = useCreateDialogs();
   const meId = useMeId();
   const tasks = useVisibleTasks();
-  const scope = useScopeTasks(projectId);
+  const scope = useScopeTasks(projectId, presetFilter);
   const members = useMembers();
   const projects = useProjects();
   const prefs = usePreferences();
@@ -106,12 +118,14 @@ export function TableView({ projectId, viewKey, toolbarRight, hideToolbarNewTask
   const [group, setGroup] = useState<GroupBy>('none');
   const ts = sortTasks(scope.filter(matches(q.trim().toLowerCase())), sort, members);
   const projectMembers = projects.find(p => p.id === projectId)?.member_ids ?? [];
-  const groups = groupTasks(t, ts, group, members, projectMembers);
+  const groups = groupTasks(t, ts, group, members, projectMembers, projects, meId);
   const flat = groups.flatMap(g => g.tasks);
 
   type TableViews = Record<string, { hidden?: string[]; colW?: Record<string, number> }>;
   const stored = ((prefs as { tableViews?: TableViews }).tableViews ?? {})[viewKey];
-  const hidden = (stored?.hidden as TableCol[] | undefined) ?? [...DEFAULT_TABLE_HIDDEN];
+  // 仅项目内表格默认隐藏「项目」列（EDITH FAIL R22-220 / pr10a-fail-2006；原型 table.js:53-57）。
+  const defaultHidden: TableCol[] = projectId ? [...DEFAULT_TABLE_HIDDEN, 'project'] : [...DEFAULT_TABLE_HIDDEN];
+  const hidden = (stored?.hidden as TableCol[] | undefined) ?? defaultHidden;
   const colW = stored?.colW ?? {};
 
   const persist = (next: { hidden: TableCol[]; colW: Record<string, number> }) => {
@@ -126,7 +140,7 @@ export function TableView({ projectId, viewKey, toolbarRight, hideToolbarNewTask
   };
   const setColWidth = (c: TableCol, w: number) => persist({ hidden: [...hidden], colW: { ...colW, [c]: w } });
   const resetWidths = () => persist({ hidden: [...hidden], colW: {} });
-  const moveTargets = activeProjects(projects).filter(p => canSee(p, meId));
+  const moveTargets = activeProjects(projects).filter(p => !!meId && canSee(p, meId));
 
   return (
     <>
@@ -172,12 +186,14 @@ export function ListView({
   onClearStatus,
   toolbarRight,
   hideToolbarNewTask,
+  presetFilter,
   ariaLabel,
 }: ViewScope & { columns: Column[]; statusFilter?: TaskStatus; onClearStatus?: () => void; ariaLabel: string }) {
   const { t } = useTranslation();
   const update = useUpdateTask();
+  const meId = useMeId();
   const tasks = useVisibleTasks();
-  const scope = useScopeTasks(projectId);
+  const scope = useScopeTasks(projectId, presetFilter);
   const members = useMembers();
   const projects = useProjects();
   const subtasks = useVisibleSubtasks();
@@ -251,7 +267,7 @@ export function ListView({
       <div className="overflow-x-auto">
         <TaskList
           ariaLabel={ariaLabel}
-          groups={groupTasks(t, ts, group, members, projectMembers)}
+          groups={groupTasks(t, ts, group, members, projectMembers, projects, meId)}
           showGroupHeaders={group !== 'none'}
           columns={columns}
           ctx={{ members, projects, subtasks, comments }}
@@ -263,13 +279,15 @@ export function ListView({
   );
 }
 
-/** 分组（原型 shell/view-engine.js groupTasks）：状态 / 优先级保留空组，其余只列非空组。 */
+/** 分组（原型 shell/view-engine.js groupTasks）：状态 / 优先级保留空组，其余只列非空组；项目组顺序 = 可见未归档项目 order（FRIDAY 2008 #1）。 */
 function groupTasks(
   t: ReturnType<typeof useTranslation>['t'],
   ts: Task[],
   g: GroupBy,
   members: readonly Member[],
   projectMembers: readonly string[],
+  projects: readonly Project[],
+  meId: string | null,
 ): TaskGroup[] {
   if (g === 'none') return [{ key: 'all', name: t('list.allTasks'), tasks: ts }];
   if (g === 'status')
@@ -285,6 +303,12 @@ function groupTasks(
       }),
       { key: 'none', name: t('list.unassigned'), icon: <User size={14} />, tasks: ts.filter(x => !x.assignee_id) },
     ].filter(G => G.tasks.length);
+  }
+  if (g === 'project') {
+    return activeProjects(projects)
+      .filter(p => !!meId && canSee(p, meId))
+      .map(p => ({ key: p.id, name: p.name, icon: <ProjectDot project={p} />, tasks: ts.filter(x => x.project_id === p.id) }))
+      .filter(G => G.tasks.length);
   }
   const due = (k: string, x: Task) => {
     if (k === 'nodate') return !x.due;

@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 
 /**
  * 统计卡（原型 panels.css `.stats` / `.stat`：k 标签、v 数值、d 副文案）。首页与工作区概览页（R20，PR-10）共用。
- * 首页仅「进行中的项目」可跳转；其余三卡原型 goTasks 带过滤条件跳「任务」页，全部任务页首版无过滤条件构造，暂不可点（FRIDAY 裁定第 5 条）。
+ * 首页 Open / Completed / Overdue 可点进 `/tasks?f=`（原型 goTasks；FRIDAY 2008 #3）；Active 进项目列表。
  */
 export function Stat({
   to,
@@ -14,6 +14,7 @@ export function Stat({
   hint,
   valueClass,
   hintClass,
+  dataStat,
 }: {
   to?: string;
   icon?: ReactNode;
@@ -22,6 +23,8 @@ export function Stat({
   hint: string;
   valueClass?: string;
   hintClass?: string;
+  /** 首页统计卡 e2e / 原型 data-f 对应键。 */
+  dataStat?: string;
 }) {
   const body = (
     <>
@@ -35,10 +38,12 @@ export function Stat({
   );
   const cls = 'flex flex-col gap-1 border-r border-border p-4 last:border-r-0';
   return to ? (
-    <Link to={to} className={cn(cls, 'hover:bg-accent/40')}>
+    <Link to={to} className={cn(cls, 'hover:bg-accent/40')} data-stat={dataStat}>
       {body}
     </Link>
   ) : (
-    <div className={cls}>{body}</div>
+    <div className={cls} data-stat={dataStat}>
+      {body}
+    </div>
   );
 }

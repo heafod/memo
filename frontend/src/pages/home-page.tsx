@@ -102,27 +102,34 @@ export function HomePage() {
           label={t('home.stats.active')}
           value={activeP.length}
           hint={t('home.stats.atRisk', { n: activeP.filter(p => p.status === 'risk').length })}
+          dataStat="active"
         />
         <Stat
+          to="/tasks?f=open"
           icon={<CircleDashed />}
           label={t('home.stats.open')}
           value={open.length}
           hint={t('home.stats.assignedToYou', { n: open.filter(x => x.assignee_id === meId).length })}
+          dataStat="open"
         />
         <Stat
+          to="/tasks?f=done"
           icon={<CircleCheck />}
           label={t('home.stats.completed')}
           value={doneWeek.length}
           hint={t('home.stats.thisWeek')}
           hintClass="text-[var(--green)]"
+          dataStat="done"
         />
         <Stat
+          to="/tasks?f=overdue"
           icon={<ClockAlert />}
           label={t('home.stats.overdue')}
           value={over.length}
           valueClass={over.length ? 'text-[var(--red)]' : ''}
           hint={over.length ? t('home.stats.needAttention') : t('home.stats.onTrack')}
           hintClass={over.length ? 'text-[var(--red)]' : ''}
+          dataStat="overdue"
         />
       </div>
 
