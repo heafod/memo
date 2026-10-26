@@ -1,4 +1,17 @@
-import { CalendarDays, ChartGantt, ChevronDown, CircleCheck, FolderKanban, FolderPlus, House, LogOut, Plus } from 'lucide-react';
+import {
+  CalendarDays,
+  ChartGantt,
+  ChevronDown,
+  CircleCheck,
+  FolderKanban,
+  FolderPlus,
+  House,
+  LayoutDashboard,
+  ListChecks,
+  LogOut,
+  Plus,
+  Star,
+} from 'lucide-react';
 import { type CSSProperties, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink, Outlet, useLocation, useMatch } from 'react-router';
@@ -121,6 +134,9 @@ function AppSidebar() {
   const onProjects = useMatch('/projects') !== null;
   const onCalendar = useMatch('/calendar') !== null;
   const onTimeline = useMatch('/timeline') !== null;
+  const onFavorites = useMatch('/favorites') !== null;
+  const onOverview = useMatch('/overview') !== null;
+  const onTasks = useMatch('/tasks') !== null;
 
   const me = members.find(m => m.id === meId);
   const ws = (prefs as { workspace?: { name?: string } }).workspace;
@@ -166,16 +182,40 @@ function AppSidebar() {
                   </SidebarMenuButton>
                   {myDue > 0 && <SidebarMenuBadge>{myDue}</SidebarMenuBadge>}
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={onFavorites}>
+                    <NavLink to="/favorites">
+                      <Star />
+                      <span>{t('shell.nav.favorites')}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
             <SidebarGroup>
               <SidebarGroupLabel>{t('shell.nav.workspace')}</SidebarGroupLabel>
               <SidebarMenu>
                 <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={onOverview}>
+                    <NavLink to="/overview">
+                      <LayoutDashboard />
+                      <span>{t('shell.nav.overview')}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={onProjects}>
                     <NavLink to="/projects" end>
                       <FolderKanban />
                       <span>{t('shell.nav.projects')}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={onTasks}>
+                    <NavLink to="/tasks">
+                      <ListChecks />
+                      <span>{t('shell.nav.tasks')}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -204,7 +244,7 @@ function AppSidebar() {
                   projects={sideProjects}
                   visibleIds={visibleIds}
                   currentProject={currentProject}
-                  filesActive={!!projectMatch?.params['*']?.startsWith('files')}
+                  currentTab={projectMatch?.params['*']?.split('/')[0] || undefined}
                   expanded={expanded}
                   setExpanded={setExpanded}
                 />
@@ -301,11 +341,14 @@ function Crumbs({ pathname }: { pathname: string }) {
           <>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbPage className="flex items-center gap-1.5">
-                {/* 原型 shell/layout.js:172–177：面包屑项目名前为项目图标（不可见项目同样，17:27 总 AC 允许图标） */}
-                <ProjectIcon project={p} size="sm" />
-                {p.name}
-              </BreadcrumbPage>
+              {/* 原型 shell/layout.js:172–177：面包屑项目名前为项目图标（不可见项目同样，17:27 总 AC 允许图标）；
+                  点击进入项目「概览」 tab（data-tab="overview"，R21 入口） */}
+              <BreadcrumbLink asChild>
+                <Link to={`/projects/${p.id}/overview`} className="flex items-center gap-1.5 font-normal text-foreground" data-crumb-project="">
+                  <ProjectIcon project={p} size="sm" />
+                  {p.name}
+                </Link>
+              </BreadcrumbLink>
             </BreadcrumbItem>
           </>
         )}
@@ -315,15 +358,21 @@ function Crumbs({ pathname }: { pathname: string }) {
   const name =
     pathname === '/my-tasks'
       ? t('shell.nav.myTasks')
-      : pathname === '/calendar'
-        ? t('shell.nav.calendar')
-        : pathname === '/timeline'
-          ? t('shell.nav.timeline')
-          : pathname === '/projects'
-            ? t('shell.nav.projects')
-            : pathname === '/'
-              ? t('shell.nav.home')
-              : t('shell.notFound');
+      : pathname === '/favorites'
+        ? t('shell.nav.favorites')
+        : pathname === '/overview'
+          ? t('shell.nav.overview')
+          : pathname === '/tasks'
+            ? t('shell.nav.tasks')
+            : pathname === '/calendar'
+              ? t('shell.nav.calendar')
+              : pathname === '/timeline'
+                ? t('shell.nav.timeline')
+                : pathname === '/projects'
+                  ? t('shell.nav.projects')
+                  : pathname === '/'
+                    ? t('shell.nav.home')
+                    : t('shell.notFound');
   return (
     <BreadcrumbItem>
       <BreadcrumbPage>{name}</BreadcrumbPage>

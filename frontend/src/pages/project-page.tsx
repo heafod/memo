@@ -1,42 +1,29 @@
-import { Calendar, CalendarDays, ChartGantt, List, Paperclip, Plus, SquareKanban, Table2, User } from 'lucide-react';
-import { toast } from 'sonner';
+import { CalendarDays, ChartGantt, LayoutDashboard, List, Paperclip, Plus, SquareKanban, Table2 } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Navigate, useNavigate, useParams } from 'react-router';
-import { AvatarStack, MemberAvatar, PriorityIcon, ProjectIcon, ProjectStatusBadge, StatusIcon } from '@/components/app/domain-ui';
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
+import { AvatarStack, ProjectIcon, ProjectStatusBadge } from '@/components/app/domain-ui';
 import { ForbiddenState, NotFoundState } from '@/components/app/error-states';
 import { FavButton } from '@/components/app/fav-button';
-import { TaskBoard } from '@/components/app/task-board';
 import { TaskCalendar } from '@/components/app/task-calendar';
 import { TimelineSection } from '@/components/app/task-timeline';
 import { projectMilestones } from '@/lib/domain/timeline';
-import { TableColumnsButton, TaskTable } from '@/components/app/task-table';
-import { DEFAULT_TABLE_HIDDEN, type TableCol } from '@/lib/domain/table-cols';
-import { type RowDrop, type TaskGroup, TaskList, ViewToolbar } from '@/components/app/task-list';
+import { ViewToolbar } from '@/components/app/task-list';
+import { BoardView, ListView, TableView } from '@/components/app/task-views';
 import { useCreateDialogs } from '@/components/app/create-dialogs';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  DEFAULT_PROJECT_TAB,
-  ENABLED_PROJECT_TABS,
-  type EnabledProjectTab,
-  type Priority,
-  PRIORITIES,
-  PROJECT_TABS,
-  STATUSES,
-  type TaskStatus,
-} from '@/lib/domain/constants';
-import { daysFromToday } from '@/lib/domain/dates';
-import { activeProjects, canSee, isOverdue, type Sort, sortTasks } from '@/lib/domain/tasks';
-import { type Member, type Preferences, type Task, useMeId, useMembers, usePreferences, useProjects } from '@/lib/query/entities';
-import { type TaskPatch, useUpdatePreferences, useUpdateTask } from '@/lib/query/mutations';
-import { useVisibleComments, useVisibleSubtasks, useVisibleTasks } from '@/lib/query/visibility';
+import { DEFAULT_PROJECT_TAB, ENABLED_PROJECT_TABS, type EnabledProjectTab, PROJECT_TABS, STATUSES, type TaskStatus } from '@/lib/domain/constants';
+import { canSee } from '@/lib/domain/tasks';
+import { useMeId, useMembers, useProjects } from '@/lib/query/entities';
+import { useVisibleTasks } from '@/lib/query/visibility';
 import { FilesView } from './project-files';
+import { ProjectOverview } from './project-overview';
 
 /**
- * 项目页（R4 列表 / 文件 / 看板 / 表格 / 日历 / 时间线；9a 读面，9c 写面，9d 看板，9e 表格，9f 日历，9g 时间线；原型 pages/project.js）。
+ * 项目页（R4 列表 / 文件 / 看板 / 表格 / 日历 / 时间线；9a 读面，9c 写面，9d 看板，9e 表格，9f 日历，9g 时间线；R21 概览 tab PR-10；原型 pages/project.js）。
  * - 项目不存在 → 原地 404；不可见 → 原地 403。
- * - PR-9d–9g：放出 board+table+calendar+timeline；默认 board（project.js:35）；合法未开放的 tab 回默认 board。
+ * - PR-9d–9g：放出 board+table+calendar+timeline；PR-10 放出 overview；默认 board（project.js:35）；合法未开放的 tab（activity）回默认 board。
  */
 export function ProjectPage() {
   const { projectId, tab } = useParams();
@@ -58,18 +45,20 @@ export function ProjectPage() {
       <ProjectHeader projectId={project.id} tab={known ? current : null} />
       {!known ? (
         <NotFoundState />
+      ) : current === 'overview' ? (
+        <ProjectOverview projectId={project.id} />
       ) : current === 'files' ? (
         <FilesView projectId={project.id} />
       ) : current === 'board' ? (
-        <BoardView projectId={project.id} />
+        <BoardView projectId={project.id} viewKey={project.id} />
       ) : current === 'table' ? (
-        <TableView projectId={project.id} />
+        <TableView projectId={project.id} viewKey={project.id} />
       ) : current === 'calendar' ? (
         <CalendarView projectId={project.id} />
       ) : current === 'timeline' ? (
         <TimelineView projectId={project.id} />
       ) : (
-        <ListView projectId={project.id} />
+        <ProjectListView projectId={project.id} />
       )}
     </div>
   );
@@ -114,50 +103,15 @@ function ProjectHeader({ projectId, tab }: { projectId: string; tab: EnabledProj
   );
 }
 
-const TAB_ICONS = { board: SquareKanban, list: List, table: Table2, calendar: CalendarDays, timeline: ChartGantt, files: Paperclip } as const;
-
-type GroupBy = 'status' | 'priority' | 'assignee' | 'due' | 'none';
-const GROUP_OPTIONS = ['status', 'priority', 'assignee', 'due', 'none'] as const;
-
-/** 看板视图（R4 看板 PR-9d；无分组切换，工具栏仅搜索 / 新建）。 */
-function BoardView({ projectId }: { projectId: string }) {
-  const { t } = useTranslation();
-  const { newTask } = useCreateDialogs();
-  const tasks = useVisibleTasks().filter(x => x.project_id === projectId);
-  const members = useMembers();
-  const [q, setQ] = useState('');
-  const query = q.trim().toLowerCase();
-  const shown = tasks.filter(x => !query || x.title.toLowerCase().includes(query) || x.key.toLowerCase().includes(query));
-  return (
-    <>
-      <ViewToolbar
-        q={q}
-        onQ={setQ}
-        sort={{ field: 'manual', dir: 1 }}
-        onSort={() => {}}
-        sortOptions={['manual']}
-        right={
-          <Button size="sm" onClick={() => newTask({ projectId })}>
-            <Plus />
-            {t('write.newTask.open')}
-          </Button>
-        }
-      />
-      {tasks.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
-          <p className="text-sm font-medium">{t('write.board.empty')}</p>
-          <p className="text-sm text-muted-foreground">{t('write.board.emptyHint')}</p>
-          <Button size="sm" onClick={() => newTask({ projectId })}>
-            <Plus />
-            {t('write.newTask.open')}
-          </Button>
-        </div>
-      ) : (
-        <TaskBoard tasks={shown} members={members} projectId={projectId} />
-      )}
-    </>
-  );
-}
+const TAB_ICONS = {
+  overview: LayoutDashboard,
+  board: SquareKanban,
+  list: List,
+  table: Table2,
+  calendar: CalendarDays,
+  timeline: ChartGantt,
+  files: Paperclip,
+} as const;
 
 /** 日历视图（R4 日历 PR-9f；拖改 due，保留时长）。 */
 function CalendarView({ projectId }: { projectId: string }) {
@@ -197,183 +151,30 @@ function TimelineView({ projectId }: { projectId: string }) {
   return <TimelineSection tasks={tasks} projects={projects} milestones={projectMilestones(p, false)} projectId={projectId} defaultGroup="status" />;
 }
 
-/** 表格视图（R4 表格 PR-9e；列显隐/列宽经 preferences.tableViews 持久化）。 */
-function TableView({ projectId }: { projectId: string }) {
+/** 列表 tab：?status= 来自概览 tab 状态计数（R21；原型 goFilteredList 设 status 筛选并按状态分组）。 */
+function ProjectListView({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
-  const { newTask } = useCreateDialogs();
-  const meId = useMeId();
-  const tasks = useVisibleTasks();
-  const members = useMembers();
-  const projects = useProjects();
-  const prefs = usePreferences();
-  const updatePrefs = useUpdatePreferences();
-  const [q, setQ] = useState('');
-  const [sort, setSort] = useState<Sort>({ field: 'manual', dir: 1 });
-  const [group, setGroup] = useState<GroupBy>('none');
-  const query = q.trim().toLowerCase();
-  const projectTasks = tasks.filter(
-    x => x.project_id === projectId && (!query || x.title.toLowerCase().includes(query) || x.key.toLowerCase().includes(query)),
-  );
-  const ts = sortTasks(projectTasks, sort, members);
-  const projectMembers = projects.find(p => p.id === projectId)?.member_ids ?? [];
-  const groups = groupTasks(t, ts, group, members, projectMembers);
-  const flat = groups.flatMap(g => g.tasks);
-
-  type TableViews = Record<string, { hidden?: string[]; colW?: Record<string, number> }>;
-  const stored = ((prefs as { tableViews?: TableViews }).tableViews ?? {})[projectId];
-  const hidden = (stored?.hidden as TableCol[] | undefined) ?? [...DEFAULT_TABLE_HIDDEN];
-  const colW = stored?.colW ?? {};
-
-  const persist = (next: { hidden: TableCol[]; colW: Record<string, number> }) => {
-    const prev = (prefs as { tableViews?: TableViews }).tableViews ?? {};
-    const data: Preferences = { ...prefs, tableViews: { ...prev, [projectId]: next } };
-    updatePrefs.mutate(data);
-  };
-  const toggleCol = (c: TableCol) => {
-    if (c === 'title') return;
-    const next = hidden.includes(c) ? hidden.filter(x => x !== c) : [...hidden, c];
-    persist({ hidden: next, colW: { ...colW } });
-  };
-  const setColWidth = (c: TableCol, w: number) => persist({ hidden: [...hidden], colW: { ...colW, [c]: w } });
-  const resetWidths = () => persist({ hidden: [...hidden], colW: {} });
-  const moveTargets = activeProjects(projects).filter(p => canSee(p, meId));
-
+  const [params, setParams] = useSearchParams();
+  const raw = params.get('status');
+  const statusFilter = raw && (STATUSES as readonly string[]).includes(raw) ? (raw as TaskStatus) : undefined;
   return (
-    <>
-      <ViewToolbar
-        q={q}
-        onQ={setQ}
-        sort={sort}
-        onSort={setSort}
-        group={group}
-        onGroup={g => setGroup(g as GroupBy)}
-        groupOptions={GROUP_OPTIONS}
-        right={
-          <>
-            <TableColumnsButton hidden={hidden} onToggle={toggleCol} onResetWidths={resetWidths} />
-            <Button size="sm" onClick={() => newTask({ projectId })}>
-              <Plus />
-              {t('write.newTask.open')}
-            </Button>
-          </>
-        }
-      />
-      <TaskTable
-        tasks={flat}
-        members={members}
-        projects={projects}
-        moveTargets={moveTargets}
-        allTasks={tasks}
-        hidden={hidden}
-        colW={colW}
-        onColWidth={setColWidth}
-        onNewTask={() => newTask({ projectId })}
-      />
-    </>
+    <ListView
+      key={statusFilter ?? 'all'}
+      projectId={projectId}
+      viewKey={projectId}
+      ariaLabel={t('project.tabs.list')}
+      columns={['status', 'assignee', 'priority', 'due', 'labels']}
+      statusFilter={statusFilter}
+      onClearStatus={() =>
+        setParams(
+          prev => {
+            const n = new URLSearchParams(prev);
+            n.delete('status');
+            return n;
+          },
+          { replace: true },
+        )
+      }
+    />
   );
-}
-
-/** 列表视图（R4 列表；9a 分组、折叠与多选；9c 行拖拽排序与跨分组改字段、单元格编辑、批量操作栏、「新建任务」）。 */
-function ListView({ projectId }: { projectId: string }) {
-  const { t } = useTranslation();
-  const { newTask } = useCreateDialogs();
-  const update = useUpdateTask();
-  const tasks = useVisibleTasks();
-  const members = useMembers();
-  const projects = useProjects();
-  const subtasks = useVisibleSubtasks();
-  const comments = useVisibleComments();
-  const [q, setQ] = useState('');
-  const [sort, setSort] = useState<Sort>({ field: 'manual', dir: 1 });
-  const [group, setGroup] = useState<GroupBy>('status');
-  const query = q.trim().toLowerCase();
-  const ts = sortTasks(
-    tasks.filter(x => x.project_id === projectId && (!query || x.title.toLowerCase().includes(query) || x.key.toLowerCase().includes(query))),
-    sort,
-    members,
-  );
-  const projectMembers = projects.find(p => p.id === projectId)?.member_ids ?? [];
-
-  // 行落下（原型 drag-drop.js type 'row'）：order 取目标行与其相邻任务（按 order 排、排除自身；只含可见任务）的中点；
-  // 分组为状态 / 优先级 / 负责人时按落点分组改字段（截止分组不改）；非手动排序时切到手动并提示。
-  const onRowDrop: RowDrop = (id, target, edge, groupKey) => {
-    const all = tasks.filter(x => x.id !== id).sort((a, b) => a.order - b.order);
-    const i = all.findIndex(x => x.id === target.id);
-    const nb = edge === 'top' ? all[i - 1] : all[i + 1];
-    const order = nb ? (target.order + nb.order) / 2 : target.order + (edge === 'top' ? -1 : 1);
-    const patch: TaskPatch = { order };
-    if (group === 'status' && (STATUSES as readonly string[]).includes(groupKey)) patch.status = groupKey as TaskStatus;
-    if (group === 'priority' && (PRIORITIES as readonly string[]).includes(groupKey)) patch.priority = groupKey as Priority;
-    if (group === 'assignee') patch.assignee_id = groupKey === 'none' ? null : groupKey;
-    update.mutate({ id, patch });
-    if (sort.field !== 'manual') {
-      setSort({ field: 'manual', dir: 1 });
-      toast.info(t('write.drag.sortedManually'), { duration: 2200 });
-    }
-  };
-
-  return (
-    <>
-      <ViewToolbar
-        q={q}
-        onQ={setQ}
-        sort={sort}
-        onSort={setSort}
-        group={group}
-        onGroup={g => setGroup(g as GroupBy)}
-        groupOptions={GROUP_OPTIONS}
-        right={
-          <Button size="sm" onClick={() => newTask({ projectId })}>
-            <Plus />
-            {t('write.newTask.open')}
-          </Button>
-        }
-      />
-      <div className="overflow-x-auto">
-        <TaskList
-          ariaLabel={t('project.tabs.list')}
-          groups={groupTasks(t, ts, group, members, projectMembers)}
-          showGroupHeaders={group !== 'none'}
-          columns={['status', 'assignee', 'priority', 'due', 'labels']}
-          ctx={{ members, projects, subtasks, comments }}
-          selectable
-          onRowDrop={onRowDrop}
-        />
-      </div>
-    </>
-  );
-}
-
-/** 分组（原型 shell/view-engine.js groupTasks）：状态 / 优先级保留空组，其余只列非空组。 */
-function groupTasks(
-  t: ReturnType<typeof useTranslation>['t'],
-  ts: Task[],
-  g: GroupBy,
-  members: readonly Member[],
-  projectMembers: readonly string[],
-): TaskGroup[] {
-  if (g === 'none') return [{ key: 'all', name: t('list.allTasks'), tasks: ts }];
-  if (g === 'status')
-    return STATUSES.map(s => ({ key: s, name: t(`domain.status.${s}`), icon: <StatusIcon status={s} />, tasks: ts.filter(x => x.status === s) }));
-  if (g === 'priority')
-    return PRIORITIES.map(p => ({ key: p, name: t(`domain.priority.${p}`), icon: <PriorityIcon priority={p} />, tasks: ts.filter(x => x.priority === p) }));
-  if (g === 'assignee') {
-    const ids = [...new Set([...projectMembers, ...ts.map(x => x.assignee_id).filter((x): x is string => !!x)])];
-    return [
-      ...ids.map(id => {
-        const m = members.find(x => x.id === id);
-        return { key: id, name: m?.name ?? id, icon: <MemberAvatar member={m} />, tasks: ts.filter(x => x.assignee_id === id) };
-      }),
-      { key: 'none', name: t('list.unassigned'), icon: <User size={14} />, tasks: ts.filter(x => !x.assignee_id) },
-    ].filter(G => G.tasks.length);
-  }
-  const due = (k: string, x: Task) => {
-    if (k === 'nodate') return !x.due;
-    if (!x.due) return false;
-    const n = daysFromToday(x.due);
-    return k === 'overdue' ? isOverdue(x) : k === 'today' ? n === 0 : k === 'week' ? n >= 0 && n <= 7 : n > 7;
-  };
-  return (['overdue', 'today', 'week', 'later', 'nodate'] as const)
-    .map(k => ({ key: k, name: t(`list.dueGroup.${k}`), icon: <Calendar size={14} />, tasks: ts.filter(x => due(k, x)) }))
-    .filter(G => G.tasks.length);
 }

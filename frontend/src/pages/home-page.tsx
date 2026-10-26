@@ -1,20 +1,12 @@
 import { ArrowRight, ArrowUpRight, CircleCheck, CircleDashed, ClockAlert, FolderKanban, FolderPlus, ListChecks, Plus } from 'lucide-react';
-import { type ReactNode, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { ActivityItem } from '@/components/app/activity-item';
+import { MiniRow } from '@/components/app/mini-row';
+import { Stat } from '@/components/app/stat';
 import { useCreateDialogs } from '@/components/app/create-dialogs';
-import {
-  AvatarStack,
-  DueDate,
-  MemberAvatar,
-  PriorityIcon,
-  ProgressBar,
-  ProjectDot,
-  ProjectIcon,
-  ProjectStatusBadge,
-  StatusIcon,
-} from '@/components/app/domain-ui';
+import { AvatarStack, MemberAvatar, PriorityIcon, ProgressBar, ProjectDot, ProjectIcon, ProjectStatusBadge } from '@/components/app/domain-ui';
 import { Button } from '@/components/ui/button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
@@ -25,7 +17,6 @@ import { fmtDate } from '@/lib/domain/format';
 import { activeProjects, canSee, isOverdue, progressOf, sortTasks } from '@/lib/domain/tasks';
 import { type Task, useMeId, useMembers, useProjects } from '@/lib/query/entities';
 import { useVisibleActivity, useVisibleTasks, useWorkspaceTasks } from '@/lib/query/visibility';
-import { cn } from '@/lib/utils';
 
 const HOME_TABS = ['upcoming', 'overdue', 'completed'] as const;
 type HomeTab = (typeof HOME_TABS)[number];
@@ -111,27 +102,34 @@ export function HomePage() {
           label={t('home.stats.active')}
           value={activeP.length}
           hint={t('home.stats.atRisk', { n: activeP.filter(p => p.status === 'risk').length })}
+          dataStat="active"
         />
         <Stat
+          to="/tasks?f=open"
           icon={<CircleDashed />}
           label={t('home.stats.open')}
           value={open.length}
           hint={t('home.stats.assignedToYou', { n: open.filter(x => x.assignee_id === meId).length })}
+          dataStat="open"
         />
         <Stat
+          to="/tasks?f=done"
           icon={<CircleCheck />}
           label={t('home.stats.completed')}
           value={doneWeek.length}
           hint={t('home.stats.thisWeek')}
           hintClass="text-[var(--green)]"
+          dataStat="done"
         />
         <Stat
+          to="/tasks?f=overdue"
           icon={<ClockAlert />}
           label={t('home.stats.overdue')}
           value={over.length}
           valueClass={over.length ? 'text-[var(--red)]' : ''}
           hint={over.length ? t('home.stats.needAttention') : t('home.stats.onTrack')}
           hintClass={over.length ? 'text-[var(--red)]' : ''}
+          dataStat="overdue"
         />
       </div>
 
@@ -206,7 +204,8 @@ export function HomePage() {
                     return (
                       <TableRow key={p.id}>
                         <TableCell className="pl-4">
-                          <Link to={`/projects/${p.id}`} className="flex items-center gap-2 font-medium hover:underline">
+                          {/* 原型 home.js:74 项目行带 tab=overview（R21，PR-10） */}
+                          <Link to={`/projects/${p.id}/overview`} className="flex items-center gap-2 font-medium hover:underline">
                             <ProjectIcon project={p} size="sm" />
                             {p.name}
                           </Link>
@@ -288,71 +287,3 @@ export function HomePage() {
 // 面板标题：字号 token `--fs`（13.5px）、字重 600（原型 panels.css:15–18 `.panel-h h2`；FRIDAY 裁定 #12 17:07 第 ①c 条），
 // 行高 1 并由标题栏 flex items-center 与右侧操作垂直居中
 const PANEL_TITLE = 'text-(length:--fs) leading-none font-semibold';
-
-function Stat({
-  to,
-  icon,
-  label,
-  value,
-  hint,
-  valueClass,
-  hintClass,
-}: {
-  to?: string;
-  icon: ReactNode;
-  label: string;
-  value: number;
-  hint: string;
-  valueClass?: string;
-  hintClass?: string;
-}) {
-  const body = (
-    <>
-      <span className="flex items-center gap-1.5 text-xs text-muted-foreground [&_svg]:size-3.5">
-        {icon}
-        {label}
-      </span>
-      <span className={cn('text-2xl font-semibold tabular-nums', valueClass)}>{value}</span>
-      <span className={cn('text-xs text-muted-foreground', hintClass)}>{hint}</span>
-    </>
-  );
-  const cls = 'flex flex-col gap-1 border-r border-border p-4 last:border-r-0';
-  // 仅「进行中的项目」可跳转（项目列表页属 9a）；其余三卡原型跳「任务」页，该页未做，故不可点（FRIDAY 裁定第 5 条）。
-  return to ? (
-    <Link to={to} className={cn(cls, 'hover:bg-accent/40')}>
-      {body}
-    </Link>
-  ) : (
-    <div className={cls}>{body}</div>
-  );
-}
-
-function MiniRow({ task }: { task: Task }) {
-  const { t } = useTranslation();
-  const projects = useProjects();
-  const p = projects.find(x => x.id === task.project_id);
-  return (
-    <Link
-      to={`?task=${task.id}`}
-      className={cn(
-        'flex h-10 items-center gap-2.5 border-b border-border px-4 text-[13px] last:border-b-0 hover:bg-accent/50',
-        task.status === 'done' && 'text-muted-foreground',
-      )}
-    >
-      <span title={t(`domain.status.${task.status as 'todo'}`)}>
-        <StatusIcon status={task.status} />
-      </span>
-      <span className={cn('flex-1 truncate', task.status === 'done' && 'line-through')}>{task.title}</span>
-      <span className="hidden max-w-40 items-center gap-1.5 text-xs text-muted-foreground sm:flex">
-        <ProjectDot project={p} />
-        <span className="truncate">{p?.name}</span>
-      </span>
-      <span title={t(`domain.priority.${task.priority as 'none'}`)}>
-        <PriorityIcon priority={task.priority} />
-      </span>
-      <span className="hidden w-[74px] justify-end sm:flex">
-        <DueDate task={task} icon={false} />
-      </span>
-    </Link>
-  );
-}

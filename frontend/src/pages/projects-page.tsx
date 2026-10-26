@@ -213,45 +213,7 @@ export function ProjectsPage() {
                 </Link>
               );
             }
-            return (
-              <div key={p.id} className="relative flex flex-col gap-3 rounded-xl border border-border bg-card p-4 hover:shadow-[var(--shadow-card)]">
-                <div className="flex items-center gap-2.5">
-                  <Link to={`/projects/${p.id}`} aria-label={p.name} className="flex min-w-0 flex-1 items-center gap-2.5">
-                    <ProjectIcon project={p} />
-                    <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                      <b className="truncate text-sm font-semibold">{p.name}</b>
-                      {p.fav && <Star size={12} className="shrink-0 text-[var(--amber)]" />}
-                      {p.private && <Lock size={12} className="shrink-0 text-muted-foreground" aria-label={t('projects.privateProject')} />}
-                    </span>
-                    <ProjectStatusBadge status={p.status} />
-                  </Link>
-                  <ProjectMoreMenu project={p} visibleOrdered={sidebarVisible} />
-                </div>
-                <Link to={`/projects/${p.id}`} className="flex flex-col gap-3">
-                  <p className="line-clamp-2 min-h-10 text-[13px] text-muted-foreground">{p.desc}</p>
-                  <div className="flex items-center gap-2.5">
-                    <ProgressBar value={s.pr} tone={p.status === 'complete' ? 'green' : p.status === 'risk' ? 'red' : undefined} />
-                    <span className="text-xs font-medium tabular-nums">{s.pr}%</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1">
-                      <CircleCheck size={12} />
-                      {`${s.done}/${s.total}`}
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <Calendar size={12} />
-                      {fmtDate(t, p.due)}
-                    </span>
-                    <span className="hidden items-center gap-1 sm:inline-flex">
-                      <Clock size={12} />
-                      {timeAgo(t, p.last_active_at)}
-                    </span>
-                    <span className="flex-1" />
-                    <AvatarStack ids={p.member_ids} members={members} />
-                  </div>
-                </Link>
-              </div>
-            );
+            return <ProjectCard key={p.id} project={p} stat={s} visibleOrdered={sidebarVisible} />;
           })}
         </div>
       ) : layout === 'list' ? (
@@ -351,6 +313,62 @@ export function ProjectsPage() {
           </Table>
         </Card>
       )}
+    </div>
+  );
+}
+
+/**
+ * 可见项目卡片（原型 pages/projects.js projectCard）。项目页网格与收藏页（R19，PR-10）共用。
+ * stat 为可见任务口径的统计；visibleOrdered 供卡片 `.more` 菜单的上移 / 下移判断。
+ */
+export function ProjectCard({
+  project: p,
+  stat: s,
+  visibleOrdered,
+}: {
+  project: Project;
+  stat: { total: number; done: number; pr: number };
+  visibleOrdered: readonly Project[];
+}) {
+  const { t } = useTranslation();
+  const members = useMembers();
+  return (
+    <div data-project-card={p.id} className="relative flex flex-col gap-3 rounded-xl border border-border bg-card p-4 hover:shadow-[var(--shadow-card)]">
+      <div className="flex items-center gap-2.5">
+        <Link to={`/projects/${p.id}`} aria-label={p.name} className="flex min-w-0 flex-1 items-center gap-2.5">
+          <ProjectIcon project={p} />
+          <span className="flex min-w-0 flex-1 items-center gap-1.5">
+            <b className="truncate text-sm font-semibold">{p.name}</b>
+            {p.fav && <Star size={12} className="shrink-0 text-[var(--amber)]" />}
+            {p.private && <Lock size={12} className="shrink-0 text-muted-foreground" aria-label={t('projects.privateProject')} />}
+          </span>
+          <ProjectStatusBadge status={p.status} />
+        </Link>
+        <ProjectMoreMenu project={p} visibleOrdered={visibleOrdered} />
+      </div>
+      <Link to={`/projects/${p.id}`} className="flex flex-col gap-3">
+        <p className="line-clamp-2 min-h-10 text-[13px] text-muted-foreground">{p.desc}</p>
+        <div className="flex items-center gap-2.5">
+          <ProgressBar value={s.pr} tone={p.status === 'complete' ? 'green' : p.status === 'risk' ? 'red' : undefined} />
+          <span className="text-xs font-medium tabular-nums">{s.pr}%</span>
+        </div>
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <CircleCheck size={12} />
+            {`${s.done}/${s.total}`}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Calendar size={12} />
+            {fmtDate(t, p.due)}
+          </span>
+          <span className="hidden items-center gap-1 sm:inline-flex">
+            <Clock size={12} />
+            {timeAgo(t, p.last_active_at)}
+          </span>
+          <span className="flex-1" />
+          <AvatarStack ids={p.member_ids} members={members} />
+        </div>
+      </Link>
     </div>
   );
 }

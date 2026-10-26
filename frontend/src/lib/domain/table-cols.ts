@@ -15,5 +15,5 @@ export const TCOLS = [
 
 export type TableCol = (typeof TCOLS)[number][0];
 
-/** 默认隐藏列（原型 viewOf.hidden + 项目页隐藏 project）。 */
-export const DEFAULT_TABLE_HIDDEN: readonly TableCol[] = ['start', 'created', 'deps', 'project'];
+/** 默认隐藏列（原型 viewOf.hidden）。项目内表格另藏 project（原型 table.js 仅在传入 p 时隐藏）。 */
+export const DEFAULT_TABLE_HIDDEN: readonly TableCol[] = ['start', 'created', 'deps'];

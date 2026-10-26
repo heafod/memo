@@ -13,7 +13,15 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { fieldErrors } from '@/lib/api/client';
-import { type Priority, PROJECT_COLORS, PROJECT_ICON_IDS, PROJECT_TEMPLATES, type ProjectTemplateId, type TaskStatus } from '@/lib/domain/constants';
+import {
+  DEFAULT_PROJECT_TAB,
+  type Priority,
+  PROJECT_COLORS,
+  PROJECT_ICON_IDS,
+  PROJECT_TEMPLATES,
+  type ProjectTemplateId,
+  type TaskStatus,
+} from '@/lib/domain/constants';
 import { today } from '@/lib/domain/dates';
 import { fmtDate } from '@/lib/domain/format';
 import { activeProjects } from '@/lib/domain/tasks';
@@ -304,8 +312,8 @@ function NewProjectDialog({ onClose }: { onClose: () => void }) {
       {
         onSuccess: p => {
           onClose();
-          // 原型空白模板跳概览 tab；概览 tab 至 PR-10 才开放，9c 一律跳列表 tab（FRIDAY PR-9c 18:18 Q14）
-          void navigate(`/projects/${p.id}/list`);
+          // 原型 actions.js:1351：空白模板跳概览 tab，其余模板跳默认 tab（FRIDAY PR-9c 18:18 Q14：PR-10 起按原型）
+          void navigate(`/projects/${p.id}/${f.tmpl === 'blank' ? 'overview' : DEFAULT_PROJECT_TAB}`);
           toast(t('write.newProject.created', { name: p.name, tail: tasks.length ? t('write.newProject.createdTail', { n: tasks.length }) : '' }));
         },
         onError: e => {

@@ -3,10 +3,11 @@ import { parseDate, today, weekdayKey } from './dates';
 
 // 日期显示（按原型 core/utils.js fmtDate / relDate / ago，中文口径）
 
-export function fmtDate(t: TFunction, s: string | Date | null | undefined): string {
+/** withYear：总是带年份（原型 fmtDate(d, true)）。 */
+export function fmtDate(t: TFunction, s: string | Date | null | undefined, withYear = false): string {
   const d = typeof s === 'string' ? parseDate(s) : (s ?? null);
   if (!d) return '';
-  return d.getFullYear() !== today().getFullYear()
+  return withYear || d.getFullYear() !== today().getFullYear()
     ? t('date.yearMonthDay', { y: d.getFullYear(), m: d.getMonth() + 1, d: d.getDate() })
     : t('date.monthDay', { m: d.getMonth() + 1, d: d.getDate() });
 }
