@@ -1,6 +1,7 @@
 import { queryOptions, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api/client';
 import type { components } from '@/lib/api/schema';
+import { canSee } from '@/lib/domain/tasks';
 import { authKeys, type CurrentUser, useMe } from './auth';
 import { queryClient } from './client';
 
@@ -111,10 +112,24 @@ export const useFiles = () => useEntity('files');
 /** 「我」= 管理员关联的 Owner 成员（R5；UserPublic.owner_member_id）。 */
 export const useMeId = (): string | null => useMe().data?.owner_member_id ?? null;
 
+/**
+ * 当前用户可见的收件箱通知（R2；FRIDAY 2110）：
+ * 仅本人；关联项目须可见且未归档（project_id，或仅有 task_id 时取任务所属项目）；
+ * 无关联项目的系统通知仍可展示。铃铛未读与分类计数同此口径。
+ */
 export function useNotifs(): Notif[] {
   const meId = useMeId();
   const all = useEntity('notifs');
-  return meId ? all.filter(n => n.member_id === meId) : all;
+  const projects = useEntity('projects');
+  const tasks = useEntity('tasks');
+  const mine = meId ? all.filter(n => n.member_id === meId) : all;
+  return mine.filter(n => {
+    const pid = n.project_id ?? tasks.find(x => x.id === n.task_id)?.project_id ?? null;
+    if (!pid) return true;
+    const p = projects.find(x => x.id === pid);
+    if (!p) return false;
+    return canSee(p, meId) && !p.archived;
+  });
 }
 export const usePreferences = () => useEntity('preferences');
 

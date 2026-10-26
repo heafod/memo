@@ -4,25 +4,28 @@ import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { MemberAvatar } from '@/components/app/domain-ui';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
+import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { dayBucket, timeAgo } from '@/lib/domain/format';
-import { type Notif, useMembers, useMeId, useNotifs, useProjects } from '@/lib/query/entities';
+import { type Notif, useMembers, useNotifs, useProjects } from '@/lib/query/entities';
 import { useCreateComment, useMarkAllNotifsRead, useMarkNotifRead } from '@/lib/query/mutations';
 import { useVisibleComments, useVisibleTasks } from '@/lib/query/visibility';
 import { cn } from '@/lib/utils';
 
-// 收件箱（R2；原型 pages/inbox.js）：双栏、类型 tab、已读切换、全部已读、打开项目→概览。
+// 收件箱（R2；原型 pages/inbox.js；空态 + P6 过滤 FRIDAY 2110）：
+// 双栏、类型 tab、未读勾选、已读切换、全部已读、打开项目→概览。
+// 列表/未读计数来自 useNotifs（已按项目可见性+未归档过滤）。
 
 const TABS = ['all', 'assign', 'comment', 'mention', 'update', 'system'] as const;
 type Tab = (typeof TABS)[number];
 
 export function InboxPage() {
   const { t } = useTranslation();
-  const meId = useMeId();
-  const notifs = useNotifs().filter(n => n.member_id === meId);
+  const notifs = useNotifs();
   const members = useMembers();
   const projects = useProjects();
   const tasks = useVisibleTasks();
@@ -33,12 +36,14 @@ export function InboxPage() {
   const [params, setParams] = useSearchParams();
   const tab = (TABS.includes(params.get('tab') as Tab) ? params.get('tab') : 'all') as Tab;
   const selectedId = params.get('n');
+  const unreadOnly = params.get('unread') === '1';
   const [reply, setReply] = useState('');
 
   const filtered = useMemo(() => {
-    const list = tab === 'all' ? notifs : notifs.filter(n => n.type === tab);
+    let list = tab === 'all' ? notifs : notifs.filter(n => n.type === tab);
+    if (unreadOnly) list = list.filter(n => !n.read);
     return [...list].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
-  }, [notifs, tab]);
+  }, [notifs, tab, unreadOnly]);
 
   const selected = filtered.find(n => n.id === selectedId) ?? filtered[0];
   const unreadBy = (k: Tab) => (k === 'all' ? notifs : notifs.filter(n => n.type === k)).filter(n => !n.read).length;
@@ -48,6 +53,15 @@ export function InboxPage() {
       const next = new URLSearchParams(prev);
       if (v === 'all') next.delete('tab');
       else next.set('tab', v);
+      next.delete('n');
+      return next;
+    });
+
+  const setUnreadOnly = (on: boolean) =>
+    setParams(prev => {
+      const next = new URLSearchParams(prev);
+      if (on) next.set('unread', '1');
+      else next.delete('unread');
       next.delete('n');
       return next;
     });
@@ -70,7 +84,6 @@ export function InboxPage() {
   const thread = task ? comments.filter(c => c.task_id === task.id).sort((a, b) => Date.parse(a.at) - Date.parse(b.at)).slice(-4) : [];
   const by = selected?.by_id ? members.find(m => m.id === selected.by_id) : undefined;
 
-  // 按天分桶
   const buckets: { label: string; items: Notif[] }[] = [];
   for (const n of filtered) {
     const label = dayBucket(t, n.at);
@@ -79,23 +92,39 @@ export function InboxPage() {
     else buckets.push({ label, items: [n] });
   }
 
+  const emptyTitle = unreadOnly ? t('inbox.emptyUnreadCategory') : t('inbox.emptyCaughtUp');
+  const emptyDesc = unreadOnly ? null : t('inbox.emptyCaughtUpDesc');
+
   return (
-    <div className="flex h-[calc(100vh-3rem)] min-h-0 flex-col" data-page="inbox">
+    <div className="flex h-[calc(100vh-3rem)] min-h-0 flex-col" data-page="inbox" data-unread-only={unreadOnly ? '1' : '0'}>
       <div className="flex items-center gap-3 border-b border-border px-4 py-3">
         <div className="flex-1">
           <h1 className="text-lg font-semibold">{t('inbox.title')}</h1>
           <p className="text-sm text-muted-foreground">{t('inbox.subtitle')}</p>
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={markAll.isPending || notifs.every(n => n.read)}
-          onClick={() => markAll.mutate()}
-          data-action="mark-all-read"
-        >
-          <CheckCheck />
-          {t('inbox.markAllRead')}
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5" data-inbox-unread-toggle="">
+            <Checkbox
+              id="inbox-unread-only"
+              checked={unreadOnly}
+              onCheckedChange={v => setUnreadOnly(v === true)}
+              data-action="unread-only"
+            />
+            <Label htmlFor="inbox-unread-only" className="text-sm font-normal cursor-pointer">
+              {t('inbox.unreadOnly')}
+            </Label>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={markAll.isPending || notifs.every(n => n.read)}
+            onClick={() => markAll.mutate()}
+            data-action="mark-all-read"
+          >
+            <CheckCheck />
+            {t('inbox.markAllRead')}
+          </Button>
+        </div>
       </div>
       <Tabs value={tab} onValueChange={setTab} className="border-b border-border px-4">
         <TabsList variant="line" className="h-auto gap-1 p-0">
@@ -112,14 +141,14 @@ export function InboxPage() {
       <div className="grid min-h-0 flex-1 lg:grid-cols-[340px_1fr]">
         <ScrollArea className="min-h-0 border-r border-border">
           {filtered.length === 0 ? (
-            <div className="grid place-items-center p-8">
+            <div className="grid place-items-center p-8" data-inbox-empty="">
               <Empty>
                 <EmptyHeader>
                   <EmptyMedia variant="icon">
                     <InboxIcon />
                   </EmptyMedia>
-                  <EmptyTitle>{t('inbox.emptyTitle')}</EmptyTitle>
-                  <EmptyDescription>{t('inbox.emptyDesc')}</EmptyDescription>
+                  <EmptyTitle data-inbox-empty-title="">{emptyTitle}</EmptyTitle>
+                  {emptyDesc && <EmptyDescription>{emptyDesc}</EmptyDescription>}
                 </EmptyHeader>
               </Empty>
             </div>

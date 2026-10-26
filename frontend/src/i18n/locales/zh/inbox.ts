@@ -1,14 +1,16 @@
-// 收件箱：inbox.*（R2；原型 pages/inbox.js + zh）
+// 收件箱：inbox.*（R2；原型 pages/inbox.js + zh；空态 FRIDAY 2110）
 export default {
   title: '收件箱',
   subtitle: '提及、分配与更新',
   markAllRead: '全部标为已读',
   markRead: '标为已读',
   markUnread: '标为未读',
-  emptyTitle: '收件箱为空',
-  emptyDesc: '没有符合条件的通知',
+  unreadOnly: '未读',
+  emptyCaughtUp: '你已处理完所有通知。',
+  emptyCaughtUpDesc: '新的提及、任务分配和评论会显示在这里。',
+  emptyUnreadCategory: '此分类没有未读通知。',
   selectTitle: '选择一条通知',
-  selectDesc: '从左侧列表选择，查看详情与相关任务',
+  selectDesc: '无需离开收件箱即可查看对话并回复。',
   noThread: '这条通知没有关联内容',
   openTask: '打开任务',
   openProject: '打开项目',
