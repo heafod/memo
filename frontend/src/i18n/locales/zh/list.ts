@@ -17,4 +17,6 @@ export default {
   hideSubtasks: '收起子任务',
   emptyTitle: '这里还没有任务',
   noResults: '没有符合搜索条件的任务',
+  filterIs: '是',
+  removeFilter: '移除筛选',
 } as const;

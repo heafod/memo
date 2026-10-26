@@ -1,6 +1,6 @@
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import { ChevronRight, GripVertical, List, Lock, Paperclip, Star } from 'lucide-react';
+import { ChartGantt, ChevronRight, GripVertical, List, Lock, Paperclip, SquareKanban, Star } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -17,6 +17,14 @@ import { cn } from '@/lib/utils';
 
 const DRAG_TYPE = 'sidebar-project';
 
+// 侧栏项目子项（原型 shell/layout.js:131：看板 / 列表 / 时间线 / 文件，各进入对应 tab；R23 PR-10）
+const SUB_TABS = [
+  ['board', SquareKanban],
+  ['list', List],
+  ['timeline', ChartGantt],
+  ['files', Paperclip],
+] as const;
+
 /**
  * 侧栏单个项目行（R23 拖拽排序 + 右键上下文菜单）。
  * 不可见项目：不可拖、不可落点、无移动菜单（FRIDAY r23-spec 18:24）。
@@ -27,7 +35,7 @@ export function SidebarProjectRow({
   visibleOrdered,
   currentProject,
   projectStar,
-  filesActive,
+  activeTab,
   open,
   onToggle,
 }: {
@@ -36,7 +44,8 @@ export function SidebarProjectRow({
   visibleOrdered: readonly Project[];
   currentProject: string | undefined;
   projectStar: boolean;
-  filesActive: boolean;
+  /** 本项目为当前项目时的当前 tab（否则 undefined），用于子项高亮。 */
+  activeTab: string | undefined;
   open: boolean;
   onToggle: () => void;
 }) {
@@ -129,23 +138,17 @@ export function SidebarProjectRow({
         </SidebarMenuAction>
       )}
       {visible && open && (
-        <SidebarMenuSub>
-          <SidebarMenuSubItem>
-            <SidebarMenuSubButton asChild isActive={project.id === currentProject && !filesActive}>
-              <Link to={`/projects/${project.id}/list`}>
-                <List />
-                <span>{t('shell.nav.list')}</span>
-              </Link>
-            </SidebarMenuSubButton>
-          </SidebarMenuSubItem>
-          <SidebarMenuSubItem>
-            <SidebarMenuSubButton asChild isActive={project.id === currentProject && filesActive}>
-              <Link to={`/projects/${project.id}/files`}>
-                <Paperclip />
-                <span>{t('shell.nav.files')}</span>
-              </Link>
-            </SidebarMenuSubButton>
-          </SidebarMenuSubItem>
+        <SidebarMenuSub data-sidebar-sub={project.id}>
+          {SUB_TABS.map(([tab, Icon]) => (
+            <SidebarMenuSubItem key={tab}>
+              <SidebarMenuSubButton asChild isActive={activeTab === tab}>
+                <Link to={`/projects/${project.id}/${tab}`} data-sub-tab={tab}>
+                  <Icon />
+                  <span>{t(`shell.nav.${tab}`)}</span>
+                </Link>
+              </SidebarMenuSubButton>
+            </SidebarMenuSubItem>
+          ))}
         </SidebarMenuSub>
       )}
     </SidebarMenuItem>
@@ -169,14 +172,15 @@ export function SidebarProjectList({
   projects,
   visibleIds,
   currentProject,
-  filesActive,
+  currentTab,
   expanded,
   setExpanded,
 }: {
   projects: readonly Project[];
   visibleIds: ReadonlySet<string>;
   currentProject: string | undefined;
-  filesActive: boolean;
+  /** 当前项目页的 tab（URL 段，缺省为默认 tab）。 */
+  currentTab: string | undefined;
   expanded: Record<string, boolean>;
   setExpanded: (fn: (s: Record<string, boolean>) => Record<string, boolean>) => void;
 }): ReactNode {
@@ -192,7 +196,7 @@ export function SidebarProjectList({
         visibleOrdered={visibleOrdered}
         currentProject={currentProject}
         projectStar={visible && p.fav}
-        filesActive={filesActive && p.id === currentProject}
+        activeTab={p.id === currentProject ? currentTab : undefined}
         open={open}
         onToggle={() => setExpanded(s => ({ ...s, [p.id]: !open }))}
       />

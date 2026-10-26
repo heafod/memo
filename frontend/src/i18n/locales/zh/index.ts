@@ -5,14 +5,17 @@ import calendar from './calendar';
 import date from './date';
 import domain from './domain';
 import errors from './errors';
+import favorites from './favorites';
 import home from './home';
 import list from './list';
 import myTasks from './myTasks';
+import overview from './overview';
 import project from './project';
 import projects from './projects';
 import shell from './shell';
 import states from './states';
 import task from './task';
+import tasks from './tasks';
 import timeline from './timeline';
 import ui from './ui';
 import write from './write';
@@ -26,14 +29,17 @@ export const zh = {
   date,
   domain,
   errors,
+  favorites,
   home,
   list,
   myTasks,
+  overview,
   project,
   projects,
   shell,
   states,
   task,
+  tasks,
   timeline,
   ui,
   write,

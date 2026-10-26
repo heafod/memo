@@ -33,7 +33,7 @@ const DRAG = 'board-card';
  * 看板视图（R4 看板，PR-9d；原型 views/board.js + drag-drop.js type 'card'）。
  * 仅渲染调用方传入的可见任务；拖拽改 status + order（分数插值）。
  */
-export function TaskBoard({ tasks, members, projectId }: { tasks: readonly Task[]; members: readonly Member[]; projectId: string }) {
+export function TaskBoard({ tasks, members, projectId }: { tasks: readonly Task[]; members: readonly Member[]; projectId?: string }) {
   const { t } = useTranslation();
   const { newTask } = useCreateDialogs();
   const update = useUpdateTask();

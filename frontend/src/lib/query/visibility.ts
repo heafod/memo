@@ -40,6 +40,15 @@ export function useListedProjects(): Project[] {
   return [...visible, ...hidden];
 }
 
+/**
+ * 工作区项目集合（R19 收藏、R20 概览、R22 页头计数；PR-10）：可见且未归档的项目，按 order 排序。
+ * 与 useWorkspaceTasks 同口径（FRIDAY 18:06 / 18:33），两处共用 canSee + !archived。
+ */
+export function useWorkspaceProjects(): Project[] {
+  const meId = useMeId();
+  return activeProjects(useProjects().filter(p => canSee(p, meId)));
+}
+
 /** 是否为不可见项目（只可用名称、图标、负责人）。 */
 export function useIsHiddenProject(): (p: Project) => boolean {
   const meId = useMeId();
@@ -57,12 +66,7 @@ export function useVisibleTasks(): Task[] {
  * 所属项目可见且未归档的任务。首版任务无自身 archived 字段，归档以所属项目为准。
  */
 export function useWorkspaceTasks(): Task[] {
-  const meId = useMeId();
-  const ids = new Set(
-    useProjects()
-      .filter(p => !p.archived && canSee(p, meId))
-      .map(p => p.id),
-  );
+  const ids = new Set(useWorkspaceProjects().map(p => p.id));
   return useVisibleTasks().filter(x => ids.has(x.project_id));
 }
 
