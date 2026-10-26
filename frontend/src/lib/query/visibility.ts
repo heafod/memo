@@ -52,6 +52,20 @@ export function useVisibleTasks(): Task[] {
   return useTasks().filter(x => ids.has(x.project_id));
 }
 
+/**
+ * 工作区任务集合（R3 我的任务、R22 全部任务、工作区日历 / 时间线共用；FRIDAY 2026-10-26 18:33）：
+ * 所属项目可见且未归档的任务。首版任务无自身 archived 字段，归档以所属项目为准。
+ */
+export function useWorkspaceTasks(): Task[] {
+  const meId = useMeId();
+  const ids = new Set(
+    useProjects()
+      .filter(p => !p.archived && canSee(p, meId))
+      .map(p => p.id),
+  );
+  return useVisibleTasks().filter(x => ids.has(x.project_id));
+}
+
 /** 可见项目的文件。 */
 export function useVisibleFiles(): FileItem[] {
   const ids = useVisibleProjectIds();

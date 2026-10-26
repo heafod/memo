@@ -7,15 +7,16 @@ import { ViewToolbar } from '@/components/app/task-list';
 import { Button } from '@/components/ui/button';
 import { type Sort, sortTasks } from '@/lib/domain/tasks';
 import { useMembers, useProjects } from '@/lib/query/entities';
-import { useVisibleTasks } from '@/lib/query/visibility';
+import { useWorkspaceTasks } from '@/lib/query/visibility';
 
 /**
- * 工作区日历（R4；原型 pageWsCalendar）。侧栏「日历」入口；仅可见项目任务；无 R17 事件（PR-11）。
+ * 工作区日历（R4；原型 pageWsCalendar）。侧栏「日历」入口；无 R17 事件（PR-11）。
+ * 任务集合：所属项目可见且未归档（useWorkspaceTasks，与 R3 / R22 同一集合；FRIDAY 2026-10-26 18:33，PR-9g 修正）。
  */
 export function CalendarPage() {
   const { t } = useTranslation();
   const { newTask } = useCreateDialogs();
-  const tasks = useVisibleTasks();
+  const tasks = useWorkspaceTasks();
   const members = useMembers();
   const projects = useProjects();
   const [q, setQ] = useState('');

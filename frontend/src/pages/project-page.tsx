@@ -1,4 +1,4 @@
-import { Calendar, CalendarDays, List, Paperclip, Plus, SquareKanban, Table2, User } from 'lucide-react';
+import { Calendar, CalendarDays, ChartGantt, List, Paperclip, Plus, SquareKanban, Table2, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -8,6 +8,8 @@ import { ForbiddenState, NotFoundState } from '@/components/app/error-states';
 import { FavButton } from '@/components/app/fav-button';
 import { TaskBoard } from '@/components/app/task-board';
 import { TaskCalendar } from '@/components/app/task-calendar';
+import { TimelineSection } from '@/components/app/task-timeline';
+import { projectMilestones } from '@/lib/domain/timeline';
 import { TableColumnsButton, TaskTable } from '@/components/app/task-table';
 import { DEFAULT_TABLE_HIDDEN, type TableCol } from '@/lib/domain/table-cols';
 import { type RowDrop, type TaskGroup, TaskList, ViewToolbar } from '@/components/app/task-list';
@@ -32,9 +34,9 @@ import { useVisibleComments, useVisibleSubtasks, useVisibleTasks } from '@/lib/q
 import { FilesView } from './project-files';
 
 /**
- * 项目页（R4 列表 / 文件 / 看板 / 表格 / 日历；9a 读面，9c 写面，9d 看板，9e 表格；原型 pages/project.js）。
+ * 项目页（R4 列表 / 文件 / 看板 / 表格 / 日历 / 时间线；9a 读面，9c 写面，9d 看板，9e 表格，9f 日历，9g 时间线；原型 pages/project.js）。
  * - 项目不存在 → 原地 404；不可见 → 原地 403。
- * - PR-9d–9f：放出 board+table+calendar；默认 board（project.js:35）；合法未开放的 tab 回默认 board。
+ * - PR-9d–9g：放出 board+table+calendar+timeline；默认 board（project.js:35）；合法未开放的 tab 回默认 board。
  */
 export function ProjectPage() {
   const { projectId, tab } = useParams();
@@ -64,6 +66,8 @@ export function ProjectPage() {
         <TableView projectId={project.id} />
       ) : current === 'calendar' ? (
         <CalendarView projectId={project.id} />
+      ) : current === 'timeline' ? (
+        <TimelineView projectId={project.id} />
       ) : (
         <ListView projectId={project.id} />
       )}
@@ -110,7 +114,7 @@ function ProjectHeader({ projectId, tab }: { projectId: string; tab: EnabledProj
   );
 }
 
-const TAB_ICONS = { board: SquareKanban, list: List, table: Table2, calendar: CalendarDays, files: Paperclip } as const;
+const TAB_ICONS = { board: SquareKanban, list: List, table: Table2, calendar: CalendarDays, timeline: ChartGantt, files: Paperclip } as const;
 
 type GroupBy = 'status' | 'priority' | 'assignee' | 'due' | 'none';
 const GROUP_OPTIONS = ['status', 'priority', 'assignee', 'due', 'none'] as const;
@@ -183,6 +187,14 @@ function CalendarView({ projectId }: { projectId: string }) {
       <TaskCalendar tasks={shown} members={members} projects={projects} projectId={projectId} showProject={false} />
     </>
   );
+}
+
+/** 时间线视图（R4 时间线 PR-9g；甘特条整体拖移、依赖箭头、本项目里程碑车道；默认按状态分组）。 */
+function TimelineView({ projectId }: { projectId: string }) {
+  const tasks = useVisibleTasks().filter(x => x.project_id === projectId);
+  const projects = useProjects();
+  const p = projects.find(x => x.id === projectId)!;
+  return <TimelineSection tasks={tasks} projects={projects} milestones={projectMilestones(p, false)} projectId={projectId} defaultGroup="status" />;
 }
 
 /** 表格视图（R4 表格 PR-9e；列显隐/列宽经 preferences.tableViews 持久化）。 */

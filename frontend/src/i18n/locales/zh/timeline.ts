@@ -1,0 +1,20 @@
+// 时间线视图：timeline.*（原型 views/timeline.js + zh/views.js、zh/actions-b.js）
+export default {
+  title: '时间线',
+  subtitle: '跨项目的时间安排、依赖关系与里程碑。',
+  zoomLabel: '时间刻度',
+  zoom: { week: '周', month: '月' },
+  groupLabel: '分组方式',
+  group: { status: '分组：状态', assignee: '分组：负责人', project: '分组：项目', none: '不分组' },
+  today: '今天',
+  task: '任务',
+  milestones: '里程碑',
+  milestone: '里程碑：{{x}}',
+  msOf: '{{name}}（{{project}}）',
+  monthLabel: '{{y}}年{{m}}月',
+  dayLabel: '{{m}}月{{d}}日',
+  empty: '时间线上暂无内容',
+  emptyHint: '为任务设置开始和截止日期后，将在此显示。',
+  movedLater: '已将「{{title}}」推迟 {{n}} 天',
+  movedEarlier: '已将「{{title}}」提前 {{n}} 天',
+} as const;

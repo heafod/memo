@@ -6,9 +6,9 @@ import { useCreateDialogs } from '@/components/app/create-dialogs';
 import { TaskList, ViewToolbar } from '@/components/app/task-list';
 import { Button } from '@/components/ui/button';
 import { daysFromToday } from '@/lib/domain/dates';
-import { canSee, isOverdue, type Sort, sortTasks } from '@/lib/domain/tasks';
+import { isOverdue, type Sort, sortTasks } from '@/lib/domain/tasks';
 import { useMeId, useMembers, useProjects } from '@/lib/query/entities';
-import { useVisibleComments, useVisibleSubtasks, useVisibleTasks } from '@/lib/query/visibility';
+import { useVisibleComments, useVisibleSubtasks, useWorkspaceTasks } from '@/lib/query/visibility';
 import { cn } from '@/lib/utils';
 
 const MY_VIEWS = [
@@ -25,19 +25,17 @@ export function MyTasksPage() {
   const { newTask } = useCreateDialogs();
   const members = useMembers();
   const projects = useProjects();
-  const tasks = useVisibleTasks();
+  // R3 基础集合：所属项目可见且未归档（与工作区日历 / 时间线同一函数）
+  const tasks = useWorkspaceTasks();
   const subtasks = useVisibleSubtasks();
   const comments = useVisibleComments();
   const [q, setQ] = useState('');
   const [sort, setSort] = useState<Sort>({ field: 'due', dir: 1 });
   const [mode, setMode] = useState<'list' | 'calendar'>('list');
 
-  const visibleIds = new Set(projects.filter(p => !p.archived && canSee(p, meId)).map(p => p.id));
   const query = q.trim().toLowerCase();
   const mine = sortTasks(
-    tasks.filter(
-      x => x.assignee_id === meId && visibleIds.has(x.project_id) && (!query || x.title.toLowerCase().includes(query) || x.key.toLowerCase().includes(query)),
-    ),
+    tasks.filter(x => x.assignee_id === meId && (!query || x.title.toLowerCase().includes(query) || x.key.toLowerCase().includes(query))),
     // 原型：手动排序在本页按截止日升序
     sort.field === 'manual' ? { field: 'due', dir: 1 } : sort,
     members,

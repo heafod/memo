@@ -6,6 +6,7 @@ import { LoginPage } from '@/pages/login-page';
 import { MyTasksPage } from '@/pages/my-tasks-page';
 import { ProjectPage } from '@/pages/project-page';
 import { CalendarPage } from '@/pages/calendar-page';
+import { TimelinePage } from '@/pages/timeline-page';
 import { ProjectsPage } from '@/pages/projects-page';
 import { GuestOnly, RequireAuth } from '@/routes/guards';
 
@@ -21,7 +22,6 @@ const UNOPENED_ROUTES = [
   'search',
   'overview',
   'tasks',
-  'timeline',
   'members',
   'members/:memberId',
   'teams',
@@ -49,6 +49,7 @@ export const router = createBrowserRouter([
                   { index: true, element: <HomePage /> },
                   { path: 'my-tasks', element: <MyTasksPage /> },
                   { path: 'calendar', element: <CalendarPage /> },
+                  { path: 'timeline', element: <TimelinePage /> },
                   { path: 'projects', element: <ProjectsPage /> },
                   { path: 'projects/:projectId/:tab?', element: <ProjectPage /> },
                   // 顶层尚未开放的合法页面回到 /（FRIDAY 裁定 #12 17:07 第 ④ 条、PR-9c 19:30 待裁定 1）；项目内未做的 tab 由 ProjectPage 回默认 list tab
