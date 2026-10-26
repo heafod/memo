@@ -1,4 +1,4 @@
-import { Calendar, List, Paperclip, Plus, SquareKanban, Table2, User } from 'lucide-react';
+import { Calendar, CalendarDays, List, Paperclip, Plus, SquareKanban, Table2, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -7,6 +7,7 @@ import { AvatarStack, MemberAvatar, PriorityIcon, ProjectIcon, ProjectStatusBadg
 import { ForbiddenState, NotFoundState } from '@/components/app/error-states';
 import { FavButton } from '@/components/app/fav-button';
 import { TaskBoard } from '@/components/app/task-board';
+import { TaskCalendar } from '@/components/app/task-calendar';
 import { TableColumnsButton, TaskTable } from '@/components/app/task-table';
 import { DEFAULT_TABLE_HIDDEN, type TableCol } from '@/lib/domain/table-cols';
 import { type RowDrop, type TaskGroup, TaskList, ViewToolbar } from '@/components/app/task-list';
@@ -31,9 +32,9 @@ import { useVisibleComments, useVisibleSubtasks, useVisibleTasks } from '@/lib/q
 import { FilesView } from './project-files';
 
 /**
- * 项目页（R4 列表 / 文件 / 看板 / 表格；9a 读面，9c 写面，9d 看板，9e 表格；原型 pages/project.js）。
+ * 项目页（R4 列表 / 文件 / 看板 / 表格 / 日历；9a 读面，9c 写面，9d 看板，9e 表格；原型 pages/project.js）。
  * - 项目不存在 → 原地 404；不可见 → 原地 403。
- * - PR-9d/9e：放出 board+table；默认 board（project.js:35）；合法未开放的 tab 回默认 board。
+ * - PR-9d–9f：放出 board+table+calendar；默认 board（project.js:35）；合法未开放的 tab 回默认 board。
  */
 export function ProjectPage() {
   const { projectId, tab } = useParams();
@@ -61,6 +62,8 @@ export function ProjectPage() {
         <BoardView projectId={project.id} />
       ) : current === 'table' ? (
         <TableView projectId={project.id} />
+      ) : current === 'calendar' ? (
+        <CalendarView projectId={project.id} />
       ) : (
         <ListView projectId={project.id} />
       )}
@@ -107,7 +110,7 @@ function ProjectHeader({ projectId, tab }: { projectId: string; tab: EnabledProj
   );
 }
 
-const TAB_ICONS = { board: SquareKanban, list: List, table: Table2, files: Paperclip } as const;
+const TAB_ICONS = { board: SquareKanban, list: List, table: Table2, calendar: CalendarDays, files: Paperclip } as const;
 
 type GroupBy = 'status' | 'priority' | 'assignee' | 'due' | 'none';
 const GROUP_OPTIONS = ['status', 'priority', 'assignee', 'due', 'none'] as const;
@@ -148,6 +151,36 @@ function BoardView({ projectId }: { projectId: string }) {
       ) : (
         <TaskBoard tasks={shown} members={members} projectId={projectId} />
       )}
+    </>
+  );
+}
+
+/** 日历视图（R4 日历 PR-9f；拖改 due，保留时长）。 */
+function CalendarView({ projectId }: { projectId: string }) {
+  const { t } = useTranslation();
+  const { newTask } = useCreateDialogs();
+  const tasks = useVisibleTasks().filter(x => x.project_id === projectId);
+  const members = useMembers();
+  const projects = useProjects();
+  const [q, setQ] = useState('');
+  const query = q.trim().toLowerCase();
+  const shown = tasks.filter(x => !query || x.title.toLowerCase().includes(query) || x.key.toLowerCase().includes(query));
+  return (
+    <>
+      <ViewToolbar
+        q={q}
+        onQ={setQ}
+        sort={{ field: 'due', dir: 1 }}
+        onSort={() => {}}
+        sortOptions={['due']}
+        right={
+          <Button size="sm" onClick={() => newTask({ projectId })}>
+            <Plus />
+            {t('write.newTask.open')}
+          </Button>
+        }
+      />
+      <TaskCalendar tasks={shown} members={members} projects={projects} projectId={projectId} showProject={false} />
     </>
   );
 }

@@ -1,6 +1,6 @@
 // 项目页：project.*（原型 pages/project.js、views/files.js；9d 放出 board，默认 board）
 export default {
-  tabs: { board: '看板', list: '列表', table: '表格', files: '文件' },
+  tabs: { board: '看板', list: '列表', table: '表格', calendar: '日历', files: '文件' },
   tabsLabel: '项目视图',
   files: {
     search: '搜索文件',

@@ -1,6 +1,7 @@
-import { CalendarDays, CircleCheck, ClockAlert, Plus, Sun } from 'lucide-react';
+import { Calendar as CalendarIcon, CalendarDays, CircleCheck, ClockAlert, List, Plus, Sun } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { TaskCalendar } from '@/components/app/task-calendar';
 import { useCreateDialogs } from '@/components/app/create-dialogs';
 import { TaskList, ViewToolbar } from '@/components/app/task-list';
 import { Button } from '@/components/ui/button';
@@ -8,10 +9,15 @@ import { daysFromToday } from '@/lib/domain/dates';
 import { canSee, isOverdue, type Sort, sortTasks } from '@/lib/domain/tasks';
 import { useMeId, useMembers, useProjects } from '@/lib/query/entities';
 import { useVisibleComments, useVisibleSubtasks, useVisibleTasks } from '@/lib/query/visibility';
+import { cn } from '@/lib/utils';
+
+const MY_VIEWS = [
+  ['list', List],
+  ['calendar', CalendarIcon],
+] as const;
 
 /**
- * 我的任务（R3；原型 pages/my-tasks.js，视觉按 7_1-mytasks.svg）。仅 List 模式：Calendar 模式与日历视图共用组件，属 PR-9b，
- * 本页不出现切换入口（FRIDAY 裁定第 2 条）。9c：完成勾选（圆形复选框）与页头「新建任务」（负责人默认为我）。
+ * 我的任务（R3；原型 pages/my-tasks.js）。List + Calendar 模式（PR-9f 与项目日历共用 TaskCalendar）。
  */
 export function MyTasksPage() {
   const { t } = useTranslation();
@@ -24,6 +30,7 @@ export function MyTasksPage() {
   const comments = useVisibleComments();
   const [q, setQ] = useState('');
   const [sort, setSort] = useState<Sort>({ field: 'due', dir: 1 });
+  const [mode, setMode] = useState<'list' | 'calendar'>('list');
 
   const visibleIds = new Set(projects.filter(p => !p.archived && canSee(p, meId)).map(p => p.id));
   const query = q.trim().toLowerCase();
@@ -67,21 +74,44 @@ export function MyTasksPage() {
             {t('myTasks.summary', { a: groups[1].tasks.length, b: groups[0].tasks.length, c: groups[2].tasks.length })}
           </p>
         </div>
+        <div className="inline-flex rounded-lg border border-border p-0.5" role="tablist" aria-label={t('myTasks.viewLabel')}>
+          {MY_VIEWS.map(([k, Icon]) => (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={mode === k}
+              data-my-view={k}
+              className={cn(
+                'inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px] font-medium',
+                mode === k ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground',
+              )}
+              onClick={() => setMode(k)}
+            >
+              <Icon size={13} />
+              {t(`myTasks.view.${k}`)}
+            </button>
+          ))}
+        </div>
         <Button onClick={() => newTask({ assigneeId: meId })}>
           <Plus />
           {t('write.newTask.open')}
         </Button>
       </div>
       <ViewToolbar q={q} onQ={setQ} sort={sort} onSort={setSort} />
-      <div className="overflow-x-auto">
-        <TaskList
-          ariaLabel={t('myTasks.title')}
-          groups={groups}
-          columns={['project', 'status', 'priority', 'due']}
-          ctx={{ members, projects, subtasks, comments }}
-          completable
-        />
-      </div>
+      {mode === 'calendar' ? (
+        <TaskCalendar tasks={mine} members={members} projects={projects} showProject />
+      ) : (
+        <div className="overflow-x-auto">
+          <TaskList
+            ariaLabel={t('myTasks.title')}
+            groups={groups}
+            columns={['project', 'status', 'priority', 'due']}
+            ctx={{ members, projects, subtasks, comments }}
+            completable
+          />
+        </div>
+      )}
     </div>
   );
 }

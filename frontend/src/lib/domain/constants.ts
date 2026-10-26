@@ -61,7 +61,7 @@ export const asFileType = (type: string): FileType => ((FILE_TYPES as readonly s
 // 项目视图类型（原型 project.js PTABS）。合法集合之外的 tab 显示 404；已放出的 tab 外，合法但未做的回默认 tab。
 // PR-9d：放出 board，默认 tab 恢复为 board（原型 project.js:35；FRIDAY pr9b-scope-rulings-2032）。
 export const PROJECT_TABS = ['overview', 'board', 'list', 'table', 'calendar', 'timeline', 'files', 'activity'] as const;
-export const ENABLED_PROJECT_TABS = ['board', 'list', 'table', 'files'] as const;
+export const ENABLED_PROJECT_TABS = ['board', 'list', 'table', 'calendar', 'files'] as const;
 export type EnabledProjectTab = (typeof ENABLED_PROJECT_TABS)[number];
 export const DEFAULT_PROJECT_TAB: EnabledProjectTab = 'board';
 

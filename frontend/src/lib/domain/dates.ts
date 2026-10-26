@@ -24,3 +24,21 @@ export const weekdayKey = (d: Date) => WEEKDAY_KEYS[d.getDay()];
 
 /** 当前时间戳（毫秒）；组件内经此取当前时间，避免渲染期直接调用 Date.now。 */
 export const nowMs = (): number => Date.now();
+
+/** 'YYYY-MM-DD'（本地日历日，不经 UTC）。 */
+export function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function addDays(d: Date, n: number): Date {
+  const x = startOfDay(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+/** 周起始日（0=日…6=六；默认周一，与原型 prefs.weekStart=1 一致）。 */
+export function startOfWeek(d: Date, weekStart = 1): Date {
+  const x = startOfDay(d);
+  const diff = (x.getDay() - weekStart + 7) % 7;
+  return addDays(x, -diff);
+}

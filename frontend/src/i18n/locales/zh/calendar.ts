@@ -1,0 +1,20 @@
+// 日历视图：calendar.*（原型 views/calendar.js + zh/views.js、zh/shell.js）
+export default {
+  title: '日历',
+  subtitle: '所有项目的截止日期与日程。',
+  today: '今天',
+  previous: '上一段',
+  next: '下一段',
+  month: '月',
+  week: '周',
+  modeLabel: '日历模式',
+  addOn: '在 {{date}} 添加任务',
+  addTask: '添加任务',
+  more: '还有 {{n}} 项',
+  noTasks: '没有任务',
+  monthLabel: '{{y}}年{{m}}月',
+  weekLabel: '{{a}} – {{b}}',
+  weekLabelY: '{{a}} – {{b}}，{{y}}',
+  moved: '已将「{{title}}」改到 {{date}}',
+  dayList: '{{date}} 的任务',
+} as const;

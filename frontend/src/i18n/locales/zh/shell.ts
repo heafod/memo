@@ -6,6 +6,7 @@ export default {
     myTasks: '我的任务',
     workspace: '工作区',
     projects: '项目',
+    calendar: '日历',
     list: '列表',
     files: '文件',
     toggleSubPages: '展开或收起子页面',
