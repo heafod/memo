@@ -60,7 +60,7 @@
 - [x] 默认 due 升序，可经工具栏调整排序（对齐原型）
 - [x] List 视图；9a 的「我的任务」页不出现 Calendar 切换入口（PR-9a，FRIDAY 裁定第 2 条）
 - [x] 我的任务列表的圆形勾选框可将任务标为完成或重新打开，乐观更新，写入失败回滚并显示中文 detail；分组随状态按原型变化；该页不出现多选框与批量操作栏。标为完成时显示 toast『已完成「{title}」』并提供『撤销』；重新打开不弹 toast。（PR-9c，R3）
-- [ ] Calendar 视图，与项目日历视图共用同一组件（PR-9f，FRIDAY 裁定第 2 条）
+- [x] Calendar 视图，与项目日历视图共用同一组件（PR-9f，FRIDAY 裁定第 2 条）
 
 ## R4 项目多视图（PR-9a 列表 / 文件只读；PR-9c 列表写操作；PR-9d 看板；PR-9e 表格；PR-9f 日历；PR-9g 时间线）
 
@@ -75,13 +75,15 @@
 - [x] 9a 项目页只出现 list 与 files 两个 tab；打开 `/projects/:id` 显示列表视图；访问 `/projects/:id/board` 显示列表视图（PR-9a，FRIDAY 裁定第 3、4 条）
 - [x] 9d 放出 board tab；打开 `/projects/:id` 与默认 tab 为 board（原型 project.js:35）；`/projects/:id/board` 显示看板（PR-9d）
 - [x] 9e 放出 table tab；`/projects/:id/table` 显示表格（不再重定向到 list）（PR-9e）
+- [x] 9f 放出 calendar tab 与侧栏「日历」；`/projects/:id/calendar` 与 `/calendar` 显示日历（PR-9f）
+- [x] 我的任务页提供 List / Calendar 模式切换；Calendar 与项目日历共用组件（PR-9f）
 - [x] 看板列可折叠 / 展开（会话态；PR-9e，FRIDAY 2047）
 - [x] 折叠列仍是合法拖拽落点；拖入后任务状态变为该列状态，order 按该列规则写入；列保持折叠。（PR-9e，FRIDAY 2112）
 - [x] 看板列菜单：添加任务、折叠、全部标为完成（非 done 列）、按优先级排序；不出现归档已完成（无 task.archived）（PR-9e，FRIDAY 2047）
 - [x] 表格 11 列（title / status / priority / assignee / due / start / labels / deps / estimate / created / project）（PR-9e）
 - [x] 表格 popover 编辑；标题与估算双击就地编辑（PR-9e）
 - [x] 表格列显隐与列宽持久化（PR-9e）——preferences.tableViews[projectId]
-- [ ] 日历月 / 周模式；任务拖改 due（保留时长）；格内最多 3 条（PR-9f）
+- [x] 日历月 / 周模式；任务拖改 due（保留时长）；格内最多 3 条（PR-9f）
 - [ ] 时间线 start → due 甘特条、依赖箭头（落后虚线）、条整体拖移、里程碑车道（PR-9g）
 
 ## R4b 文件（PR-9a 文件视图只读；PR-9c 上传与关联任务）
