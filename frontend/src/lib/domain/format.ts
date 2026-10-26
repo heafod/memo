@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import { parseDate, today, weekdayKey } from './dates';
+import { diffDays, parseDate, today, weekdayKey } from './dates';
 
 // 日期显示（按原型 core/utils.js fmtDate / relDate / ago，中文口径）
 
@@ -40,4 +40,15 @@ export function fileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1048576) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / 1048576).toFixed(1)} MB`;
+}
+
+/** 动态按天分桶（原型 dayBucket）：今天 / 昨天 / 本周 / 更早。 */
+export function dayBucket(t: TFunction, iso: string | null | undefined): string {
+  if (!iso) return t('date.bucket.earlier');
+  const d = new Date(iso);
+  const n = diffDays(d, today());
+  if (n === 0) return t('date.bucket.today');
+  if (n === -1) return t('date.bucket.yesterday');
+  if (n > -7) return t('date.bucket.thisWeek');
+  return t('date.bucket.earlier');
 }

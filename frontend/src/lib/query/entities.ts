@@ -1,7 +1,8 @@
 import { queryOptions, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api/client';
 import type { components } from '@/lib/api/schema';
-import { useMe } from './auth';
+import { canSee } from '@/lib/domain/tasks';
+import { authKeys, type CurrentUser, useMe } from './auth';
 import { queryClient } from './client';
 
 // 快照与实体 key（docs/query-conventions.md「实体 key」）：登录后只拉一次 GET /api/snapshot，
@@ -18,6 +19,7 @@ export type Comment = Schemas['CommentPublic'];
 export type Activity = Schemas['ActivityPublic'];
 export type FileItem = Schemas['FilePublic'];
 export type Preferences = Snapshot['preferences'];
+export type Notif = Schemas['NotifPublic'];
 
 const ENTITY_KEYS = [
   'members',
@@ -46,7 +48,16 @@ async function fetchSnapshot(): Promise<Snapshot> {
 /** 拉快照并拆分写回全部实体 key（首次加载与「重拉快照」共用，保证一致）。 */
 async function loadSnapshot(): Promise<Snapshot> {
   const snap = await fetchSnapshot();
-  for (const key of ENTITY_KEYS) queryClient.setQueryData([key], snap[key]);
+  // notifs：快照含全员；列表端点与 PATCH 仅当前用户。写入实体 key 时按 me 过滤，与 GET /api/notifs 对齐（R2）。
+  const me = queryClient.getQueryData<CurrentUser | null>(authKeys.me);
+  const meId = me?.owner_member_id;
+  for (const key of ENTITY_KEYS) {
+    if (key === 'notifs' && meId) {
+      queryClient.setQueryData([key], snap.notifs.filter(n => n.member_id === meId));
+    } else {
+      queryClient.setQueryData([key], snap[key]);
+    }
+  }
   return snap;
 }
 
@@ -98,7 +109,27 @@ export const useSubtasks = () => useEntity('subtasks');
 export const useComments = () => useEntity('comments');
 export const useActivity = () => useEntity('activity');
 export const useFiles = () => useEntity('files');
-export const usePreferences = () => useEntity('preferences');
-
 /** 「我」= 管理员关联的 Owner 成员（R5；UserPublic.owner_member_id）。 */
 export const useMeId = (): string | null => useMe().data?.owner_member_id ?? null;
+
+/**
+ * 当前用户可见的收件箱通知（R2；FRIDAY 2110）：
+ * 仅本人；关联项目须可见且未归档（project_id，或仅有 task_id 时取任务所属项目）；
+ * 无关联项目的系统通知仍可展示。铃铛未读与分类计数同此口径。
+ */
+export function useNotifs(): Notif[] {
+  const meId = useMeId();
+  const all = useEntity('notifs');
+  const projects = useEntity('projects');
+  const tasks = useEntity('tasks');
+  const mine = meId ? all.filter(n => n.member_id === meId) : all;
+  return mine.filter(n => {
+    const pid = n.project_id ?? tasks.find(x => x.id === n.task_id)?.project_id ?? null;
+    if (!pid) return true;
+    const p = projects.find(x => x.id === pid);
+    if (!p) return false;
+    return canSee(p, meId) && !p.archived;
+  });
+}
+export const usePreferences = () => useEntity('preferences');
+

@@ -26,7 +26,8 @@ import { today } from '@/lib/domain/dates';
 import { fmtDate } from '@/lib/domain/format';
 import { activeProjects } from '@/lib/domain/tasks';
 import { type Project, useMeId, useMembers, useProjects, useTeams } from '@/lib/query/entities';
-import { errorMessage, useCreateProject, useCreateTask } from '@/lib/query/mutations';
+import { ROLES } from '@/lib/domain/constants';
+import { errorMessage, useCreateMember, useCreateProject, useCreateTask, useCreateTeam } from '@/lib/query/mutations';
 import { useVisibleProjectIds } from '@/lib/query/visibility';
 import { cn } from '@/lib/utils';
 
@@ -44,8 +45,15 @@ export interface NewTaskDefaults {
 interface Ctx {
   newTask: (d?: NewTaskDefaults) => void;
   newProject: () => void;
+  newMember: () => void;
+  newTeam: () => void;
 }
-const CreateCtx = createContext<Ctx>({ newTask: () => {}, newProject: () => {} });
+const CreateCtx = createContext<Ctx>({
+  newTask: () => {},
+  newProject: () => {},
+  newMember: () => {},
+  newTeam: () => {},
+});
 // eslint-disable-next-line react-refresh/only-export-components
 export const useCreateDialogs = () => useContext(CreateCtx);
 
@@ -58,11 +66,22 @@ function useTargetProjects(): Project[] {
 export function CreateDialogsProvider({ children }: { children: ReactNode }) {
   const [task, setTask] = useState<NewTaskDefaults | null>(null);
   const [project, setProject] = useState(false);
+  const [member, setMember] = useState(false);
+  const [team, setTeam] = useState(false);
   return (
-    <CreateCtx.Provider value={{ newTask: d => setTask(d ?? {}), newProject: () => setProject(true) }}>
+    <CreateCtx.Provider
+      value={{
+        newTask: d => setTask(d ?? {}),
+        newProject: () => setProject(true),
+        newMember: () => setMember(true),
+        newTeam: () => setTeam(true),
+      }}
+    >
       {children}
       {task && <NewTaskDialog defaults={task} onClose={() => setTask(null)} />}
       {project && <NewProjectDialog onClose={() => setProject(false)} />}
+      {member && <NewMemberDialog onClose={() => setMember(false)} />}
+      {team && <NewTeamDialog onClose={() => setTeam(false)} />}
     </CreateCtx.Provider>
   );
 }
@@ -503,5 +522,164 @@ function FieldError({ errs, name }: { errs: Record<string, string>; name: string
     <span role="alert" className="text-xs text-destructive" data-field-error={name}>
       {errs[name]}
     </span>
+  );
+}
+
+/** 新建成员（R5 / R6；原型 Invite → 新建成员表单，FRIDAY 1940）。 */
+function NewMemberDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
+  const create = useCreateMember();
+  const teams = useTeams();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<(typeof ROLES)[number]>('Member');
+  const [title, setTitle] = useState('');
+  const [teamId, setTeamId] = useState('');
+  const [errs, setErrs] = useState<Record<string, string>>({});
+  const submit = () => {
+    setErrs({});
+    create.mutate(
+      {
+        name: name.trim(),
+        email: email.trim(),
+        role,
+        title: title.trim(),
+        avatar_color: '#3B82C4',
+        status: 'active',
+        timezone: '',
+        team_id: teamId || null,
+      },
+      {
+        onSuccess: () => {
+          void toast(t('write.newMember.created'));
+          onClose();
+        },
+        onError: e => {
+          const fe = fieldErrors(e);
+          if (Object.keys(fe).length) setErrs(fe);
+          else toast.error(errorMessage(e));
+        },
+      },
+    );
+  };
+  return (
+    <Dialog open onOpenChange={o => !o && onClose()}>
+      <DialogContent className="sm:max-w-md" data-dialog="new-member">
+        <DialogHeader>
+          <DialogTitle>{t('write.newMember.title')}</DialogTitle>
+          <DialogDescription>{t('write.newMember.desc')}</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <div className="grid gap-1.5">
+            <Label htmlFor="nm-name">{t('write.newMember.name')}</Label>
+            <Input id="nm-name" value={name} onChange={e => setName(e.target.value)} aria-invalid={!!errs.name} />
+            {errs.name && <p className="text-xs text-destructive">{errs.name}</p>}
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="nm-email">{t('write.newMember.email')}</Label>
+            <Input id="nm-email" type="email" value={email} onChange={e => setEmail(e.target.value)} aria-invalid={!!errs.email} />
+            {errs.email && <p className="text-xs text-destructive">{errs.email}</p>}
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="nm-title">{t('write.newMember.jobTitle')}</Label>
+            <Input id="nm-title" value={title} onChange={e => setTitle(e.target.value)} />
+          </div>
+          <div className="grid gap-1.5">
+            <Label>{t('write.newMember.role')}</Label>
+            <Select value={role} onValueChange={v => setRole(v as (typeof ROLES)[number])}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ROLES.filter(r => r !== 'Owner').map(r => (
+                  <SelectItem key={r} value={r}>
+                    {t(`domain.role.${r}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-1.5">
+            <Label>{t('write.newMember.team')}</Label>
+            <Select value={teamId || '__none__'} onValueChange={v => setTeamId(v === '__none__' ? '' : v)}>
+              <SelectTrigger>
+                <SelectValue placeholder={t('write.newMember.noTeam')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">{t('write.newMember.noTeam')}</SelectItem>
+                {teams.map(tm => (
+                  <SelectItem key={tm.id} value={tm.id}>
+                    {tm.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            {t('write.cancel')}
+          </Button>
+          <Button onClick={submit} disabled={create.isPending || !name.trim() || !email.trim()}>
+            {t('write.newMember.submit')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** 新建团队（R5）。 */
+function NewTeamDialog({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
+  const create = useCreateTeam();
+  const [name, setName] = useState('');
+  const [desc, setDesc] = useState('');
+  const [errs, setErrs] = useState<Record<string, string>>({});
+  const submit = () => {
+    setErrs({});
+    create.mutate(
+      { name: name.trim(), desc: desc.trim(), icon: 'users', color: 'blue' },
+      {
+        onSuccess: () => {
+          void toast(t('write.newTeam.created'));
+          onClose();
+        },
+        onError: e => {
+          const fe = fieldErrors(e);
+          if (Object.keys(fe).length) setErrs(fe);
+          else toast.error(errorMessage(e));
+        },
+      },
+    );
+  };
+  return (
+    <Dialog open onOpenChange={o => !o && onClose()}>
+      <DialogContent className="sm:max-w-md" data-dialog="new-team">
+        <DialogHeader>
+          <DialogTitle>{t('write.newTeam.title')}</DialogTitle>
+          <DialogDescription>{t('write.newTeam.desc')}</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <div className="grid gap-1.5">
+            <Label htmlFor="nt-name">{t('write.newTeam.name')}</Label>
+            <Input id="nt-name" value={name} onChange={e => setName(e.target.value)} aria-invalid={!!errs.name} />
+            {errs.name && <p className="text-xs text-destructive">{errs.name}</p>}
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="nt-desc">{t('write.newTeam.description')}</Label>
+            <Textarea id="nt-desc" value={desc} onChange={e => setDesc(e.target.value)} rows={3} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            {t('write.cancel')}
+          </Button>
+          <Button onClick={submit} disabled={create.isPending || !name.trim()}>
+            {t('write.newTeam.submit')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

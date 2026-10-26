@@ -23,7 +23,7 @@ const isPreset = (v: string | null): v is TasksPresetFilter => !!v && (PRESETS a
  * 全部任务页（R22，PR-10a；原型 pages/tasks.js）。任务范围 = useWorkspaceTasks（与 R3 我的任务同一基础集合，不按 assignee 过滤），
  * 三种模式复用 R4 项目内视图（task-views.tsx）。模式放在 URL `?view=`（与项目页 tab 在 URL 一致），默认列表；
  * 搜索 / 排序 / 分组为会话态，表格列设置持久化到 preferences.tableViews.tasks（与项目内视图一致）。
- * `?f=open|done|overdue`：首页统计卡 goTasks 预设筛选（FRIDAY 2008 #3；原型 actions.js:212）。
+ * `?f=open|done|overdue`：首页统计卡预设筛选（FRIDAY 2008 #3；done 用 completed_at，FRIDAY 2028）。
  */
 export function TasksPage() {
   const { t } = useTranslation();

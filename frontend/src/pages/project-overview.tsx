@@ -146,19 +146,19 @@ export function ProjectOverview({ projectId }: { projectId: string }) {
               </Kv>
               <Kv icon={<User size={14} />} label={t('overview.project.lead')}>
                 {lead && (
-                  <span className="inline-flex items-center gap-1.5">
+                  <Link to={`/members/${lead.id}`} className="inline-flex items-center gap-1.5 hover:underline" data-lead={lead.id}>
                     <MemberAvatar member={lead} />
                     {lead.name}
-                  </span>
+                  </Link>
                 )}
               </Kv>
               <Kv icon={<Users size={14} />} label={t('overview.project.team')}>
-                {/* 原型可点进团队页；团队页属 R5，未开放前只显示 */}
+                {/* R5/R21：团队名进团队页（PR-10b） */}
                 {team && (
-                  <span className="inline-flex items-center gap-1.5" data-team={team.id}>
+                  <Link to={`/teams/${team.id}`} className="inline-flex items-center gap-1.5 hover:underline" data-team={team.id}>
                     <ProjectGlyph icon={team.icon ?? 'users'} size={13} />
                     {team.name}
-                  </span>
+                  </Link>
                 )}
               </Kv>
               <Kv icon={<Calendar size={14} />} label={t('overview.project.start')}>
