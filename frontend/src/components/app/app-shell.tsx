@@ -1,4 +1,4 @@
-import { ChevronDown, CircleCheck, FolderKanban, FolderPlus, House, LogOut, Plus } from 'lucide-react';
+import { CalendarDays, ChevronDown, CircleCheck, FolderKanban, FolderPlus, House, LogOut, Plus } from 'lucide-react';
 import { type CSSProperties, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, NavLink, Outlet, useLocation, useMatch } from 'react-router';
@@ -37,7 +37,7 @@ import { useListedProjects, useVisibleTasks } from '@/lib/query/visibility';
 
 /**
  * 应用外壳（R1「应用外壳按 4_1-home.svg」；映射表「外壳 / 侧栏导航 / 工作区头 / 顶栏面包屑」行）。
- * FRIDAY 裁定第 5 条：指向未完成页面的入口一律不渲染（收件箱、收藏、通知、概览、任务、日历、时间线、成员、动态、
+ * FRIDAY 裁定第 5 条：指向未完成页面的入口一律不渲染（收件箱、收藏、通知、概览、任务、时间线、成员、动态、
  * 归档、团队、设置、帮助、搜索、新建、铃铛、语言切换），由各自批次放出。工作区头不可点（切换工作区属负范围）。
  */
 export function AppShell() {
@@ -119,6 +119,7 @@ function AppSidebar() {
   const onHome = useMatch('/') !== null;
   const onMyTasks = useMatch('/my-tasks') !== null;
   const onProjects = useMatch('/projects') !== null;
+  const onCalendar = useMatch('/calendar') !== null;
 
   const me = members.find(m => m.id === meId);
   const ws = (prefs as { workspace?: { name?: string } }).workspace;
@@ -174,6 +175,14 @@ function AppSidebar() {
                     <NavLink to="/projects" end>
                       <FolderKanban />
                       <span>{t('shell.nav.projects')}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={onCalendar}>
+                    <NavLink to="/calendar">
+                      <CalendarDays />
+                      <span>{t('shell.nav.calendar')}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -297,11 +306,13 @@ function Crumbs({ pathname }: { pathname: string }) {
   const name =
     pathname === '/my-tasks'
       ? t('shell.nav.myTasks')
-      : pathname === '/projects'
-        ? t('shell.nav.projects')
-        : pathname === '/'
-          ? t('shell.nav.home')
-          : t('shell.notFound');
+      : pathname === '/calendar'
+        ? t('shell.nav.calendar')
+        : pathname === '/projects'
+          ? t('shell.nav.projects')
+          : pathname === '/'
+            ? t('shell.nav.home')
+            : t('shell.notFound');
   return (
     <BreadcrumbItem>
       <BreadcrumbPage>{name}</BreadcrumbPage>
