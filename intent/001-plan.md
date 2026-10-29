@@ -62,6 +62,7 @@ README.md
 15. **PR-12 CI 收尾与跨服务验证**（证明）：compose 冒烟 job（未认证 401、登录 200、snapshot 200，断言 / 返回构建后的登录页）与卷重启持久化验证进 CI；前端 lint / tsc / build job 化，前端 job 含 gen:api 重跑后无 diff 检查；**部署验证记录：compose 种子环境实测 snapshot 响应体大小与 p95（100 次采样），结果记入 PR 描述，超标不阻断 CI 但回产品负责人评估**；**中文 detail 扫描（grep `backend/app` 中模板英文固定串如 "not found"、"Incorrect"，命中即报）**；AGENTS.md 架构与命令更新收口。**compose 冒烟须承接 PR-7 未实测部分（R14 至此验收）：AC1 compose 段（干净环境 up、backend 仅在 prestart 成功后启动）、AC2 compose restart 幂等、AC6 `down`（不带 -v）后再 up 数据与上传文件仍在、AC7 按 README 步骤执行，以及经 nginx 上传 12MB 返回 413 中文 JSON；并补 EDITH 两项非阻断：10.5MB 用例断言 Content-Type、恰好 10MB 上传断言 201。** backend 单元测试已随各 PR，本批不补写。
 16. **PR-13a 规格修订**（R24–R28 入库、R4/R7/R18 补句、清单与 mapping）：无行为变更。
 17. **PR-13b snapshot P6**（R24，依赖 13a）：后端过滤 + 契约测试；前端可保留 canSee 作防御。保护路径：可能触 `backend/**`。
+17b. **PR-13d 接口 P6**（R29，依赖 13b，排在 PR-15 之前）：后端各读写接口按 R24 统一裁剪，已归档项目的写入返回 409，加契约测试；前端行为不改。不触保护路径。
 18. **PR-14 过滤构建器**（R4/R18，依赖 13a）：`.fbuild` UI；与保存视图互写；清单勾选。
 19. **PR-15 项目生命周期与分享**（R7 归档段、R25，依赖 13a）：归档/恢复/删除 UI、Share、Edit project。15a 先做类型收窄：前端按 `ProjectPublic | ProjectHiddenPublic` 区分完整行和裁剪行，删除 PR-13b 在 `entities.ts` 留下的完整 `Project` 断言；验收：`entities.ts` 里没有该断言，tsc 通过。
 20. **PR-16 偏好接线与任务页**（R7，依赖 13a）：home / openTasks / confirmDelete 生效；可选 TaskPage。

@@ -12,7 +12,10 @@
   UUID，与用户文件名解耦；任务关联在上传时经 ``task_id`` 指定，须存在且属同项目
   （否则 422），不提供上传后改挂；
 - 不产生 activity / 通知；删除项目经 ``file.project_id`` 外键 ``ON DELETE CASCADE``
-  级联删除元数据行（卷内容不清理，孤儿文件留后续）。
+  级联删除元数据行（卷内容不清理，孤儿文件留后续）；
+- R29（PR-13d）：不可见项目等同不存在——上传 422「所属项目不存在」/「关联任务不存在」，
+  内容下载 404「文件不存在」；已归档项目下上传 409「项目已归档，无法修改」，内容下载
+  照常 200（只读）。
 """
 
 import mimetypes
@@ -26,7 +29,7 @@ from fastapi.responses import FileResponse
 from sqlmodel import select
 from starlette.datastructures import UploadFile as StarletteUploadFile
 
-from app import crud_domain
+from app import visibility
 from app.api import serializers
 from app.api.deps import CurrentUser, SessionDep
 from app.core.config import settings
@@ -123,7 +126,9 @@ async def _require_single_file(request: Request) -> None:
         raise HTTPException(status_code=422, detail="一次只能上传一个文件")
 
 
-@router.post("", response_model=FilePublic, status_code=201)
+@router.post(
+    "", response_model=FilePublic, status_code=201, responses=visibility.ARCHIVED_409
+)
 def upload_file(
     session: SessionDep,
     current_user: CurrentUser,
@@ -133,14 +138,17 @@ def upload_file(
     task_id: Annotated[uuid.UUID | None, Form()] = None,
 ) -> FilePublic:
     upload = file
-    if crud_domain.get_project(session, project_id) is None:
+    project = visibility.visible_project(session, current_user, project_id)
+    if project is None:
         raise HTTPException(status_code=422, detail="所属项目不存在")
     if task_id is not None:
-        task = crud_domain.get_task(session, task_id)
-        if task is None:
+        found = visibility.visible_task(session, current_user, task_id)
+        if found is None:
             raise HTTPException(status_code=422, detail="关联任务不存在")
-        if task.project_id != project_id:
+        if found[0].project_id != project_id:
             raise HTTPException(status_code=422, detail="关联任务不属于该项目")
+    if project.archived:
+        visibility.raise_archived()
 
     name = sanitize_filename(upload.filename or "")
     if not name:
@@ -190,10 +198,13 @@ def upload_file(
 
 @router.get("/{file_id}/content", response_class=FileResponse)
 def download_file(
-    file_id: uuid.UUID, session: SessionDep, _current_user: CurrentUser
+    file_id: uuid.UUID, session: SessionDep, current_user: CurrentUser
 ) -> FileResponse:
     record = session.get(FileRecord, file_id)
-    if record is None:
+    if (
+        record is None
+        or visibility.visible_project(session, current_user, record.project_id) is None
+    ):
         raise HTTPException(status_code=404, detail="文件不存在")
     path = _content_path(record.id)
     if not path.is_file():

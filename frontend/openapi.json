@@ -188,6 +188,7 @@
           "projects"
         ],
         "summary": "List Projects",
+        "description": "项目列表（R29）：行形状与快照 ``projects`` 同一序列化函数。",
         "operationId": "projects-list_projects",
         "responses": {
           "200": {
@@ -196,7 +197,14 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/ProjectPublic"
+                    "anyOf": [
+                      {
+                        "$ref": "#/components/schemas/ProjectPublic"
+                      },
+                      {
+                        "$ref": "#/components/schemas/ProjectHiddenPublic"
+                      }
+                    ]
                   },
                   "type": "array",
                   "title": "Response Projects-List Projects"
@@ -286,6 +294,16 @@
               }
             }
           },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -339,6 +357,7 @@
           "tasks"
         ],
         "summary": "List Tasks",
+        "description": "任务列表（R29）：不可见项目与已归档项目的任务不出现。",
         "operationId": "tasks-list_tasks",
         "responses": {
           "200": {
@@ -380,6 +399,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TaskPublic"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
                 }
               }
             }
@@ -437,6 +466,16 @@
               }
             }
           },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -470,6 +509,16 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -866,6 +915,16 @@
               }
             }
           },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -919,6 +978,16 @@
               }
             }
           },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -952,6 +1021,16 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -1033,6 +1112,16 @@
               }
             }
           },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -1052,7 +1141,7 @@
           "notifs"
         ],
         "summary": "Read All Notifs",
-        "description": "全部已读（R2）：当前用户名下未读通知全部置 read，返回更新条数。",
+        "description": "全部已读（R2）：当前用户列表里能看到的未读通知置 read，返回更新条数（R29）。",
         "operationId": "notifs-read_all_notifs",
         "responses": {
           "200": {
@@ -1162,6 +1251,16 @@
               }
             }
           },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -1215,6 +1314,16 @@
               }
             }
           },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -1248,6 +1357,16 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -1286,6 +1405,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SavedViewPublic"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "项目已归档，无法修改；或该视图名称已存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
                 }
               }
             }
@@ -1343,6 +1472,16 @@
               }
             }
           },
+          "409": {
+            "description": "项目已归档，无法修改；或该视图名称已存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -1376,6 +1515,16 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -1414,6 +1563,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FilePublic"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
                 }
               }
             }
@@ -1673,6 +1832,20 @@
           "text"
         ],
         "title": "CommentUpdate"
+      },
+      "ErrorDetail": {
+        "properties": {
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorDetail",
+        "description": "错误响应体（中文 detail，R8）；OpenAPI 声明 409 等错误响应用（R29）。"
       },
       "EventCreate": {
         "properties": {

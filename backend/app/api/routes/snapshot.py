@@ -9,7 +9,7 @@ R24 服务端可见性裁剪：可见性口径与前端 canSee 一致——项�
 from fastapi import APIRouter
 from sqlmodel import select
 
-from app import crud_domain
+from app import crud_domain, visibility
 from app.api import serializers
 from app.api.deps import CurrentUser, SessionDep
 from app.models import (
@@ -20,7 +20,6 @@ from app.models import (
     Member,
     Notif,
     Project,
-    ProjectMemberLink,
     SavedView,
     Subtask,
     Task,
@@ -43,16 +42,10 @@ def get_snapshot(session: SessionDep, current_user: CurrentUser) -> Snapshot:
     teams = session.exec(select(Team)).all()
     members = session.exec(select(Member)).all()
     projects = session.exec(select(Project)).all()
-    member_links = session.exec(select(ProjectMemberLink)).all()
 
-    # R24：可见性与「不下发子实体」的项目集合
-    me = current_user.owner_member_id
-    my_project_ids = {
-        link.project_id
-        for link in member_links
-        if me is not None and link.member_id == me
-    }
-    hidden_ids = {p.id for p in projects if p.private and p.id not in my_project_ids}
+    # R24：可见性与「不下发子实体」的项目集合（canSee 口径见 app.visibility，R29 共用）
+    mine = visibility.my_project_ids(session, current_user)
+    hidden_ids = {p.id for p in projects if visibility.is_hidden(p, mine)}
     withheld_ids = hidden_ids | {p.id for p in projects if p.archived}
 
     tasks = [
@@ -102,10 +95,7 @@ def get_snapshot(session: SessionDep, current_user: CurrentUser) -> Snapshot:
         members=[serializers.member_public(m) for m in members],
         teams=[serializers.team_public(t) for t in teams],
         projects=[
-            serializers.project_hidden_public(p)
-            if p.id in hidden_ids
-            else serializers.project_public(session, p)
-            for p in projects
+            serializers.project_row(session, p, p.id in hidden_ids) for p in projects
         ],
         tasks=[serializers.task_public(session, t) for t in tasks],
         subtasks=[

@@ -31,6 +31,7 @@ from app.models import (
     File,
     Notif,
     Project,
+    ProjectMemberLink,
     SavedView,
     Subtask,
     Task,
@@ -245,25 +246,27 @@ def test_hidden_project_children_withheld(
 def test_project_becomes_full_when_viewer_joins(
     authed_client: TestClient, cp_children: dict[str, str]
 ) -> None:  # R24
-    # 服务端可见性与前端 canSee 同口径：当前成员加入后为完整行、子实体下发
+    # 服务端可见性与前端 canSee 同口径：当前成员加入后为完整行、子实体下发。
+    # PR-13d 起不可见项目的 PATCH 返回 404，故加入 / 退出经数据库直接写成员关联。
     cp_id = _project_id("CP")
     me = str(_owner_member_id(_snap(authed_client)))
     seed_members = _member_ids_in_db(cp_id)
     try:
-        resp = authed_client.patch(
-            f"/api/projects/{cp_id}", json={"member_ids": [*seed_members, me]}
-        )
-        assert resp.status_code == 200, resp.text
+        with Session(engine) as session:
+            session.add(ProjectMemberLink(project_id=cp_id, member_id=uuid.UUID(me)))
+            session.commit()
         snap = _snap(authed_client)
         row = next(p for p in snap["projects"] if p["id"] == str(cp_id))
         assert set(row) == FULL_ROW_KEYS
         assert me in row["member_ids"]
         assert _present(snap, cp_children) == dict.fromkeys(CHILD_KEYS, True)
     finally:
-        resp = authed_client.patch(
-            f"/api/projects/{cp_id}", json={"member_ids": seed_members}
-        )
-        assert resp.status_code == 200, resp.text
+        with Session(engine) as session:
+            link = session.get(ProjectMemberLink, (cp_id, uuid.UUID(me)))
+            if link is not None:
+                session.delete(link)
+                session.commit()
+    assert sorted(_member_ids_in_db(cp_id)) == sorted(seed_members)
     snap = _snap(authed_client)
     row = next(p for p in snap["projects"] if p["id"] == str(cp_id))
     assert set(row) == HIDDEN_ROW_KEYS
