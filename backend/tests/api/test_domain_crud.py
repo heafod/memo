@@ -146,7 +146,7 @@ def test_projects_crud(authed_client: TestClient) -> None:  # R11
 
 def test_tasks_crud(authed_client: TestClient) -> None:  # R11
     snap = _snapshot(authed_client)
-    web = next(p for p in snap["projects"] if p["key"] == "WEB")
+    web = next(p for p in snap["projects"] if p.get("key") == "WEB")
     member = next(m for m in snap["members"] if m["name"] == "张伟")
 
     resp = authed_client.post(

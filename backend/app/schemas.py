@@ -9,7 +9,7 @@ import uuid
 from datetime import date, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 MemberRole = Literal["Owner", "Admin", "Member", "Guest"]
 MemberStatus = Literal["active", "invited"]
@@ -95,6 +95,25 @@ class ProjectPublic(BaseModel):
     archived: bool
     last_active_at: datetime | None
     order: float
+    member_ids: list[uuid.UUID]
+
+
+class ProjectHiddenPublic(BaseModel):
+    """快照中不可见项目的裁剪行（R24：canSee 为 false）。
+
+    只保留 id、名称、图标与颜色、负责人，以及判断可见性所需的 ``private`` 与
+    ``member_ids``；``member_ids`` 恒为空列表（当前成员不在其中，不下发成员名单）。
+    描述、状态、日期、进度、成员、里程碑等其余字段不出现在 JSON 中。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: uuid.UUID
+    name: str
+    icon: str | None
+    color: str | None
+    lead_id: uuid.UUID | None
+    private: Literal[True]
     member_ids: list[uuid.UUID]
 
 
@@ -323,7 +342,8 @@ class Snapshot(BaseModel):
 
     members: list[MemberPublic]
     teams: list[TeamPublic]
-    projects: list[ProjectPublic]
+    # R24：可见项目为完整行（已归档的带 archived: true）；不可见项目为裁剪行
+    projects: list[ProjectPublic | ProjectHiddenPublic]
     tasks: list[TaskPublic]
     subtasks: list[SubtaskPublic]
     comments: list[CommentPublic]

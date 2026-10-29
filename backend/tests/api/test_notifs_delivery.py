@@ -31,7 +31,7 @@ def _actors(snap: dict) -> tuple[dict, dict, dict, dict]:
 
 
 def _new_task(authed_client: TestClient, snap: dict, **fields) -> dict:
-    web = next(p for p in snap["projects"] if p["key"] == "WEB")
+    web = next(p for p in snap["projects"] if p.get("key") == "WEB")
     payload = {"project_id": web["id"], "title": f"PR-4 通知 {uuid.uuid4().hex[:6]}"}
     payload.update(fields)
     resp = authed_client.post("/api/tasks", json=payload)
@@ -137,7 +137,7 @@ def test_comment_by_assignee_excludes_self(authed_client: TestClient) -> None:  
     owner, _, _, _ = _actors(snap)
     # LCH 项目 lead = 林一舟（操作者本人），任务 assignee 也为操作者：
     # 评论后 assignee=操作者 → 排除本人，不产生 comment 通知
-    lch = next(p for p in snap["projects"] if p["key"] == "LCH")
+    lch = next(p for p in snap["projects"] if p.get("key") == "LCH")
     resp = authed_client.post(
         "/api/tasks",
         json={

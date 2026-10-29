@@ -42,7 +42,7 @@ def _find(detail: list[dict[str, Any]], loc: list[Any]) -> dict[str, Any]:
 
 def _web_project_id(client: TestClient) -> str:
     snap = client.get("/api/snapshot").json()
-    return next(p for p in snap["projects"] if p["key"] == "WEB")["id"]
+    return next(p for p in snap["projects"] if p.get("key") == "WEB")["id"]
 
 
 # ---------- 端到端（规格要求的四类 + 其余映射） ----------

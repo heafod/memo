@@ -24,6 +24,7 @@ from app.schemas import (
     FilePublic,
     MemberPublic,
     NotifPublic,
+    ProjectHiddenPublic,
     ProjectPublic,
     SavedViewPublic,
     SubtaskPublic,
@@ -73,6 +74,19 @@ def project_public(session: Session, project: Project) -> ProjectPublic:
         last_active_at=project.last_active_at,
         order=project.order,
         member_ids=crud_domain.project_member_ids(session, project.id),
+    )
+
+
+def project_hidden_public(project: Project) -> ProjectHiddenPublic:
+    """不可见项目的裁剪行（R24）：只含允许字段，member_ids 为空列表。"""
+    return ProjectHiddenPublic(
+        id=project.id,
+        name=project.name,
+        icon=project.icon,
+        color=project.color,
+        lead_id=project.lead_id,
+        private=True,
+        member_ids=[],
     )
 
 
