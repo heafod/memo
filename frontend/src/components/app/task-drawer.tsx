@@ -20,7 +20,7 @@ import { daysFromToday } from '@/lib/domain/dates';
 import { sanitizeHtml } from '@/lib/domain/html';
 import { fileSize, fmtDate, timeAgo } from '@/lib/domain/format';
 import { activeProjects, isOverdue } from '@/lib/domain/tasks';
-import { type Member, useMeId, useMembers } from '@/lib/query/entities';
+import { type Member, type Project, type Task, useMeId, useMembers } from '@/lib/query/entities';
 import { type TaskPatch, useCreateComment, useDeleteComment, useUpdateTask, useUploadFiles } from '@/lib/query/mutations';
 import { useVisibleActivity, useVisibleComments, useVisibleFiles, useVisibleProjects, useVisibleSubtasks, useVisibleTasks } from '@/lib/query/visibility';
 import { cn } from '@/lib/utils';
@@ -74,7 +74,21 @@ export function TaskDrawer() {
   );
 }
 
+/**
+ * 任务或其项目已不在缓存里（被别处删除，或 409 重拉后所在项目已归档、按 R29 退出快照）属合法状态：
+ * 与外层 TaskDrawer 一致，按「抽屉不打开」处理（main 的既有做法），渲染为空而不是断言存在。
+ * 外层与此处各自读缓存，并发渲染（如路由跳转的 transition）中途重拉落地时两者可能看到不同版本，故此处必须自行兜底。
+ */
 function DrawerBody({ taskId }: { taskId: string }) {
+  const tasks = useVisibleTasks();
+  const projects = useVisibleProjects();
+  const task = tasks.find(x => x.id === taskId);
+  const project = task ? projects.find(p => p.id === task.project_id && !p.archived) : undefined;
+  if (!task || !project) return null;
+  return <DrawerTaskBody task={task} project={project} />;
+}
+
+function DrawerTaskBody({ task, project }: { task: Task; project: Project }) {
   const { t } = useTranslation();
   // 依赖、附件、动态等只取可见项目数据（FRIDAY 裁定 #12 17:27 总 AC）：可见任务依赖不可见项目任务时不显示该依赖
   const tasks = useVisibleTasks();
@@ -85,8 +99,6 @@ function DrawerBody({ taskId }: { taskId: string }) {
   const activity = useVisibleActivity();
   const files = useVisibleFiles();
   const meId = useMeId();
-  const task = tasks.find(x => x.id === taskId)!;
-  const project = projects.find(p => p.id === task.project_id)!;
   const assignee = members.find(m => m.id === task.assignee_id);
   const subs = subtasks.filter(s => s.parent_task_id === task.id).sort((a, b) => a.order - b.order);
   const doneSubs = subs.filter(s => s.done).length;
