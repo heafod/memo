@@ -1,8 +1,9 @@
-import { Calendar, Plus, User, X } from 'lucide-react';
+import { Calendar, Plus, User } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { MemberAvatar, PriorityIcon, ProjectDot, StatusIcon } from '@/components/app/domain-ui';
+import { FilterButton, FilterChips } from '@/components/app/filter-builder';
 import { TaskBoard } from '@/components/app/task-board';
 import { TableColumnsButton, TaskTable } from '@/components/app/task-table';
 import { type Column, type RowDrop, type TaskGroup, TaskList, ViewToolbar } from '@/components/app/task-list';
@@ -11,11 +12,12 @@ import { Button } from '@/components/ui/button';
 import { type Priority, PRIORITIES, STATUSES, type TaskStatus } from '@/lib/domain/constants';
 import { DAY_MS, daysFromToday, nowMs } from '@/lib/domain/dates';
 import { DEFAULT_TABLE_HIDDEN, type TableCol } from '@/lib/domain/table-cols';
-import { applyFilters, type ViewFilter } from '@/lib/domain/filters';
+import { applyFilters } from '@/lib/domain/filters';
 import { activeProjects, canSee, isOverdue, type Sort, sortTasks } from '@/lib/domain/tasks';
 import { type Member, type Preferences, type Project, type Task, useMeId, useMembers, usePreferences, useProjects } from '@/lib/query/entities';
 import { type TaskPatch, useUpdatePreferences, useUpdateTask } from '@/lib/query/mutations';
 import { useVisibleComments, useVisibleSubtasks, useVisibleTasks, useWorkspaceTasks } from '@/lib/query/visibility';
+import { useViewFilters } from '@/lib/view-filters';
 
 /**
  * 列表 / 看板 / 表格三种任务视图（R4，PR-9a–9e；PR-10 由项目页抽出，供 R22 全部任务页复用，原型 tasks.js 复用 listHtml / boardHtml / tableHtml）。
@@ -33,18 +35,34 @@ export interface ViewScope {
   hideToolbarNewTask?: boolean;
   /** 首页 goTasks 预设筛选（URL `?f=`；列表 / 看板 / 表格均生效）。 */
   presetFilter?: TasksPresetFilter;
-  /** 保存视图过滤条件（R18；应用时取默认排序/分组）。 */
-  viewFilters?: readonly ViewFilter[];
+  /** 去掉 `?f=` 预设（全部任务页）；过滤构建器「全部清除」一并调用（1620 第 3 节）。 */
+  onClearPreset?: () => void;
+  /**
+   * 过滤构建器条件的会话键（R4 / R18；原型 viewOf(key).filters）：项目内列表/看板/表格共用 `p:<projectId>`，
+   * 保存视图 `sv:<viewId>`（应用时所存 filters 全部生效），全部任务页 `tasks`。
+   */
+  filterKey: string;
 }
 
-/** 视图任务集合：项目内 = 该项目可见任务；工作区 = useWorkspaceTasks；可选 goTasks 预设筛选。 */
-function useScopeTasks(projectId: string | undefined, presetFilter?: TasksPresetFilter, viewFilters?: readonly ViewFilter[]): Task[] {
+/**
+ * 视图任务集合：项目内 = 该项目可见任务；工作区 = useWorkspaceTasks；可选 goTasks 预设筛选；再套过滤构建器条件。
+ * 返回 [过滤后, 过滤前]（过滤前用于区分「项目无任务」与「无匹配」）。
+ */
+function useScopeTasks(projectId: string | undefined, presetFilter: TasksPresetFilter | undefined, filterKey: string): [Task[], Task[]] {
   const visible = useVisibleTasks();
   const workspace = useWorkspaceTasks();
+  const [filters] = useViewFilters(filterKey);
   let base = projectId ? visible.filter(x => x.project_id === projectId) : workspace;
   if (presetFilter) base = base.filter(x => matchesTasksPreset(x, presetFilter));
-  if (viewFilters?.length) base = applyFilters(base, viewFilters);
-  return base;
+  return [applyFilters(base, filters), base];
+}
+
+/** 「全部清除」的附加清理：搜索词，以及全部任务页的 `?f=` 预设（原型 clearFilters；1620 裁定 2e / 第 3 节）。 */
+function makeClearAll(setQ: (q: string) => void, onClearPreset: (() => void) | undefined) {
+  return () => {
+    setQ('');
+    onClearPreset?.();
+  };
 }
 
 const matches = (query: string) => (x: Task) => !query || x.title.toLowerCase().includes(query) || x.key.toLowerCase().includes(query);
@@ -69,11 +87,12 @@ function NewTaskButton({ projectId }: { projectId?: string }) {
 }
 
 /** 看板视图（R4 看板 PR-9d；无分组切换，工具栏仅搜索 / 新建）。 */
-export function BoardView({ projectId, toolbarRight, hideToolbarNewTask, presetFilter, viewFilters }: ViewScope) {
+export function BoardView({ projectId, toolbarRight, hideToolbarNewTask, presetFilter, onClearPreset, filterKey }: ViewScope) {
   const { t } = useTranslation();
-  const tasks = useScopeTasks(projectId, presetFilter, viewFilters);
+  const [tasks, unfiltered] = useScopeTasks(projectId, presetFilter, filterKey);
   const members = useMembers();
   const [q, setQ] = useState('');
+  const clearAll = makeClearAll(setQ, onClearPreset);
   const shown = tasks.filter(matches(q.trim().toLowerCase()));
   return (
     <>
@@ -83,6 +102,7 @@ export function BoardView({ projectId, toolbarRight, hideToolbarNewTask, presetF
         sort={{ field: 'manual', dir: 1 }}
         onSort={() => {}}
         sortOptions={['manual']}
+        filter={<FilterButton filterKey={filterKey} onClearAll={clearAll} extraActive={!!presetFilter} />}
         right={
           <>
             {toolbarRight}
@@ -90,7 +110,8 @@ export function BoardView({ projectId, toolbarRight, hideToolbarNewTask, presetF
           </>
         }
       />
-      {tasks.length === 0 ? (
+      <FilterChips filterKey={filterKey} onClearAll={clearAll} extraActive={!!presetFilter} />
+      {unfiltered.length === 0 ? (
         <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
           <p className="text-sm font-medium">{t('write.board.empty')}</p>
           <p className="text-sm text-muted-foreground">{t('write.board.emptyHint')}</p>
@@ -108,17 +129,18 @@ type GroupBy = 'status' | 'priority' | 'assignee' | 'project' | 'due' | 'none';
 const GROUP_OPTIONS = ['status', 'priority', 'assignee', 'project', 'due', 'none'] as const;
 
 /** 表格视图（R4 表格 PR-9e；列显隐 / 列宽经 preferences.tableViews[viewKey] 持久化）。 */
-export function TableView({ projectId, viewKey, toolbarRight, hideToolbarNewTask, presetFilter, viewFilters }: ViewScope) {
+export function TableView({ projectId, viewKey, toolbarRight, hideToolbarNewTask, presetFilter, onClearPreset, filterKey }: ViewScope) {
   const { t } = useTranslation();
   const { newTask } = useCreateDialogs();
   const meId = useMeId();
   const tasks = useVisibleTasks();
-  const scope = useScopeTasks(projectId, presetFilter, viewFilters);
+  const [scope] = useScopeTasks(projectId, presetFilter, filterKey);
   const members = useMembers();
   const projects = useProjects();
   const prefs = usePreferences();
   const updatePrefs = useUpdatePreferences();
   const [q, setQ] = useState('');
+  const clearAll = makeClearAll(setQ, onClearPreset);
   const [sort, setSort] = useState<Sort>({ field: 'manual', dir: 1 });
   const [group, setGroup] = useState<GroupBy>('none');
   const ts = sortTasks(scope.filter(matches(q.trim().toLowerCase())), sort, members);
@@ -157,6 +179,7 @@ export function TableView({ projectId, viewKey, toolbarRight, hideToolbarNewTask
         group={group}
         onGroup={g => setGroup(g as GroupBy)}
         groupOptions={GROUP_OPTIONS}
+        filter={<FilterButton filterKey={filterKey} onClearAll={clearAll} extraActive={!!presetFilter} />}
         right={
           <>
             {toolbarRight}
@@ -165,6 +188,7 @@ export function TableView({ projectId, viewKey, toolbarRight, hideToolbarNewTask
           </>
         }
       />
+      <FilterChips filterKey={filterKey} onClearAll={clearAll} extraActive={!!presetFilter} />
       <TaskTable
         tasks={flat}
         members={members}
@@ -182,36 +206,32 @@ export function TableView({ projectId, viewKey, toolbarRight, hideToolbarNewTask
 
 /**
  * 列表视图（R4 列表；9a 分组、折叠与多选；9c 行拖拽排序与跨分组改字段、单元格编辑、批量操作栏、「新建任务」）。
- * statusFilter（PR-10，R21 概览 tab 状态计数跳转；原型 actions.js goFilteredList）：只列该状态的任务，工具栏显示可清除的筛选条。
+ * R21 概览 tab 状态计数跳转（`?status=`）由项目页写成构建器条件（PR-14；原型 actions.js goFilteredList），不再单独渲染状态筛选条。
  */
 export function ListView({
   projectId,
   columns,
-  statusFilter,
-  onClearStatus,
   toolbarRight,
   hideToolbarNewTask,
   presetFilter,
-  viewFilters,
+  onClearPreset,
+  filterKey,
   ariaLabel,
-}: ViewScope & { columns: Column[]; statusFilter?: TaskStatus; onClearStatus?: () => void; ariaLabel: string }) {
+}: ViewScope & { columns: Column[]; ariaLabel: string }) {
   const { t } = useTranslation();
   const update = useUpdateTask();
   const meId = useMeId();
   const tasks = useVisibleTasks();
-  const scope = useScopeTasks(projectId, presetFilter, viewFilters);
+  const [scope] = useScopeTasks(projectId, presetFilter, filterKey);
   const members = useMembers();
   const projects = useProjects();
   const subtasks = useVisibleSubtasks();
   const comments = useVisibleComments();
   const [q, setQ] = useState('');
+  const clearAll = makeClearAll(setQ, onClearPreset);
   const [sort, setSort] = useState<Sort>({ field: 'manual', dir: 1 });
   const [group, setGroup] = useState<GroupBy>('status');
-  const ts = sortTasks(
-    scope.filter(x => matches(q.trim().toLowerCase())(x) && (!statusFilter || x.status === statusFilter)),
-    sort,
-    members,
-  );
+  const ts = sortTasks(scope.filter(matches(q.trim().toLowerCase())), sort, members);
   const projectMembers = projects.find(p => p.id === projectId)?.member_ids ?? [];
 
   // 行落下（原型 drag-drop.js type 'row'）：order 取目标行与其相邻任务（按 order 排、排除自身；只含可见任务）的中点；
@@ -242,6 +262,7 @@ export function ListView({
         group={group}
         onGroup={g => setGroup(g as GroupBy)}
         groupOptions={GROUP_OPTIONS}
+        filter={<FilterButton filterKey={filterKey} onClearAll={clearAll} extraActive={!!presetFilter} />}
         right={
           <>
             {toolbarRight}
@@ -249,27 +270,7 @@ export function ListView({
           </>
         }
       />
-      {statusFilter && (
-        <div className="flex h-10 items-center gap-2 border-b border-border px-6 text-[13px]" data-status-filter={statusFilter}>
-          <span className="inline-flex h-6 items-center gap-1.5 rounded-full border border-border px-2">
-            <StatusIcon status={statusFilter} size={12} />
-            {/* 原型 view-engine.js chipsbar：<b>状态</b> 是 <span>值</span> + 移除按钮 */}
-            <b className="font-semibold">{t('list.columns.status')}</b>
-            {t('list.filterIs')}
-            <span>{t(`domain.status.${statusFilter}`)}</span>
-            {onClearStatus && (
-              <button
-                type="button"
-                onClick={onClearStatus}
-                aria-label={t('list.removeFilter')}
-                className="grid size-4 place-items-center rounded-full hover:bg-accent"
-              >
-                <X size={11} />
-              </button>
-            )}
-          </span>
-        </div>
-      )}
+      <FilterChips filterKey={filterKey} onClearAll={clearAll} extraActive={!!presetFilter} />
       <div className="overflow-x-auto">
         <TaskList
           ariaLabel={ariaLabel}

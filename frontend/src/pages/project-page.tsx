@@ -1,5 +1,5 @@
 import { CalendarDays, ChartGantt, LayoutDashboard, List, ListFilter, Paperclip, Plus, SquareKanban, Table2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
 import { AvatarStack, ProjectIcon, ProjectStatusBadge } from '@/components/app/domain-ui';
@@ -15,11 +15,12 @@ import { useSavedViewDialogs } from '@/components/app/saved-view-dialogs';
 import { Button } from '@/components/ui/button';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DEFAULT_PROJECT_TAB, ENABLED_PROJECT_TABS, PROJECT_TABS, STATUSES, type TaskStatus } from '@/lib/domain/constants';
-import { parseFilters, type ViewFilter } from '@/lib/domain/filters';
+import { DEFAULT_PROJECT_TAB, ENABLED_PROJECT_TABS, PROJECT_TABS, STATUSES } from '@/lib/domain/constants';
+import { parseFilters } from '@/lib/domain/filters';
 import { canSee } from '@/lib/domain/tasks';
 import { type SavedView, useEvents, useMeId, useMembers, useProjects, useSavedViews } from '@/lib/query/entities';
 import { useVisibleTasks } from '@/lib/query/visibility';
+import { getViewFilters, seedViewFilters, setViewFilters } from '@/lib/view-filters';
 import { FilesView } from './project-files';
 import { ProjectOverview } from './project-overview';
 
@@ -66,9 +67,9 @@ export function ProjectPage() {
       ) : tab === 'files' ? (
         <FilesView projectId={project.id} />
       ) : tab === 'board' ? (
-        <BoardView projectId={project.id} viewKey={project.id} />
+        <BoardView projectId={project.id} viewKey={project.id} filterKey={`p:${project.id}`} />
       ) : tab === 'table' ? (
-        <TableView projectId={project.id} viewKey={project.id} />
+        <TableView projectId={project.id} viewKey={project.id} filterKey={`p:${project.id}`} />
       ) : tab === 'calendar' ? (
         <CalendarView projectId={project.id} />
       ) : tab === 'timeline' ? (
@@ -86,14 +87,10 @@ function ProjectHeader({ projectId, tab, savedViews }: { projectId: string; tab:
   const projects = useProjects();
   const members = useMembers();
   const { openSave, openRename, openDelete } = useSavedViewDialogs();
-  const [params] = useSearchParams();
   const p = projects.find(x => x.id === projectId)!;
 
-  const currentFilters = (): ViewFilter[] => {
-    const raw = params.get('status');
-    if (raw && (STATUSES as readonly string[]).includes(raw)) return [{ f: 'status', op: 'is', v: [raw] }];
-    return [];
-  };
+  // 「保存视图」写入当前构建器的全部条件（R18；原型 saveViewSubmit 取 viewOf(key).filters）：保存视图 tab 取其会话条件，其余取项目视图条件。
+  const currentFilters = () => [...getViewFilters(tab?.startsWith('v:') ? `sv:${tab.slice(2)}` : `p:${projectId}`)];
 
   const defaultLayout = (): 'list' | 'board' | 'table' => {
     if (tab === 'board' || tab === 'table' || tab === 'list') return tab;
@@ -172,16 +169,17 @@ const TAB_ICONS = {
 
 function SavedViewBody({ projectId, view }: { projectId: string; view: SavedView }) {
   const { t } = useTranslation();
-  const filters = parseFilters(view.filters);
   const layout = view.layout === 'board' || view.layout === 'table' ? view.layout : 'list';
   const viewKey = `sv:${view.id}`;
-  if (layout === 'board') return <BoardView projectId={projectId} viewKey={viewKey} viewFilters={filters} />;
-  if (layout === 'table') return <TableView projectId={projectId} viewKey={viewKey} viewFilters={filters} />;
+  // 应用视图：所存 filters 全部生效（R18）；首次打开时拷入会话条件，之后可在构建器 / 芯片里调整（原型 pages/project.js）。
+  seedViewFilters(viewKey, parseFilters(view.filters));
+  if (layout === 'board') return <BoardView projectId={projectId} viewKey={viewKey} filterKey={viewKey} />;
+  if (layout === 'table') return <TableView projectId={projectId} viewKey={viewKey} filterKey={viewKey} />;
   return (
     <ListView
       projectId={projectId}
       viewKey={viewKey}
-      viewFilters={filters}
+      filterKey={viewKey}
       ariaLabel={view.name || t('project.tabs.list')}
       columns={['status', 'assignee', 'priority', 'due', 'labels']}
     />
@@ -227,30 +225,33 @@ function TimelineView({ projectId }: { projectId: string }) {
   return <TimelineSection tasks={tasks} projects={projects} milestones={projectMilestones(p, false)} projectId={projectId} defaultGroup="status" />;
 }
 
-/** List tab with optional ?status= from overview (R21). */
+/**
+ * List tab. `?status=` from the overview status counts (R21) becomes a builder condition on the project views
+ * (prototype actions.js goFilteredList: viewOf('p:'+id).filters = [status is X]), then the param is dropped.
+ */
 function ProjectListView({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
   const [params, setParams] = useSearchParams();
   const raw = params.get('status');
-  const statusFilter = raw && (STATUSES as readonly string[]).includes(raw) ? (raw as TaskStatus) : undefined;
+  useEffect(() => {
+    if (raw === null) return;
+    if ((STATUSES as readonly string[]).includes(raw)) setViewFilters(`p:${projectId}`, [{ f: 'status', op: 'is', v: [raw] }]);
+    setParams(
+      prev => {
+        const n = new URLSearchParams(prev);
+        n.delete('status');
+        return n;
+      },
+      { replace: true },
+    );
+  }, [raw, projectId, setParams]);
   return (
     <ListView
-      key={statusFilter ?? 'all'}
       projectId={projectId}
       viewKey={projectId}
+      filterKey={`p:${projectId}`}
       ariaLabel={t('project.tabs.list')}
       columns={['status', 'assignee', 'priority', 'due', 'labels']}
-      statusFilter={statusFilter}
-      onClearStatus={() =>
-        setParams(
-          prev => {
-            const n = new URLSearchParams(prev);
-            n.delete('status');
-            return n;
-          },
-          { replace: true },
-        )
-      }
     />
   );
 }
