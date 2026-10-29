@@ -24,28 +24,28 @@ function useProjectMenuActions(project: Project, visibleOrdered: readonly Projec
   const canUp = i > 0;
   const canDown = i >= 0 && i < visibleOrdered.length - 1;
 
+  // 提示挂在 mutateAsync 的 promise 上，而不是 mutate 的第二个参数：菜单选中后即关闭卸载，
+  // TanStack 对已卸载 observer 不再调用 mutate 级回调，写入 + 重拉若慢于菜单关闭动画，提示就会丢（AC9 回归）。
+  // 失败由 hook 级 onError 回滚并提示 detail，这里吞掉 rejection。
   const toggleFav = () => {
     const next = !project.fav;
-    fav.mutate(
-      { kind: 'project', id: project.id, fav: next },
-      {
-        onSuccess: () => toast(next ? t('write.fav.addedProject', { name: project.name }) : t('write.fav.removed'), { duration: FAV_TOAST_MS }),
-      },
-    );
+    fav
+      .mutateAsync({ kind: 'project', id: project.id, fav: next })
+      .then(() => toast(next ? t('write.fav.addedProject', { name: project.name }) : t('write.fav.removed'), { duration: FAV_TOAST_MS }))
+      .catch(() => {});
   };
 
   const move = (dir: -1 | 1) => {
     const order = orderAfterStep(visibleOrdered, project.id, dir);
     if (order == null) return;
-    update.mutate(
-      { id: project.id, patch: { order } },
-      {
-        onSuccess: () =>
-          toast(dir < 0 ? t('write.sidebar.movedUp', { name: project.name }) : t('write.sidebar.movedDown', { name: project.name }), {
-            duration: SIDEBAR_MOVE_TOAST_MS,
-          }),
-      },
-    );
+    update
+      .mutateAsync({ id: project.id, patch: { order } })
+      .then(() =>
+        toast(dir < 0 ? t('write.sidebar.movedUp', { name: project.name }) : t('write.sidebar.movedDown', { name: project.name }), {
+          duration: SIDEBAR_MOVE_TOAST_MS,
+        }),
+      )
+      .catch(() => {});
   };
 
   return {
