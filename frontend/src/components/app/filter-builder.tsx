@@ -100,9 +100,23 @@ function valuesText(t: ReturnType<typeof useTranslation>['t'], opts: Opt[], v: s
 }
 
 /** 构建器面板（原型 `.fbuild`）。 */
-function FilterBuilder({ filterKey }: { filterKey: string }) {
+/**
+ * 「全部清除」的附加清理（原型 actions.js clearFilters：条件 + 搜索词一并清空；1620 裁定 2e）。
+ * `onClearAll` 由视图传入（清搜索词，全部任务页另清 `?f=` 预设，1620 第 3 节）；`extraActive` 为 true 时
+ * 即使没有构建器条件也显示「全部清除」（全部任务页带预设进入时）。
+ */
+interface ClearAllProps {
+  onClearAll?: () => void;
+  extraActive?: boolean;
+}
+
+function FilterBuilder({ filterKey, onClearAll, extraActive }: { filterKey: string } & ClearAllProps) {
   const { t } = useTranslation();
   const [filters, setFilters] = useViewFilters(filterKey);
+  const clearAll = () => {
+    setFilters([]);
+    onClearAll?.();
+  };
   const [edit, setEdit] = useState<number | null>(null);
   const optsOf = useFieldOptions();
   const patch = (i: number, p: Partial<ViewFilter>) => setFilters(filters.map((f, j) => (j === i ? { ...f, ...p } : f)));
@@ -115,8 +129,8 @@ function FilterBuilder({ filterKey }: { filterKey: string }) {
     <div className="w-[min(560px,calc(100vw-24px))] min-w-[440px] max-w-[560px]" data-filter-builder={filterKey}>
       <div className="flex items-center justify-between border-b border-border px-3 py-2">
         <span className="text-[13px] font-semibold">{t('list.fb.title')}</span>
-        {filters.length > 0 && (
-          <Button variant="ghost" size="xs" onClick={() => setFilters([])} data-filter-clear="">
+        {(filters.length > 0 || extraActive) && (
+          <Button variant="ghost" size="xs" onClick={clearAll} data-filter-clear="">
             {t('list.fb.clearAll')}
           </Button>
         )}
@@ -209,7 +223,7 @@ function FilterBuilder({ filterKey }: { filterKey: string }) {
 }
 
 /** 工具栏「筛选」按钮（原型 viewToolbar Filter + 计数）。 */
-export function FilterButton({ filterKey }: { filterKey: string }) {
+export function FilterButton({ filterKey, onClearAll, extraActive }: { filterKey: string } & ClearAllProps) {
   const { t } = useTranslation();
   const [filters] = useViewFilters(filterKey);
   return (
@@ -226,7 +240,7 @@ export function FilterButton({ filterKey }: { filterKey: string }) {
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto p-0">
-        <FilterBuilder filterKey={filterKey} />
+        <FilterBuilder filterKey={filterKey} onClearAll={onClearAll} extraActive={extraActive} />
       </PopoverContent>
     </Popover>
   );
@@ -266,11 +280,11 @@ function Chip({ filterKey, i, f }: { filterKey: string; i: number; f: ViewFilter
   );
 }
 
-/** 工具栏下方的条件芯片栏（原型 filterChips）；无条件时不渲染。 */
-export function FilterChips({ filterKey }: { filterKey: string }) {
+/** 工具栏下方的条件芯片栏（原型 filterChips）；无条件（且无附加预设）时不渲染。 */
+export function FilterChips({ filterKey, onClearAll, extraActive }: { filterKey: string } & ClearAllProps) {
   const { t } = useTranslation();
   const [filters, setFilters] = useViewFilters(filterKey);
-  if (!filters.length) return null;
+  if (!filters.length && !extraActive) return null;
   return (
     <div className="flex min-h-10 flex-wrap items-center gap-2 border-b border-border px-6 py-1.5 text-[13px]" data-filter-chips={filters.length}>
       <ListFilter className="size-3.5 text-muted-foreground" />
@@ -288,10 +302,19 @@ export function FilterChips({ filterKey }: { filterKey: string }) {
           </Button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-auto p-0">
-          <FilterBuilder filterKey={filterKey} />
+          <FilterBuilder filterKey={filterKey} onClearAll={onClearAll} extraActive={extraActive} />
         </PopoverContent>
       </Popover>
-      <Button variant="ghost" size="xs" className="ml-auto text-muted-foreground" onClick={() => setFilters([])} data-filter-chips-clear="">
+      <Button
+        variant="ghost"
+        size="xs"
+        className="ml-auto text-muted-foreground"
+        onClick={() => {
+          setFilters([]);
+          onClearAll?.();
+        }}
+        data-filter-chips-clear=""
+      >
         {t('list.fb.clearAll')}
       </Button>
     </div>

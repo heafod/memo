@@ -35,6 +35,8 @@ export interface ViewScope {
   hideToolbarNewTask?: boolean;
   /** 首页 goTasks 预设筛选（URL `?f=`；列表 / 看板 / 表格均生效）。 */
   presetFilter?: TasksPresetFilter;
+  /** 去掉 `?f=` 预设（全部任务页）；过滤构建器「全部清除」一并调用（1620 第 3 节）。 */
+  onClearPreset?: () => void;
   /**
    * 过滤构建器条件的会话键（R4 / R18；原型 viewOf(key).filters）：项目内列表/看板/表格共用 `p:<projectId>`，
    * 保存视图 `sv:<viewId>`（应用时所存 filters 全部生效），全部任务页 `tasks`。
@@ -53,6 +55,14 @@ function useScopeTasks(projectId: string | undefined, presetFilter: TasksPresetF
   let base = projectId ? visible.filter(x => x.project_id === projectId) : workspace;
   if (presetFilter) base = base.filter(x => matchesTasksPreset(x, presetFilter));
   return [applyFilters(base, filters), base];
+}
+
+/** 「全部清除」的附加清理：搜索词，以及全部任务页的 `?f=` 预设（原型 clearFilters；1620 裁定 2e / 第 3 节）。 */
+function makeClearAll(setQ: (q: string) => void, onClearPreset: (() => void) | undefined) {
+  return () => {
+    setQ('');
+    onClearPreset?.();
+  };
 }
 
 const matches = (query: string) => (x: Task) => !query || x.title.toLowerCase().includes(query) || x.key.toLowerCase().includes(query);
@@ -77,11 +87,12 @@ function NewTaskButton({ projectId }: { projectId?: string }) {
 }
 
 /** 看板视图（R4 看板 PR-9d；无分组切换，工具栏仅搜索 / 新建）。 */
-export function BoardView({ projectId, toolbarRight, hideToolbarNewTask, presetFilter, filterKey }: ViewScope) {
+export function BoardView({ projectId, toolbarRight, hideToolbarNewTask, presetFilter, onClearPreset, filterKey }: ViewScope) {
   const { t } = useTranslation();
   const [tasks, unfiltered] = useScopeTasks(projectId, presetFilter, filterKey);
   const members = useMembers();
   const [q, setQ] = useState('');
+  const clearAll = makeClearAll(setQ, onClearPreset);
   const shown = tasks.filter(matches(q.trim().toLowerCase()));
   return (
     <>
@@ -91,7 +102,7 @@ export function BoardView({ projectId, toolbarRight, hideToolbarNewTask, presetF
         sort={{ field: 'manual', dir: 1 }}
         onSort={() => {}}
         sortOptions={['manual']}
-        filter={<FilterButton filterKey={filterKey} />}
+        filter={<FilterButton filterKey={filterKey} onClearAll={clearAll} extraActive={!!presetFilter} />}
         right={
           <>
             {toolbarRight}
@@ -99,7 +110,7 @@ export function BoardView({ projectId, toolbarRight, hideToolbarNewTask, presetF
           </>
         }
       />
-      <FilterChips filterKey={filterKey} />
+      <FilterChips filterKey={filterKey} onClearAll={clearAll} extraActive={!!presetFilter} />
       {unfiltered.length === 0 ? (
         <div className="flex flex-col items-center gap-2 px-6 py-16 text-center">
           <p className="text-sm font-medium">{t('write.board.empty')}</p>
@@ -118,7 +129,7 @@ type GroupBy = 'status' | 'priority' | 'assignee' | 'project' | 'due' | 'none';
 const GROUP_OPTIONS = ['status', 'priority', 'assignee', 'project', 'due', 'none'] as const;
 
 /** 表格视图（R4 表格 PR-9e；列显隐 / 列宽经 preferences.tableViews[viewKey] 持久化）。 */
-export function TableView({ projectId, viewKey, toolbarRight, hideToolbarNewTask, presetFilter, filterKey }: ViewScope) {
+export function TableView({ projectId, viewKey, toolbarRight, hideToolbarNewTask, presetFilter, onClearPreset, filterKey }: ViewScope) {
   const { t } = useTranslation();
   const { newTask } = useCreateDialogs();
   const meId = useMeId();
@@ -129,6 +140,7 @@ export function TableView({ projectId, viewKey, toolbarRight, hideToolbarNewTask
   const prefs = usePreferences();
   const updatePrefs = useUpdatePreferences();
   const [q, setQ] = useState('');
+  const clearAll = makeClearAll(setQ, onClearPreset);
   const [sort, setSort] = useState<Sort>({ field: 'manual', dir: 1 });
   const [group, setGroup] = useState<GroupBy>('none');
   const ts = sortTasks(scope.filter(matches(q.trim().toLowerCase())), sort, members);
@@ -167,7 +179,7 @@ export function TableView({ projectId, viewKey, toolbarRight, hideToolbarNewTask
         group={group}
         onGroup={g => setGroup(g as GroupBy)}
         groupOptions={GROUP_OPTIONS}
-        filter={<FilterButton filterKey={filterKey} />}
+        filter={<FilterButton filterKey={filterKey} onClearAll={clearAll} extraActive={!!presetFilter} />}
         right={
           <>
             {toolbarRight}
@@ -176,7 +188,7 @@ export function TableView({ projectId, viewKey, toolbarRight, hideToolbarNewTask
           </>
         }
       />
-      <FilterChips filterKey={filterKey} />
+      <FilterChips filterKey={filterKey} onClearAll={clearAll} extraActive={!!presetFilter} />
       <TaskTable
         tasks={flat}
         members={members}
@@ -202,6 +214,7 @@ export function ListView({
   toolbarRight,
   hideToolbarNewTask,
   presetFilter,
+  onClearPreset,
   filterKey,
   ariaLabel,
 }: ViewScope & { columns: Column[]; ariaLabel: string }) {
@@ -215,6 +228,7 @@ export function ListView({
   const subtasks = useVisibleSubtasks();
   const comments = useVisibleComments();
   const [q, setQ] = useState('');
+  const clearAll = makeClearAll(setQ, onClearPreset);
   const [sort, setSort] = useState<Sort>({ field: 'manual', dir: 1 });
   const [group, setGroup] = useState<GroupBy>('status');
   const ts = sortTasks(scope.filter(matches(q.trim().toLowerCase())), sort, members);
@@ -248,7 +262,7 @@ export function ListView({
         group={group}
         onGroup={g => setGroup(g as GroupBy)}
         groupOptions={GROUP_OPTIONS}
-        filter={<FilterButton filterKey={filterKey} />}
+        filter={<FilterButton filterKey={filterKey} onClearAll={clearAll} extraActive={!!presetFilter} />}
         right={
           <>
             {toolbarRight}
@@ -256,7 +270,7 @@ export function ListView({
           </>
         }
       />
-      <FilterChips filterKey={filterKey} />
+      <FilterChips filterKey={filterKey} onClearAll={clearAll} extraActive={!!presetFilter} />
       <div className="overflow-x-auto">
         <TaskList
           ariaLabel={ariaLabel}
