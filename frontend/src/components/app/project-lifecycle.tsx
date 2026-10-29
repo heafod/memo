@@ -22,7 +22,7 @@ type Ctx = {
   archive: (p: Project) => void;
   /** 恢复：直接 PATCH {archived:false}（原型 restoreProject）。 */
   restore: (p: Project) => void;
-  /** 删除：输入项目名确认后 DELETE（原型 delProject；只从设置归档列表进入）。 */
+  /** 删除：输入项目名确认后 DELETE（原型 delProject；设置归档列表与项目菜单共用，FRIDAY 18:35）。 */
   remove: (p: Project) => void;
 };
 
@@ -51,9 +51,14 @@ export function ProjectLifecycleProvider({ children }: { children: ReactNode }) 
   }, []);
   const value = useMemo(() => ({ archive: setArchiving, restore, remove }), [restore, remove]);
 
+  // 当前就在该项目页（含子路径）时跳回项目列表（归档与删除共用）
+  const leaveIfOn = (p: Project) => {
+    if (pathname === `/projects/${p.id}` || pathname.startsWith(`/projects/${p.id}/`)) void navigate('/projects');
+  };
+
   const confirmArchive = (p: Project) => {
     setArchiving(null);
-    if (pathname === `/projects/${p.id}` || pathname.startsWith(`/projects/${p.id}/`)) void navigate('/projects');
+    leaveIfOn(p);
     setArchived.mutate(
       { id: p.id, archived: true },
       {
@@ -109,6 +114,8 @@ export function ProjectLifecycleProvider({ children }: { children: ReactNode }) 
                 e.preventDefault();
                 if (!removing) return;
                 const p = removing;
+                leaveIfOn(p);
+                // 删除不可逆，toast 不带「撤销」：有意偏离原型（FRIDAY 18:35 ①）
                 del.mutate(p.id, {
                   onSuccess: () => {
                     setRemoving(null);

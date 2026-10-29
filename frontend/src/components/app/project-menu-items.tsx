@@ -1,4 +1,4 @@
-import { Archive, ArrowDown, ArrowUp, Star } from 'lucide-react';
+import { Archive, ArrowDown, ArrowUp, Star, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { FAV_TOAST_MS } from '@/components/app/fav-button';
@@ -9,7 +9,10 @@ import { orderAfterStep } from '@/lib/domain/project-order';
 import type { Project } from '@/lib/query/entities';
 import { useToggleFav, useUpdateProject } from '@/lib/query/mutations';
 
-/** 侧栏 / 项目卡片 / 项目页头菜单共用：收藏（R19）、上移 / 下移（R23）与归档（PR-15a，R7）。不可见项目不渲染本组件。 */
+/**
+ * 侧栏 / 项目卡片 / 项目页头菜单共用：收藏（R19）、上移 / 下移（R23），末尾分隔线后是归档与红色删除（PR-15a，R7；
+ * 原型 overlays/context-menu.js 第 32–48 行，FRIDAY 18:35 ②⑤）。不可见项目不渲染本组件。
+ */
 const SIDEBAR_MOVE_TOAST_MS = 1600;
 
 function useProjectMenuActions(project: Project, visibleOrdered: readonly Project[]) {
@@ -53,6 +56,7 @@ function useProjectMenuActions(project: Project, visibleOrdered: readonly Projec
     moveDown: () => move(1),
     fav: project.fav,
     archive: () => lifecycle.archive(project),
+    remove: () => lifecycle.remove(project),
     // 原型 context-menu.js：已完成项目写「归档」，其余写「归档项目」
     archiveLabel: project.status === 'complete' ? t('write.projectLife.archive') : t('write.projectLife.archiveProject'),
   };
@@ -86,6 +90,10 @@ export function ProjectDropdownItems({ project, visibleOrdered }: { project: Pro
         <Archive />
         {a.archiveLabel}
       </DropdownMenuItem>
+      <DropdownMenuItem variant="destructive" onSelect={a.remove} data-delete-project-menu={project.id}>
+        <Trash2 />
+        {t('write.projectLife.deleteProject')}
+      </DropdownMenuItem>
     </>
   );
 }
@@ -117,6 +125,10 @@ export function ProjectContextItems({ project, visibleOrdered }: { project: Proj
       <ContextMenuItem onSelect={a.archive} data-archive-project={project.id}>
         <Archive />
         {a.archiveLabel}
+      </ContextMenuItem>
+      <ContextMenuItem variant="destructive" onSelect={a.remove} data-delete-project-menu={project.id}>
+        <Trash2 />
+        {t('write.projectLife.deleteProject')}
       </ContextMenuItem>
     </>
   );

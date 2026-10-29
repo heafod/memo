@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 import { NotFoundState } from '@/components/app/error-states';
+import { ProjectIcon } from '@/components/app/domain-ui';
 import { useProjectLifecycle } from '@/components/app/project-lifecycle';
 import { useShortcutsDialog } from '@/components/app/shortcuts-dialog';
 import { Button } from '@/components/ui/button';
@@ -677,7 +678,7 @@ function ArchivedProjectsSec() {
         <ul className="max-w-lg divide-y divide-border rounded-lg border border-border" data-archived-list="">
           {projects.map(p => (
             <li key={p.id} className="flex items-center gap-2 px-3 py-2.5 text-[13px]">
-              <FolderKanban size={14} className="text-muted-foreground" />
+              <ProjectIcon project={p} size="sm" />
               <span className="flex-1 truncate">{p.name}</span>
               <Button size="sm" variant="secondary" onClick={() => restore(p)} data-restore-project={p.id}>
                 {t('write.projectLife.restore')}

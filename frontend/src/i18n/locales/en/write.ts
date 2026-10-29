@@ -28,7 +28,7 @@ export default {
     restored: 'Restored {{name}}',
     delete: 'Delete',
     deleteTitle: 'Delete {{name}}?',
-    deleteBody: "This permanently deletes the project and all its tasks, files, and comments for everyone. This can't be undone.",
+    deleteBody: "This permanently deletes the project and all of its tasks, files, and comments for everyone. This can't be undone.",
     deleteProject: 'Delete project',
     typeToConfirm: 'Type <b>{{x}}</b> to confirm',
     deleted: 'Deleted {{name}}',
