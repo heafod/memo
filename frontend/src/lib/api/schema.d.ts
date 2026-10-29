@@ -137,7 +137,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Projects */
+        /**
+         * List Projects
+         * @description 项目列表（R29）：行形状与快照 ``projects`` 同一序列化函数。
+         */
         get: operations["projects-list_projects"];
         put?: never;
         /** Create Project */
@@ -173,7 +176,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Tasks */
+        /**
+         * List Tasks
+         * @description 任务列表（R29）：不可见项目与已归档项目的任务不出现。
+         */
         get: operations["tasks-list_tasks"];
         put?: never;
         /** Create Task */
@@ -361,7 +367,7 @@ export interface paths {
         put?: never;
         /**
          * Read All Notifs
-         * @description 全部已读（R2）：当前用户名下未读通知全部置 read，返回更新条数。
+         * @description 全部已读（R2）：当前用户列表里能看到的未读通知置 read，返回更新条数（R29）。
          */
         post: operations["notifs-read_all_notifs"];
         delete?: never;
@@ -590,6 +596,14 @@ export interface components {
         CommentUpdate: {
             /** Text */
             text: string;
+        };
+        /**
+         * ErrorDetail
+         * @description 错误响应体（中文 detail，R8）；OpenAPI 声明 409 等错误响应用（R29）。
+         */
+        ErrorDetail: {
+            /** Detail */
+            detail: string;
         };
         /**
          * EventCreate
@@ -1459,7 +1473,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ProjectPublic"][];
+                    "application/json": (components["schemas"]["ProjectPublic"] | components["schemas"]["ProjectHiddenPublic"])[];
                 };
             };
         };
@@ -1550,6 +1564,15 @@ export interface operations {
                     "application/json": components["schemas"]["ProjectPublic"];
                 };
             };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -1603,6 +1626,15 @@ export interface operations {
                     "application/json": components["schemas"]["TaskPublic"];
                 };
             };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -1631,6 +1663,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -1665,6 +1706,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TaskPublic"];
+                };
+            };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
                 };
             };
             /** @description Validation Error */
@@ -1965,6 +2015,15 @@ export interface operations {
                     "application/json": components["schemas"]["CommentPublic"];
                 };
             };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -1993,6 +2052,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -2027,6 +2095,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommentPublic"];
+                };
+            };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
                 };
             };
             /** @description Validation Error */
@@ -2082,6 +2159,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["NotifPublic"];
+                };
+            };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
                 };
             };
             /** @description Validation Error */
@@ -2192,6 +2278,15 @@ export interface operations {
                     "application/json": components["schemas"]["EventPublic"];
                 };
             };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2227,6 +2322,15 @@ export interface operations {
                     "application/json": components["schemas"]["EventPublic"];
                 };
             };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2255,6 +2359,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -2287,6 +2400,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SavedViewPublic"];
+                };
+            };
+            /** @description 项目已归档，无法修改；或该视图名称已存在 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
                 };
             };
             /** @description Validation Error */
@@ -2324,6 +2446,15 @@ export interface operations {
                     "application/json": components["schemas"]["SavedViewPublic"];
                 };
             };
+            /** @description 项目已归档，无法修改；或该视图名称已存在 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -2352,6 +2483,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -2384,6 +2524,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FilePublic"];
+                };
+            };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
                 };
             };
             /** @description Validation Error */

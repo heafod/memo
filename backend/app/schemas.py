@@ -20,6 +20,12 @@ NotifType = Literal["mention", "assign", "comment", "update", "system"]
 SavedViewLayout = Literal["list", "board", "table"]
 
 
+class ErrorDetail(BaseModel):
+    """错误响应体（中文 detail，R8）；OpenAPI 声明 409 等错误响应用（R29）。"""
+
+    detail: str
+
+
 class TeamPublic(BaseModel):
     id: uuid.UUID
     name: str

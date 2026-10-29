@@ -5,6 +5,11 @@ status→done 记 completed、其余状态迁移记 moved；assignee 记 assigne
 changed priority of；due/start 记 changed due/start date of；labels 记 updated
 labels on；title 记 renamed；recur 记 set repeat on；estimate 记 estimated；
 deps 记 updated dependencies of；跨项目迁移记 moved；创建记 created。
+
+R29（PR-13d）：不可见项目的任务等同不存在（路径 404「任务不存在」；请求体里的
+项目 422「所属项目不存在」、依赖 422「依赖任务不存在」）；已归档项目里的任务不进
+列表，写入、在其下新建或移进已归档项目返回 409。依赖指向已归档项目里的任务放行
+（被写入的是可见、未归档的那条任务）。判定顺序见 ``app.visibility``。
 """
 
 import uuid
@@ -12,10 +17,10 @@ import uuid
 from fastapi import APIRouter, HTTPException
 from sqlmodel import select
 
-from app import crud_domain, services
+from app import crud_domain, services, visibility
 from app.api import serializers
 from app.api.deps import CurrentUser, SessionDep
-from app.models import Task, get_datetime_utc
+from app.models import Project, Task, get_datetime_utc
 from app.schemas import TaskCreate, TaskPublic, TaskUpdate
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -23,34 +28,52 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 def _check_task_refs(
     session: SessionDep,
+    current_user: CurrentUser,
     project_id: uuid.UUID | None,
     assignee_id: uuid.UUID | None,
     dep_ids: list[uuid.UUID] | None,
-) -> None:
-    if project_id is not None and crud_domain.get_project(session, project_id) is None:
-        raise HTTPException(status_code=422, detail="所属项目不存在")
+) -> Project | None:
+    """请求体引用校验（422）；返回可见的目标项目（未指定时为 None）。"""
+    project = None
+    if project_id is not None:
+        project = visibility.visible_project(session, current_user, project_id)
+        if project is None:
+            raise HTTPException(status_code=422, detail="所属项目不存在")
     if assignee_id is not None and crud_domain.get_member(session, assignee_id) is None:
         raise HTTPException(status_code=422, detail="负责人成员不存在")
     for dep_id in dep_ids or []:
-        if crud_domain.get_task(session, dep_id) is None:
+        if visibility.visible_task(session, current_user, dep_id) is None:
             raise HTTPException(status_code=422, detail="依赖任务不存在")
+    return project
 
 
 @router.get("", response_model=list[TaskPublic])
-def list_tasks(session: SessionDep, _current_user: CurrentUser) -> list[TaskPublic]:
+def list_tasks(session: SessionDep, current_user: CurrentUser) -> list[TaskPublic]:
+    """任务列表（R29）：不可见项目与已归档项目的任务不出现。"""
+    withheld = visibility.withheld_project_ids(session, current_user)
     return [
-        serializers.task_public(session, t) for t in session.exec(select(Task)).all()
+        serializers.task_public(session, t)
+        for t in session.exec(select(Task)).all()
+        if t.project_id not in withheld
     ]
 
 
-@router.post("", response_model=TaskPublic, status_code=201)
+@router.post(
+    "",
+    response_model=TaskPublic,
+    status_code=201,
+    responses=visibility.ARCHIVED_409,
+)
 def create_task(
     payload: TaskCreate, session: SessionDep, current_user: CurrentUser
 ) -> TaskPublic:
-    project = crud_domain.get_project(session, payload.project_id)
-    if project is None:
+    project = _check_task_refs(
+        session, current_user, payload.project_id, payload.assignee_id, payload.dep_ids
+    )
+    if project is None:  # project_id 必填，_check_task_refs 已 422；此处仅类型收窄
         raise HTTPException(status_code=422, detail="所属项目不存在")
-    _check_task_refs(session, None, payload.assignee_id, payload.dep_ids)
+    if project.archived:
+        visibility.raise_archived()
     fields = payload.model_dump(exclude_unset=True)
     dep_ids = fields.pop("dep_ids", [])
     task = Task(
@@ -70,23 +93,31 @@ def create_task(
     return serializers.task_public(session, task)
 
 
-@router.patch("/{task_id}", response_model=TaskPublic)
+@router.patch(
+    "/{task_id}", response_model=TaskPublic, responses=visibility.ARCHIVED_409
+)
 def update_task(
     task_id: uuid.UUID,
     payload: TaskUpdate,
     session: SessionDep,
     current_user: CurrentUser,
 ) -> TaskPublic:
-    task = crud_domain.get_task(session, task_id)
-    if task is None:
+    found = visibility.visible_task(session, current_user, task_id)
+    if found is None:
         raise HTTPException(status_code=404, detail="任务不存在")
+    task, current_project = found
+    if current_project.archived:
+        visibility.raise_archived()
     fields = payload.model_dump(exclude_unset=True)
-    _check_task_refs(
+    target_project = _check_task_refs(
         session,
+        current_user,
         fields.get("project_id"),
         fields.get("assignee_id") if "assignee_id" in fields else None,
         fields.get("dep_ids"),
     )
+    if target_project is not None and target_project.archived:
+        visibility.raise_archived()
     dep_ids = fields.pop("dep_ids", None)
     actor = current_user.owner_member_id
 
@@ -192,12 +223,15 @@ def update_task(
     return serializers.task_public(session, task)
 
 
-@router.delete("/{task_id}", status_code=204)
+@router.delete("/{task_id}", status_code=204, responses=visibility.ARCHIVED_409)
 def delete_task(
-    task_id: uuid.UUID, session: SessionDep, _current_user: CurrentUser
+    task_id: uuid.UUID, session: SessionDep, current_user: CurrentUser
 ) -> None:
-    task = crud_domain.get_task(session, task_id)
-    if task is None:
+    found = visibility.visible_task(session, current_user, task_id)
+    if found is None:
         raise HTTPException(status_code=404, detail="任务不存在")
+    task, project = found
+    if project.archived:
+        visibility.raise_archived()
     crud_domain.delete_task_cascade(session, task)
     session.commit()

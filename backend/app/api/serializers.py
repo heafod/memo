@@ -90,6 +90,18 @@ def project_hidden_public(project: Project) -> ProjectHiddenPublic:
     )
 
 
+def project_row(
+    session: Session, project: Project, hidden: bool
+) -> ProjectPublic | ProjectHiddenPublic:
+    """项目行（R24 / R29）：不可见为裁剪行，否则完整行。
+
+    ``GET /api/snapshot`` 与 ``GET /api/projects`` 共用本函数，两处键集合一致。
+    """
+    if hidden:
+        return project_hidden_public(project)
+    return project_public(session, project)
+
+
 def task_public(session: Session, task: Task) -> TaskPublic:
     return TaskPublic(
         id=task.id,
