@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import type { Member, Project, ProjectRow, Task } from '@/lib/query/entities';
 import { PRIORITY_WEIGHT, type Priority, STATUSES, type TaskStatus } from './constants';
 import { daysFromToday } from './dates';
@@ -16,7 +17,15 @@ export const visibleFullProjects = (projects: readonly ProjectRow[], meId: strin
  * 侧栏 / 列表 / 首页使用的项目集合（原型 visibleProjects：按 order，排除归档）。
  * 只接收完整行：调用方先用 visibleFullProjects 按可见性过滤，裁剪行进不到比较函数里（PR-15a，R24）。
  */
-export const activeProjects = (projects: readonly Project[]): Project[] => projects.filter(p => !p.archived).sort((a, b) => a.order - b.order);
+export const activeProjects = (projects: readonly Project[]): Project[] => projects.filter(p => !p.archived).sort(compareProjects);
+
+/**
+ * 可见项目的唯一比较函数（FRIDAY 1925 ②）：order 升序；order 相同按名称升序（localeCompare，跟随界面语言）；
+ * 名称也相同按 id 升序。凡给可见项目排序处都用它，结果与输入顺序无关。不可见项目不经过这里（侧栏里按名称排在最后）。
+ */
+export function compareProjects(a: Project, b: Project): number {
+  return a.order - b.order || a.name.localeCompare(b.name, i18n.language) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+}
 
 export const isOverdue = (t: Task): boolean => !!t.due && t.status !== 'done' && daysFromToday(t.due) < 0;
 

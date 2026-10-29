@@ -1,4 +1,5 @@
 import type { Project } from '@/lib/query/entities';
+import { compareProjects } from './tasks';
 
 /**
  * R23 侧栏可见项目 order 分数插值（与 R4 看板同口径；r23-spec 18:24）。
@@ -13,7 +14,7 @@ export function orderAmongVisible(
   /** top = 插在目标前；bottom = 插在目标后 */
   edge: 'top' | 'bottom',
 ): number {
-  const list = visible.filter(p => p.id !== movingId).sort((a, b) => a.order - b.order);
+  const list = visible.filter(p => p.id !== movingId).sort(compareProjects);
   const i = list.findIndex(p => p.id === targetId);
   if (i < 0) {
     // 无落点：落到可见列表末尾
@@ -28,7 +29,7 @@ export function orderAmongVisible(
 
 /** 上移 / 下移：与拖到相邻可见项目同规则（r23-spec）。 */
 export function orderAfterStep(visible: readonly Project[], id: string, dir: -1 | 1): number | null {
-  const list = [...visible].sort((a, b) => a.order - b.order);
+  const list = [...visible].sort(compareProjects);
   const i = list.findIndex(p => p.id === id);
   if (i < 0) return null;
   const j = i + dir;
