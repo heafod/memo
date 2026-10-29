@@ -10,8 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ROLES, type Role } from '@/lib/domain/constants';
 import { timeAgo } from '@/lib/domain/format';
-import { useMeId, useMembers, usePreferences, useProjects, useTeams } from '@/lib/query/entities';
-import { useVisibleProjectIds, useWorkspaceTasks } from '@/lib/query/visibility';
+import { useMeId, useMembers, usePreferences, useTeams } from '@/lib/query/entities';
+import { useVisibleProjectIds, useVisibleProjects, useWorkspaceTasks } from '@/lib/query/visibility';
 import { cn } from '@/lib/utils';
 
 // 成员页（R5；原型 pages/members.js）：成员 / 团队 / 角色与权限（只读）；动态为独立 /activity。
@@ -39,7 +39,7 @@ export function MembersPage() {
   const { newMember, newTeam } = useCreateDialogs();
   const members = useMembers();
   const teams = useTeams();
-  const projects = useProjects();
+  const projects = useVisibleProjects();
   const tasks = useWorkspaceTasks();
   const visibleIds = useVisibleProjectIds();
   const meId = useMeId();

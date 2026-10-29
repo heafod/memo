@@ -1,11 +1,21 @@
-import type { Member, Project, Task } from '@/lib/query/entities';
+import type { Member, Project, ProjectRow, Task } from '@/lib/query/entities';
 import { PRIORITY_WEIGHT, type Priority, STATUSES, type TaskStatus } from './constants';
 import { daysFromToday } from './dates';
 
 /** 可见性（原型 core/store.js:113 canSee）：非私有，或「我」在项目成员中。仅为界面展示口径，非访问控制（FRIDAY 裁定第 7 条）。 */
-export const canSee = (p: Project, meId: string | null | undefined): boolean => !p.private || (!!meId && p.member_ids.includes(meId));
+export const canSee = (p: ProjectRow, meId: string | null | undefined): boolean => !p.private || (!!meId && p.member_ids.includes(meId));
 
-/** 侧栏 / 列表 / 首页使用的项目集合（原型 visibleProjects：按 order，排除归档） */
+/** R24：完整行（ProjectPublic）与裁剪行（ProjectHiddenPublic）的区分；裁剪行没有 key 等完整字段。 */
+export const isFullProject = (p: ProjectRow): p is Project => 'key' in p;
+
+/** 当前用户可见的完整行（先按可见性过滤；裁剪行不会进入后续任何计算）。 */
+export const visibleFullProjects = (projects: readonly ProjectRow[], meId: string | null | undefined): Project[] =>
+  projects.filter((p): p is Project => isFullProject(p) && canSee(p, meId));
+
+/**
+ * 侧栏 / 列表 / 首页使用的项目集合（原型 visibleProjects：按 order，排除归档）。
+ * 只接收完整行：调用方先用 visibleFullProjects 按可见性过滤，裁剪行进不到比较函数里（PR-15a，R24）。
+ */
 export const activeProjects = (projects: readonly Project[]): Project[] => projects.filter(p => !p.archived).sort((a, b) => a.order - b.order);
 
 export const isOverdue = (t: Task): boolean => !!t.due && t.status !== 'done' && daysFromToday(t.due) < 0;

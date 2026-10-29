@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import i18n from '@/i18n';
 import { api, ApiError } from '@/lib/api/client';
 import type { components } from '@/lib/api/schema';
-import { queryClient } from './client';
+import { PROJECT_TREE_KEYS, queryClient } from './client';
 import type { Comment, FileItem, Member, Notif, Preferences, Project, Task, Team } from './entities';
 import { assertVisibleProject, HiddenProjectError, taskProject } from './visibility';
 
@@ -140,6 +140,40 @@ export function useUpdateProject() {
       ctx?.rollback();
       notifyError(e);
     },
+  });
+}
+
+/**
+ * R7 归档 / 恢复项目（PR-15a）：只发 PATCH {archived}；乐观更新让项目立刻离开或回到列表，失败回滚并提示中文 detail。
+ * 成功后整体重拉项目树：快照不下发已归档项目的任务、评论、文件等，恢复后要拉回。
+ */
+export function useSetProjectArchived() {
+  return useMutation({
+    meta: { invalidates: PROJECT_TREE_KEYS },
+    mutationFn: async ({ id, archived }: { id: string; archived: boolean }) => {
+      assertVisibleProject(id);
+      return unwrap(api.PATCH('/api/projects/{project_id}', { params: { path: { project_id: id } }, body: { archived } }));
+    },
+    onMutate: async ({ id, archived }) => {
+      await queryClient.cancelQueries({ queryKey: ['projects'] });
+      return { rollback: optimistic<Project>(['projects'], id, { archived }) };
+    },
+    onError: (e, _v, ctx) => {
+      ctx?.rollback();
+      notifyError(e);
+    },
+  });
+}
+
+/** R7 永久删除项目（PR-15a，只从设置归档列表进入）：DELETE 204 后整体重拉项目树。 */
+export function useDeleteProject() {
+  return useMutation({
+    meta: { invalidates: PROJECT_TREE_KEYS },
+    mutationFn: async (id: string) => {
+      assertVisibleProject(id);
+      await unwrap(api.DELETE('/api/projects/{project_id}', { params: { path: { project_id: id } } }));
+    },
+    onError: notifyError,
   });
 }
 

@@ -17,6 +17,22 @@ export default {
     movedUp: '{{name}} 已上移',
     movedDown: '{{name}} 已下移',
   },
+  // 项目生命周期（PR-15a，R7；文案照原型 actions.js archiveProject / restoreProject / delProject 与 core/zh/actions.js、overlays.js、pages-settings.js）
+  projectLife: {
+    archive: '归档',
+    archiveProject: '归档项目',
+    archiveTitle: '归档 {{name}}？',
+    archiveBody: '项目将从侧边栏和项目列表中隐藏。任务、文件和评论会保留，你可以稍后在「设置 → 项目」中恢复。',
+    archived: '已归档 {{name}}',
+    restore: '恢复',
+    restored: '已恢复 {{name}}',
+    delete: '删除',
+    deleteTitle: '删除 {{name}}？',
+    deleteBody: '这将为所有人永久删除该项目及其全部任务、文件和评论。此操作无法撤销。',
+    deleteProject: '删除项目',
+    typeToConfirm: '输入 <b>{{x}}</b> 以确认',
+    deleted: '已删除 {{name}}',
+  },
   taskMenu: {
     open: '打开',
     markComplete: '标为完成',

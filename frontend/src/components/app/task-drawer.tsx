@@ -19,10 +19,10 @@ import type { Priority, TaskStatus } from '@/lib/domain/constants';
 import { daysFromToday } from '@/lib/domain/dates';
 import { sanitizeHtml } from '@/lib/domain/html';
 import { fileSize, fmtDate, timeAgo } from '@/lib/domain/format';
-import { activeProjects, canSee, isOverdue } from '@/lib/domain/tasks';
-import { type Member, useMeId, useMembers, useProjects } from '@/lib/query/entities';
+import { activeProjects, isOverdue } from '@/lib/domain/tasks';
+import { type Member, useMeId, useMembers } from '@/lib/query/entities';
 import { type TaskPatch, useCreateComment, useDeleteComment, useUpdateTask, useUploadFiles } from '@/lib/query/mutations';
-import { useVisibleActivity, useVisibleComments, useVisibleFiles, useVisibleProjectIds, useVisibleSubtasks, useVisibleTasks } from '@/lib/query/visibility';
+import { useVisibleActivity, useVisibleComments, useVisibleFiles, useVisibleProjects, useVisibleSubtasks, useVisibleTasks } from '@/lib/query/visibility';
 import { cn } from '@/lib/utils';
 
 /**
@@ -36,11 +36,11 @@ export function TaskDrawer() {
   const [params, setParams] = useSearchParams();
   const taskId = params.get('task');
   const tasks = useVisibleTasks();
-  const projects = useProjects();
-  const meId = useMeId();
+  const projects = useVisibleProjects();
   const task = taskId ? tasks.find(x => x.id === taskId) : undefined;
-  const project = task ? projects.find(p => p.id === task.project_id) : undefined;
-  const open = !!task && !!project && canSee(project, meId);
+  // 只在可见、未归档项目里打开（已归档项目没有任何写入口，PR-15a AC4）
+  const project = task ? projects.find(p => p.id === task.project_id && !p.archived) : undefined;
+  const open = !!task && !!project;
 
   const close = () =>
     setParams(
@@ -78,7 +78,7 @@ function DrawerBody({ taskId }: { taskId: string }) {
   const { t } = useTranslation();
   // 依赖、附件、动态等只取可见项目数据（FRIDAY 裁定 #12 17:27 总 AC）：可见任务依赖不可见项目任务时不显示该依赖
   const tasks = useVisibleTasks();
-  const projects = useProjects();
+  const projects = useVisibleProjects();
   const members = useMembers();
   const subtasks = useVisibleSubtasks();
   const comments = useVisibleComments();
@@ -122,8 +122,7 @@ function DrawerBody({ taskId }: { taskId: string }) {
   const statusItems = useStatusItems();
   const priorityItems = usePriorityItems();
   const assigneeItems = useAssigneeItems(members, meId);
-  const visibleIds = useVisibleProjectIds();
-  const targets = activeProjects(projects.filter(p => visibleIds.has(p.id) && (p.status !== 'complete' || p.id === project.id)));
+  const targets = activeProjects(projects.filter(p => p.status !== 'complete' || p.id === project.id));
   const upload = useUploadFiles(project.id, task.id);
   const delComment = useDeleteComment();
 

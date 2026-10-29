@@ -1,7 +1,7 @@
 import { queryOptions, useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { api, ApiError } from '@/lib/api/client';
 import type { components } from '@/lib/api/schema';
-import { canSee } from '@/lib/domain/tasks';
+import { canSee, isFullProject } from '@/lib/domain/tasks';
 import { authKeys, type CurrentUser, useMe } from './auth';
 import { queryClient } from './client';
 
@@ -9,13 +9,14 @@ import { queryClient } from './client';
 // 用 setQueryData 拆分写入各实体 key；视图只订阅实体 key，不直接订阅快照。
 
 type Schemas = components['schemas'];
-// R24 裁剪行，类型收窄留 PR-15a（FRIDAY 1535 裁定 A）：线上快照 projects 为
-// (ProjectPublic | ProjectHiddenPublic)[]，前端暂按完整 Project 使用，读裁剪行字段前由 isHidden / canSee 把关。
-// 唯一断言点见 fetchSnapshot；PR-15a 删除本断言并按两种行区分。
-export type Snapshot = Omit<Schemas['Snapshot'], 'projects'> & { projects: Project[] };
+// R24：快照与 GET /api/projects 的 projects 为 (ProjectPublic | ProjectHiddenPublic)[]。
+// 完整行（Project）与裁剪行（ProjectHiddenPublic）按 isFullProject 区分；读完整行字段前必须先收窄（PR-15a）。
+export type Snapshot = Schemas['Snapshot'];
 export type Member = Schemas['MemberPublic'];
 export type Team = Schemas['TeamPublic'];
 export type Project = Schemas['ProjectPublic'];
+export type HiddenProject = Schemas['ProjectHiddenPublic'];
+export type ProjectRow = Project | HiddenProject;
 export type Task = Schemas['TaskPublic'];
 export type Subtask = Schemas['SubtaskPublic'];
 export type Comment = Schemas['CommentPublic'];
@@ -47,7 +48,7 @@ export const snapshotKey = ['snapshot'] as const;
 async function fetchSnapshot(): Promise<Snapshot> {
   const { data, error, response } = await api.GET('/api/snapshot');
   if (data === undefined) throw new ApiError(response.status, error);
-  return data as Snapshot; // R24 裁剪行，类型收窄留 PR-15a（1535）
+  return data;
 }
 
 /** 拉快照并拆分写回全部实体 key（首次加载与「重拉快照」共用，保证一致）。 */
@@ -80,28 +81,22 @@ export const snapshotQueryOptions = queryOptions({
 export const useSnapshotLoader = () => useQuery(snapshotQueryOptions);
 
 // 实体 key 被 invalidate 时的重拉来源（有独立列表端点的只拉该端点，其余重拉快照）。9c 起由 mutations.ts 的 meta.invalidates 触发。
+async function list<T>(p: Promise<{ data?: T; error?: unknown; response: Response }>): Promise<T> {
+  const { data, error, response } = await p;
+  if (data === undefined) throw new ApiError(response.status, error);
+  return data;
+}
+const LIST_ENDPOINTS: { [K in EntityKey]?: () => Promise<Snapshot[K]> } = {
+  members: () => list(api.GET('/api/members')),
+  teams: () => list(api.GET('/api/teams')),
+  projects: () => list(api.GET('/api/projects')),
+  tasks: () => list(api.GET('/api/tasks')),
+  comments: () => list(api.GET('/api/comments')),
+  notifs: () => list(api.GET('/api/notifs')),
+};
 async function refetchEntity<K extends EntityKey>(key: K): Promise<Snapshot[K]> {
-  const list = async <T>(p: Promise<{ data?: T; error?: unknown; response: Response }>): Promise<T> => {
-    const { data, error, response } = await p;
-    if (data === undefined) throw new ApiError(response.status, error);
-    return data;
-  };
-  switch (key) {
-    case 'members':
-      return (await list(api.GET('/api/members'))) as Snapshot[K];
-    case 'teams':
-      return (await list(api.GET('/api/teams'))) as Snapshot[K];
-    case 'projects':
-      return (await list(api.GET('/api/projects'))) as Snapshot[K];
-    case 'tasks':
-      return (await list(api.GET('/api/tasks'))) as Snapshot[K];
-    case 'comments':
-      return (await list(api.GET('/api/comments'))) as Snapshot[K];
-    case 'notifs':
-      return (await list(api.GET('/api/notifs'))) as Snapshot[K];
-    default:
-      return (await loadSnapshot())[key];
-  }
+  const fetchList = LIST_ENDPOINTS[key];
+  return fetchList ? fetchList() : (await loadSnapshot())[key];
 }
 
 const entityQuery = <K extends EntityKey>(key: K) => queryOptions({ queryKey: [key] as const, queryFn: () => refetchEntity(key), staleTime: Infinity });
@@ -136,7 +131,7 @@ export function useNotifs(): Notif[] {
     if (!pid) return true;
     const p = projects.find(x => x.id === pid);
     if (!p) return false;
-    return canSee(p, meId) && !p.archived;
+    return isFullProject(p) && canSee(p, meId) && !p.archived;
   });
 }
 export const usePreferences = () => useEntity('preferences');
@@ -153,7 +148,7 @@ export function useEvents(): Event[] {
     if (!e.project_id) return true;
     const p = projects.find(x => x.id === e.project_id);
     if (!p) return false;
-    return canSee(p, meId) && !p.archived;
+    return isFullProject(p) && canSee(p, meId) && !p.archived;
   });
 }
 export const useSavedViews = () => useEntity('savedViews');

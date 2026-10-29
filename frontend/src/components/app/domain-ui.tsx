@@ -47,7 +47,7 @@ import {
 } from '@/lib/domain/constants';
 import { daysFromToday } from '@/lib/domain/dates';
 import { relDate } from '@/lib/domain/format';
-import type { Member, Project, Task } from '@/lib/query/entities';
+import type { Member, ProjectRow, Task } from '@/lib/query/entities';
 import { cn } from '@/lib/utils';
 
 // 业务展示组件（映射表「状态 / 优先级图标与胶囊、项目图标、项目状态」「头像」「标签」「截止日期」「进度条」「文件类型」行）。
@@ -158,7 +158,7 @@ export function ProjectGlyph({ icon, size = 15 }: { icon: string; size?: number 
   return createElement(ICONS[icon] ?? Folder, { size });
 }
 
-export function ProjectIcon({ project, size = 'md' }: { project: Project; size?: 'sm' | 'md' | 'lg' }) {
+export function ProjectIcon({ project, size = 'md' }: { project: ProjectRow; size?: 'sm' | 'md' | 'lg' }) {
   const c = projectColor(project.color);
   const box = { sm: 'size-4 rounded-[4px]', md: 'size-7 rounded-md', lg: 'size-10 rounded-lg' }[size];
   const px = { sm: 11, md: 15, lg: 18 }[size];
@@ -169,7 +169,7 @@ export function ProjectIcon({ project, size = 'md' }: { project: Project; size?:
   );
 }
 
-export function ProjectDot({ project }: { project: Project | undefined }) {
+export function ProjectDot({ project }: { project: ProjectRow | undefined }) {
   return <span className="size-2 shrink-0 rounded-full" style={{ background: projectColor(project?.color) }} />;
 }
 

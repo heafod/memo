@@ -5,8 +5,11 @@ R29（PR-13d）：列表行与快照共用 ``serializers.project_row``（不可�
 已归档项目只允许 PATCH 恰好 ``{archived: false}`` 与 DELETE，其他修改 409。
 删除项目在同一事务里显式删掉该项目的事件、该项目及其任务上的通知、其任务的
 子任务行（外键 SET NULL / 关联表级联不会删掉这些行），其余子实体靠外键级联。
+PR-15a：提交后再删掉该项目文件在卷上的内容；删盘失败只记日志，仍返回 204
+（库里的记录已删，内容成为孤儿文件，不影响任何读面）。
 """
 
+import logging
 import uuid
 
 from fastapi import APIRouter, HTTPException
@@ -16,13 +19,24 @@ from sqlmodel import col, select
 from app import crud_domain, services, visibility
 from app.api import serializers
 from app.api.deps import CurrentUser, SessionDep
-from app.models import Event, Notif, Project, Subtask, Task, TaskSubtaskLink
+from app.api.routes.files import _content_path
+from app.models import (
+    Event,
+    File,
+    Notif,
+    Project,
+    Subtask,
+    Task,
+    TaskSubtaskLink,
+)
 from app.schemas import (
     ProjectCreate,
     ProjectHiddenPublic,
     ProjectPublic,
     ProjectUpdate,
 )
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -128,6 +142,9 @@ def delete_project(
             )
         ).all()
     )
+    file_ids = list(
+        session.exec(select(File.id).where(File.project_id == project.id)).all()
+    )
     session.exec(delete(Event).where(col(Event.project_id) == project.id))
     session.exec(
         delete(Notif).where(
@@ -141,3 +158,9 @@ def delete_project(
         session.exec(delete(Subtask).where(col(Subtask.id).in_(subtask_ids)))
     session.delete(project)
     session.commit()
+    # PR-15a：提交成功后再删盘；任何一个文件删不掉都只记日志，不改变 204
+    for file_id in file_ids:
+        try:
+            _content_path(file_id).unlink(missing_ok=True)
+        except OSError:
+            logger.exception("删除项目 %s 的文件内容 %s 失败", project_id, file_id)

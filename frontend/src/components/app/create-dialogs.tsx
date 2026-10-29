@@ -25,10 +25,10 @@ import {
 import { today } from '@/lib/domain/dates';
 import { fmtDate } from '@/lib/domain/format';
 import { activeProjects } from '@/lib/domain/tasks';
-import { type Project, useMeId, useMembers, useProjects, useTeams } from '@/lib/query/entities';
+import { type Project, useMeId, useMembers, useTeams } from '@/lib/query/entities';
 import { ROLES } from '@/lib/domain/constants';
 import { errorMessage, useCreateMember, useCreateProject, useCreateTask, useCreateTeam } from '@/lib/query/mutations';
-import { useVisibleProjectIds } from '@/lib/query/visibility';
+import { useVisibleProjects } from '@/lib/query/visibility';
 import { cn } from '@/lib/utils';
 
 // 新建任务 / 新建项目对话框（映射表「模态框（写操作）」「模态内部 .opt .tmpls」「表单字段 .field .hint .err」「色板单选」「图标选择」行；
@@ -59,8 +59,7 @@ export const useCreateDialogs = () => useContext(CreateCtx);
 
 /** 可选目标项目：可见、未归档、非 complete，按 order（原型 popovers.js case 'project'）；不可见项目不出现。 */
 function useTargetProjects(): Project[] {
-  const ids = useVisibleProjectIds();
-  return activeProjects(useProjects().filter(p => ids.has(p.id) && p.status !== 'complete'));
+  return activeProjects(useVisibleProjects().filter(p => p.status !== 'complete'));
 }
 
 export function CreateDialogsProvider({ children }: { children: ReactNode }) {
@@ -278,8 +277,7 @@ function NewProjectDialog({ onClose }: { onClose: () => void }) {
   const meId = useMeId();
   const members = useMembers();
   const teams = useTeams();
-  const projects = useProjects();
-  const visibleIds = useVisibleProjectIds();
+  const visibleProjects = useVisibleProjects();
   const create = useCreateProject();
   const me = members.find(m => m.id === meId);
   const [f, setF] = useState({
@@ -294,7 +292,7 @@ function NewProjectDialog({ onClose }: { onClose: () => void }) {
   });
   const [errs, setErrs] = useState<Record<string, string>>({});
   // 标识去重只看可见项目（不可见项目只暴露名称、图标、负责人，不参与任何计算）；服务端 409 时再追加 X 重试
-  const taken = new Set(projects.filter(p => visibleIds.has(p.id)).map(p => p.key));
+  const taken = new Set(visibleProjects.map(p => p.key));
 
   const submit = (extra = '') => {
     setErrs({});

@@ -6,8 +6,8 @@ import { useCreateDialogs } from '@/components/app/create-dialogs';
 import { ViewToolbar } from '@/components/app/task-list';
 import { Button } from '@/components/ui/button';
 import { type Sort, sortTasks } from '@/lib/domain/tasks';
-import { useEvents, useMembers, useProjects } from '@/lib/query/entities';
-import { useWorkspaceTasks } from '@/lib/query/visibility';
+import { useEvents, useMembers } from '@/lib/query/entities';
+import { useVisibleProjects, useWorkspaceTasks } from '@/lib/query/visibility';
 
 /**
  * 工作区日历（R4 / R17；原型 pageWsCalendar）。侧栏「日历」入口；含事件 CRUD。
@@ -18,7 +18,7 @@ export function CalendarPage() {
   const { newTask } = useCreateDialogs();
   const tasks = useWorkspaceTasks();
   const members = useMembers();
-  const projects = useProjects();
+  const projects = useVisibleProjects();
   const events = useEvents();
   const [q, setQ] = useState('');
   const [sort, setSort] = useState<Sort>({ field: 'due', dir: 1 });

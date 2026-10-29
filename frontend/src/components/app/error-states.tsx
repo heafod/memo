@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useRouteError } from 'react-router';
 import { Button } from '@/components/ui/button';
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
-import type { Member, Project } from '@/lib/query/entities';
+import type { Member, ProjectRow } from '@/lib/query/entities';
 
 // 错误状态（映射表「错误页·404 / 403 / 渲染兜底」行；原型 pages/errors.js）：均在原地渲染，不跳转。
 
@@ -54,7 +54,7 @@ export function NotFoundState() {
  * 403（原型 stateDenied，FRIDAY 裁定第 6 条）：只显示项目名称与负责人（取自快照），
  * 不渲染「申请访问」按钮，返回入口为项目列表页。
  */
-export function ForbiddenState({ project, lead }: { project: Project; lead: Member | undefined }) {
+export function ForbiddenState({ project, lead }: { project: ProjectRow; lead: Member | undefined }) {
   const { t } = useTranslation();
   return (
     <StateBox

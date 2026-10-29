@@ -1,10 +1,11 @@
-import { CalendarDays, ChartGantt, LayoutDashboard, List, ListFilter, Paperclip, Plus, SquareKanban, Table2 } from 'lucide-react';
+import { CalendarDays, ChartGantt, LayoutDashboard, List, ListFilter, MoreHorizontal, Paperclip, Plus, SquareKanban, Table2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
 import { AvatarStack, ProjectIcon, ProjectStatusBadge } from '@/components/app/domain-ui';
 import { ForbiddenState, NotFoundState } from '@/components/app/error-states';
 import { FavButton } from '@/components/app/fav-button';
+import { ProjectDropdownItems } from '@/components/app/project-menu-items';
 import { TaskCalendar } from '@/components/app/task-calendar';
 import { TimelineSection } from '@/components/app/task-timeline';
 import { projectMilestones } from '@/lib/domain/timeline';
@@ -14,30 +15,32 @@ import { useCreateDialogs } from '@/components/app/create-dialogs';
 import { useSavedViewDialogs } from '@/components/app/saved-view-dialogs';
 import { Button } from '@/components/ui/button';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DEFAULT_PROJECT_TAB, ENABLED_PROJECT_TABS, PROJECT_TABS, STATUSES } from '@/lib/domain/constants';
 import { parseFilters } from '@/lib/domain/filters';
-import { canSee } from '@/lib/domain/tasks';
-import { type SavedView, useEvents, useMeId, useMembers, useProjects, useSavedViews } from '@/lib/query/entities';
-import { useVisibleTasks } from '@/lib/query/visibility';
+import { type SavedView, useEvents, useMembers, useProjects, useSavedViews } from '@/lib/query/entities';
+import { useIsHiddenProject, useVisibleProjects, useVisibleTasks, useWorkspaceProjects } from '@/lib/query/visibility';
 import { getViewFilters, seedViewFilters, setViewFilters } from '@/lib/view-filters';
 import { FilesView } from './project-files';
 import { ProjectOverview } from './project-overview';
 
 /**
  * Project page (R4 views + R18 saved-view tabs; prototype pages/project.js).
- * Missing project -> 404; invisible -> 403; missing saved view tab -> in-place 404.
+ * Missing project -> 404; invisible -> 403; archived -> /projects (PR-15a); missing saved view tab -> in-place 404.
  */
 export function ProjectPage() {
   const { projectId, tab } = useParams();
-  const meId = useMeId();
+  const isHidden = useIsHiddenProject();
   const projects = useProjects();
   const members = useMembers();
   const savedViews = useSavedViews().filter(v => v.project_id === projectId);
   const project = projects.find(p => p.id === projectId);
 
   if (!project) return <NotFoundState />;
-  if (!canSee(project, meId)) return <ForbiddenState project={project} lead={members.find(m => m.id === project.lead_id)} />;
+  if (isHidden(project)) return <ForbiddenState project={project} lead={members.find(m => m.id === project.lead_id)} />;
+  // 已归档项目的地址回到项目列表（FRIDAY 18:10；归档后快照不再带它的任务）
+  if (project.archived) return <Navigate to="/projects" replace />;
   if (!tab) return <Navigate to={`/projects/${project.id}/${DEFAULT_PROJECT_TAB}`} replace />;
 
   const isSaved = tab.startsWith('v:');
@@ -84,7 +87,8 @@ export function ProjectPage() {
 function ProjectHeader({ projectId, tab, savedViews }: { projectId: string; tab: string | null; savedViews: readonly SavedView[] }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const projects = useProjects();
+  const projects = useVisibleProjects();
+  const sidebarOrdered = useWorkspaceProjects().filter(x => x.status !== 'complete');
   const members = useMembers();
   const { openSave, openRename, openDelete } = useSavedViewDialogs();
   const p = projects.find(x => x.id === projectId)!;
@@ -106,6 +110,17 @@ function ProjectHeader({ projectId, tab, savedViews }: { projectId: string; tab:
         <ProjectStatusBadge status={p.status} />
         <span className="flex-1" />
         <AvatarStack ids={p.member_ids} members={members} max={4} />
+        {/* 页头「更多」菜单（原型 pages/project.js:69 ctxBtn data-ctx="project"），与侧栏 / 卡片菜单同一组条目 */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="ghost" size="icon-sm" aria-label={t('ui.more')} data-project-more={p.id}>
+              <MoreHorizontal />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <ProjectDropdownItems project={p} visibleOrdered={sidebarOrdered} />
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
       <Tabs value={tab ?? ''} onValueChange={v => void navigate(`/projects/${p.id}/${v}`)} className="mt-3 gap-0">
         <TabsList variant="line" aria-label={t('project.tabsLabel')} className="gap-[2px] p-0 group-data-horizontal/tabs:h-auto">
@@ -192,7 +207,7 @@ function CalendarView({ projectId }: { projectId: string }) {
   const { newTask } = useCreateDialogs();
   const tasks = useVisibleTasks().filter(x => x.project_id === projectId);
   const members = useMembers();
-  const projects = useProjects();
+  const projects = useVisibleProjects();
   const events = useEvents();
   const [q, setQ] = useState('');
   const query = q.trim().toLowerCase();
@@ -220,7 +235,7 @@ function CalendarView({ projectId }: { projectId: string }) {
 /** Timeline view (R4). */
 function TimelineView({ projectId }: { projectId: string }) {
   const tasks = useVisibleTasks().filter(x => x.project_id === projectId);
-  const projects = useProjects();
+  const projects = useVisibleProjects();
   const p = projects.find(x => x.id === projectId)!;
   return <TimelineSection tasks={tasks} projects={projects} milestones={projectMilestones(p, false)} projectId={projectId} defaultGroup="status" />;
 }

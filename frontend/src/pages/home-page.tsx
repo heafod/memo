@@ -15,8 +15,8 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { DAY_MS, daysFromToday, nowMs, today, weekdayKey } from '@/lib/domain/dates';
 import { fmtDate } from '@/lib/domain/format';
 import { activeProjects, canSee, isOverdue, progressOf, sortTasks } from '@/lib/domain/tasks';
-import { type Task, useMeId, useMembers, useProjects } from '@/lib/query/entities';
-import { useVisibleActivity, useVisibleTasks, useWorkspaceTasks } from '@/lib/query/visibility';
+import { type Task, useMeId, useMembers } from '@/lib/query/entities';
+import { useVisibleActivity, useVisibleProjects, useVisibleTasks, useWorkspaceTasks } from '@/lib/query/visibility';
 
 const HOME_TABS = ['upcoming', 'overdue', 'completed'] as const;
 type HomeTab = (typeof HOME_TABS)[number];
@@ -27,7 +27,7 @@ export function HomePage() {
   const { newTask, newProject } = useCreateDialogs();
   const meId = useMeId();
   const members = useMembers();
-  const projects = useProjects();
+  const projects = useVisibleProjects();
   // 不可见项目的任务与动态在数据层已排除（FRIDAY 裁定 #12 17:27 总 AC）
   const tasks = useVisibleTasks();
   // 统计卡任务计数、我的任务（今日待办）、到期分组：工作区任务集合（所属项目可见且未归档；FRIDAY 18:52 第 2 条）。项目卡仍用 tasks。

@@ -16,7 +16,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { PROJECT_STATUSES, type ProjectStatus } from '@/lib/domain/constants';
 import { fmtDate, timeAgo } from '@/lib/domain/format';
 import { progressOf } from '@/lib/domain/tasks';
-import { type Project, useMembers, useTeams } from '@/lib/query/entities';
+import { type Project, type ProjectRow, useMembers, useTeams } from '@/lib/query/entities';
 import { useIsHiddenProject, useListedProjects, useVisibleTasks } from '@/lib/query/visibility';
 
 const SORT_KEYS = ['recent', 'name', 'due', 'progress'] as const;
@@ -46,7 +46,7 @@ export function ProjectsPage() {
 
   // 不可见项目不论 archived 都照常列出（17:38 archived 追加 AC），可见项目排除归档
   const all = useListedProjects();
-  const sidebarVisible = all.filter(x => !isHidden(x) && x.status !== 'complete');
+  const sidebarVisible = all.filter((x): x is Project => !isHidden(x) && x.status !== 'complete');
   const query = q.trim().toLowerCase();
   const sorter: Record<SortKey, (p: Project) => string | number> = {
     recent: p => -Date.parse(p.last_active_at ?? '1970-01-01'),
@@ -56,13 +56,10 @@ export function ProjectsPage() {
   };
   // 不可见项目（FRIDAY 裁定 #12 17:27 总 AC）：按名称排序时正常参与；按最近活跃 / 截止日期 / 进度排序时一律排在最后，
   // 彼此按名称升序（本页无升降序切换）。不可见项目的其他字段不参与比较。
-  const compare = (a: Project, b: Project): number => {
-    if (sort !== 'name') {
-      const ha = isHidden(a);
-      const hb = isHidden(b);
-      if (ha !== hb) return ha ? 1 : -1;
-      if (ha && hb) return a.name > b.name ? 1 : -1;
-    }
+  const compare = (a: ProjectRow, b: ProjectRow): number => {
+    if (sort === 'name') return a.name > b.name ? 1 : -1;
+    if (isHidden(a)) return isHidden(b) ? (a.name > b.name ? 1 : -1) : 1;
+    if (isHidden(b)) return -1;
     return sorter[sort](a) > sorter[sort](b) ? 1 : -1;
   };
   const shown = all
@@ -79,12 +76,11 @@ export function ProjectsPage() {
   };
 
   const stat = (p: Project) => {
-    if (isHidden(p)) return { total: 0, done: 0, pr: 0, locked: true };
     const ts = tasks.filter(x => x.project_id === p.id);
-    return { total: ts.length, done: ts.filter(x => x.status === 'done').length, pr: progressOf(p.id, tasks), locked: false };
+    return { total: ts.length, done: ts.filter(x => x.status === 'done').length, pr: progressOf(p.id, tasks) };
   };
   // 页头汇总不计入不可见项目（总 AC；与 R1「Active = 可见且非 complete」口径一致）
-  const visibleAll = all.filter(p => !isHidden(p));
+  const visibleAll = all.filter((p): p is Project => !isHidden(p));
 
   return (
     <div className="mx-auto flex max-w-[1240px] flex-col gap-4 px-8 py-7">
@@ -194,9 +190,8 @@ export function ProjectsPage() {
       ) : layout === 'grid' ? (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {shown.map(p => {
-            const s = stat(p);
             // 不可见项目卡片（FRIDAY 裁定 #12 17:07 第 ⑥ 条）：只显示名称与「受限」提示，不显示描述、状态、截止日期、进度和成员
-            if (s.locked) {
+            if (isHidden(p)) {
               return (
                 <Link
                   key={p.id}
@@ -213,14 +208,13 @@ export function ProjectsPage() {
                 </Link>
               );
             }
-            return <ProjectCard key={p.id} project={p} stat={s} visibleOrdered={sidebarVisible} />;
+            return <ProjectCard key={p.id} project={p} stat={stat(p)} visibleOrdered={sidebarVisible} />;
           })}
         </div>
       ) : layout === 'list' ? (
         <Card className="gap-0 overflow-hidden py-0">
           {shown.map(p => {
-            const s = stat(p);
-            if (s.locked) {
+            if (isHidden(p)) {
               return (
                 <Link
                   key={p.id}
@@ -236,6 +230,7 @@ export function ProjectsPage() {
                 </Link>
               );
             }
+            const s = stat(p);
             return (
               <div key={p.id} className="flex min-h-[52px] items-center gap-3 border-b border-border px-4 py-2 last:border-b-0 hover:bg-accent/50">
                 <Link to={`/projects/${p.id}`} className="flex min-w-0 flex-1 items-center gap-3">
@@ -276,36 +271,37 @@ export function ProjectsPage() {
             </TableHeader>
             <TableBody>
               {shown.map(p => {
-                const s = stat(p);
+                const full = isHidden(p) ? null : p;
+                const s = full ? stat(full) : null;
                 const lead = members.find(m => m.id === p.lead_id);
                 return (
-                  <TableRow key={p.id} data-locked-project={s.locked ? p.id : undefined}>
+                  <TableRow key={p.id} data-locked-project={full ? undefined : p.id}>
                     <TableCell className="pl-4">
                       <Link to={`/projects/${p.id}`} className="flex items-center gap-2 font-medium hover:underline">
                         <ProjectIcon project={p} size="sm" />
                         {p.name}
                       </Link>
-                      {s.locked && <RestrictedNote />}
+                      {!full && <RestrictedNote />}
                     </TableCell>
-                    <TableCell>{!s.locked && <ProjectStatusBadge status={p.status} />}</TableCell>
+                    <TableCell>{full && <ProjectStatusBadge status={full.status} />}</TableCell>
                     <TableCell>
                       <span className="flex items-center gap-1.5">
                         <MemberAvatar member={lead} />
                         {lead?.name}
                       </span>
                     </TableCell>
-                    <TableCell>{!s.locked && teams.find(x => x.id === p.team_id)?.name}</TableCell>
+                    <TableCell>{full && teams.find(x => x.id === full.team_id)?.name}</TableCell>
                     <TableCell>
-                      {!s.locked && (
+                      {s && (
                         <span className="flex items-center gap-2">
                           <ProgressBar value={s.pr} />
                           <span className="text-xs tabular-nums">{s.pr}%</span>
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className="tabular-nums">{!s.locked && `${s.done}/${s.total}`}</TableCell>
-                    <TableCell className="tabular-nums">{!s.locked && fmtDate(t, p.due)}</TableCell>
-                    <TableCell className="pr-2">{!s.locked && <ProjectMoreMenu project={p} visibleOrdered={sidebarVisible} />}</TableCell>
+                    <TableCell className="tabular-nums">{s && `${s.done}/${s.total}`}</TableCell>
+                    <TableCell className="tabular-nums">{full && fmtDate(t, full.due)}</TableCell>
+                    <TableCell className="pr-2">{full && <ProjectMoreMenu project={full} visibleOrdered={sidebarVisible} />}</TableCell>
                   </TableRow>
                 );
               })}
