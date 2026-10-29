@@ -247,6 +247,17 @@
 - [x] 归档 LCH 后拉取 snapshot：LCH 项目行带 `archived: true`，JSON 里没有它的任务、文件、事件、通知；取消归档后恢复。（PR-13b，R24）
 - [x] 回归：CP 的 403 页仍显示项目名和负责人；侧栏、首页、我的任务、搜索、收件箱、日历的 P6 AC 仍然通过。（PR-13b，R24）
 
+### R29 接口可见性（PR-13d）
+
+- [ ] 以管理员身份 GET `/api/projects`：CP 行的键集合与 snapshot 里 CP 行的完全相同；LCH 归档后，LCH 行带 `archived: true`。（PR-13d，R29）
+- [ ] 先向 CP 注入任务、评论和通知，再 GET `/api/tasks`、`/api/comments`、`/api/comments?task_id=<CP 任务>`、`/api/notifs`：响应里没有 CP 的任何子实体。归档 LCH 后再拉一遍，也没有 LCH 的子实体。（PR-13d，R29）
+- [ ] 对 CP 的任务、评论、通知、事件、保存视图、文件内容，以及 CP 项目本身，逐一发 PATCH、PUT、DELETE 或 GET：状态码和 detail 都与随机生成的不存在 id 的返回完全一致。用 CP 作为 project 新建任务、事件、文件、保存视图，或把任务移进 CP：返回 422，detail 与项目不存在时一致。（PR-13d，R29）
+- [ ] 归档 LCH 后：对 LCH 的任务、评论、通知、事件、保存视图做写入，或在 LCH 下新建子实体，或把任务移进 LCH：都返回 409，detail 为「项目已归档，无法修改」，且数据库里的数据不变。PATCH LCH 的 name 返回 409；PATCH `{archived: false}` 返回 200；LCH 的文件内容 GET 返回 200。（PR-13d，R29）
+- [ ] 新建一个项目，给它加任务（带子任务）、评论、文件、事件、通知和保存视图，然后归档，再 DELETE：返回 204。之后 `/api/snapshot`、`/api/tasks`、`/api/comments`、`/api/notifs` 里都找不到它的任何子实体；日历里没有因此多出「无项目」事件；数据库里没有指向它或它的任务的事件、通知和子任务行。对一个未归档的项目做同样的事，结果相同。（PR-13d，R29）
+- [ ] `read-all` 不改变 CP 和 LCH 名下通知的已读状态，返回的条数只算列表里能看到的通知。（PR-13d，R29）
+- [ ] 回归：清单中 R24（第 246–248 行）、收件箱、日历、全部任务、R18 保存视图的条目在浏览器里实测仍然通过；可见项目上的增删改行为不变；后端测试和前端 tsc、lint、build 全过。（PR-13d，R29）
+- [ ] OpenAPI 为各写接口声明 409；`gen:api` 重跑后没有 diff。（PR-13d，R29）
+
 ### R4 / R18 过滤构建器（PR-14）
 
 - [x] 项目列表/看板/表格/全部任务工具栏可打开过滤构建器；可加 status/priority/assignee（至少）条件并反映到任务集合。（PR-14，R4 / R18）
