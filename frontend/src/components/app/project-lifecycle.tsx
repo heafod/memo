@@ -36,7 +36,7 @@ export function ProjectLifecycleProvider({ children }: { children: ReactNode }) 
   const navigate = useNavigate();
   const { pathname } = useLocation();
   // 请求成功之后、且那时仍在该项目页（含子路径）才跳回项目列表（FRIDAY 1925：原型先 mutate 成功再 go）；
-  // 失败时留在原页，由 mutation 的 onError 用 toast 显示服务端 detail。读成功那一刻的路径，而不是点击时的。
+  // 失败时由 mutation 的 onError 用 toast 显示服务端 detail 并重新拉取，项目已不在才离开（FRIDAY 2058、2108）。读那一刻的路径，而不是点击时的。
   const pathRef = useRef(pathname);
   useEffect(() => {
     pathRef.current = pathname;
@@ -46,7 +46,8 @@ export function ProjectLifecycleProvider({ children }: { children: ReactNode }) 
     if (path === `/projects/${id}` || path.startsWith(`/projects/${id}/`)) void navigate('/projects');
   };
 
-  const setArchived = useSetProjectArchived();
+  // 归档 / 恢复失败（404、500 等）重新拉取后项目已不在，同样离开该项目页（FRIDAY 2108）
+  const setArchived = useSetProjectArchived({ onGone: leaveIfOn });
   const [archiving, setArchiving] = useState<Project | null>(null);
   const [removing, setRemoving] = useState<Project | null>(null);
   // 收到 204 后、重拉前先离开该项目页；失败时关闭确认框，重拉后项目已不在也离开（FRIDAY 2058 ②）
