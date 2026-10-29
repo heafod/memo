@@ -16,6 +16,23 @@ export default {
     movedUp: '{{name}} moved up',
     movedDown: '{{name}} moved down',
   },
+  // Project lifecycle (PR-15a, R7; copy from prototype actions.js archiveProject / restoreProject / delProject)
+  projectLife: {
+    archive: 'Archive',
+    archiveProject: 'Archive project',
+    archiveTitle: 'Archive {{name}}?',
+    archiveBody:
+      'The project will be hidden from the sidebar and project lists. Tasks, files, and comments are kept, and you can restore it from Settings → Projects.',
+    archived: 'Archived {{name}}',
+    restore: 'Restore',
+    restored: 'Restored {{name}}',
+    delete: 'Delete',
+    deleteTitle: 'Delete {{name}}?',
+    deleteBody: "This permanently deletes the project and all of its tasks, files, and comments for everyone. This can't be undone.",
+    deleteProject: 'Delete project',
+    typeToConfirm: 'Type <b>{{x}}</b> to confirm',
+    deleted: 'Deleted {{name}}',
+  },
   taskMenu: {
     open: 'Open',
     markComplete: 'Mark done',

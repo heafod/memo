@@ -11,8 +11,9 @@ import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '@/component
 import { SidebarMenuAction, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem } from '@/components/ui/sidebar';
 import { PROJECT_STATUS_COLOR, type ProjectStatus } from '@/lib/domain/constants';
 import { orderAmongVisible } from '@/lib/domain/project-order';
-import type { Project } from '@/lib/query/entities';
+import type { Project, ProjectRow } from '@/lib/query/entities';
 import { useUpdateProject } from '@/lib/query/mutations';
+import { useIsHiddenProject } from '@/lib/query/visibility';
 import { cn } from '@/lib/utils';
 
 const DRAG_TYPE = 'sidebar-project';
@@ -31,19 +32,15 @@ const SUB_TABS = [
  */
 export function SidebarProjectRow({
   project,
-  visible,
   visibleOrdered,
   currentProject,
-  projectStar,
   activeTab,
   open,
   onToggle,
 }: {
-  project: Project;
-  visible: boolean;
+  project: ProjectRow;
   visibleOrdered: readonly Project[];
   currentProject: string | undefined;
-  projectStar: boolean;
   /** 本项目为当前项目时的当前 tab（否则 undefined），用于子项高亮。 */
   activeTab: string | undefined;
   open: boolean;
@@ -55,6 +52,10 @@ export function SidebarProjectRow({
   const [edge, setEdge] = useState<'top' | null>(null);
   const [dragging, setDragging] = useState(false);
   const update = useUpdateProject();
+  const isHidden = useIsHiddenProject();
+  // 可见项目才是完整行（R24）：状态点、星标、拖拽、上下文菜单都只读完整行
+  const full = isHidden(project) ? null : project;
+  const visible = full !== null;
 
   useEffect(() => {
     const el = rowRef.current;
@@ -104,11 +105,9 @@ export function SidebarProjectRow({
       <Link to={`/projects/${project.id}`}>
         <ProjectIcon project={project} size="sm" />
         <span className="truncate">{project.name}</span>
-        {visible && projectStar && (
-          <Star className="ml-1 size-[11px]! shrink-0 text-[var(--amber)]" role="img" aria-label={t('write.fav.favorite')} data-side-fav="" />
-        )}
+        {full?.fav && <Star className="ml-1 size-[11px]! shrink-0 text-[var(--amber)]" role="img" aria-label={t('write.fav.favorite')} data-side-fav="" />}
         {project.private && <Lock className="size-3! text-muted-foreground" aria-label={t('shell.nav.privateProject')} />}
-        {visible && <span className="ml-auto size-1.5 shrink-0 rounded-full" style={{ background: PROJECT_STATUS_COLOR[project.status as ProjectStatus] }} />}
+        {full && <span className="ml-auto size-1.5 shrink-0 rounded-full" style={{ background: PROJECT_STATUS_COLOR[full.status as ProjectStatus] }} />}
       </Link>
     </SidebarMenuButton>
   );
@@ -154,14 +153,14 @@ export function SidebarProjectRow({
     </SidebarMenuItem>
   );
 
-  if (!visible) return item;
+  if (!full) return item;
 
   // ContextMenu.Root 无宿主节点；Trigger 挂在按钮上，避免与 li 上的 pdnd 指针监听冲突
   return (
     <ContextMenu>
       {item}
       <ContextMenuContent data-project-ctx={project.id}>
-        <ProjectContextItems project={project} visibleOrdered={visibleOrdered} />
+        <ProjectContextItems project={full} visibleOrdered={visibleOrdered} />
       </ContextMenuContent>
     </ContextMenu>
   );
@@ -170,32 +169,28 @@ export function SidebarProjectRow({
 /** 供 AppShell 注入的展开状态包装。 */
 export function SidebarProjectList({
   projects,
-  visibleIds,
   currentProject,
   currentTab,
   expanded,
   setExpanded,
 }: {
-  projects: readonly Project[];
-  visibleIds: ReadonlySet<string>;
+  projects: readonly ProjectRow[];
   currentProject: string | undefined;
   /** 当前项目页的 tab（URL 段，缺省为默认 tab）。 */
   currentTab: string | undefined;
   expanded: Record<string, boolean>;
   setExpanded: (fn: (s: Record<string, boolean>) => Record<string, boolean>) => void;
 }): ReactNode {
-  const visibleOrdered = projects.filter(p => visibleIds.has(p.id));
+  const isHidden = useIsHiddenProject();
+  const visibleOrdered = projects.filter((p): p is Project => !isHidden(p));
   return projects.map(p => {
-    const visible = visibleIds.has(p.id);
     const open = expanded[p.id] ?? p.id === currentProject;
     return (
       <SidebarProjectRow
         key={p.id}
         project={p}
-        visible={visible}
         visibleOrdered={visibleOrdered}
         currentProject={currentProject}
-        projectStar={visible && p.fav}
         activeTab={p.id === currentProject ? currentTab : undefined}
         open={open}
         onToggle={() => setExpanded(s => ({ ...s, [p.id]: !open }))}

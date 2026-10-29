@@ -1,12 +1,31 @@
-import type { Member, Project, Task } from '@/lib/query/entities';
+import i18n from '@/i18n';
+import type { Member, Project, ProjectRow, Task } from '@/lib/query/entities';
 import { PRIORITY_WEIGHT, type Priority, STATUSES, type TaskStatus } from './constants';
 import { daysFromToday } from './dates';
 
 /** 可见性（原型 core/store.js:113 canSee）：非私有，或「我」在项目成员中。仅为界面展示口径，非访问控制（FRIDAY 裁定第 7 条）。 */
-export const canSee = (p: Project, meId: string | null | undefined): boolean => !p.private || (!!meId && p.member_ids.includes(meId));
+export const canSee = (p: ProjectRow, meId: string | null | undefined): boolean => !p.private || (!!meId && p.member_ids.includes(meId));
 
-/** 侧栏 / 列表 / 首页使用的项目集合（原型 visibleProjects：按 order，排除归档） */
-export const activeProjects = (projects: readonly Project[]): Project[] => projects.filter(p => !p.archived).sort((a, b) => a.order - b.order);
+/** R24：完整行（ProjectPublic）与裁剪行（ProjectHiddenPublic）的区分；裁剪行没有 key 等完整字段。 */
+export const isFullProject = (p: ProjectRow): p is Project => 'key' in p;
+
+/** 当前用户可见的完整行（先按可见性过滤；裁剪行不会进入后续任何计算）。 */
+export const visibleFullProjects = (projects: readonly ProjectRow[], meId: string | null | undefined): Project[] =>
+  projects.filter((p): p is Project => isFullProject(p) && canSee(p, meId));
+
+/**
+ * 侧栏 / 列表 / 首页使用的项目集合（原型 visibleProjects：按 order，排除归档）。
+ * 只接收完整行：调用方先用 visibleFullProjects 按可见性过滤，裁剪行进不到比较函数里（PR-15a，R24）。
+ */
+export const activeProjects = (projects: readonly Project[]): Project[] => projects.filter(p => !p.archived).sort(compareProjects);
+
+/**
+ * 可见项目的唯一比较函数（FRIDAY 1925 ②）：order 升序；order 相同按名称升序（localeCompare，跟随界面语言）；
+ * 名称也相同按 id 升序。凡给可见项目排序处都用它，结果与输入顺序无关。不可见项目不经过这里（侧栏里按名称排在最后）。
+ */
+export function compareProjects(a: Project, b: Project): number {
+  return a.order - b.order || a.name.localeCompare(b.name, i18n.language) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+}
 
 export const isOverdue = (t: Task): boolean => !!t.due && t.status !== 'done' && daysFromToday(t.due) < 0;
 

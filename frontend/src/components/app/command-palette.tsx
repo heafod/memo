@@ -28,10 +28,10 @@ import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, Comma
 import { useSidebar } from '@/components/ui/sidebar';
 import { pushRecentSearch, runSearch } from '@/lib/domain/search';
 import { effectiveDark, mergePrefs, type PrefsData, type ThemePref } from '@/lib/domain/prefs';
-import { type Preferences, useMembers, usePreferences, useProjects } from '@/lib/query/entities';
+import { type Preferences, useMembers, usePreferences } from '@/lib/query/entities';
 import { useLogout } from '@/lib/query/auth';
 import { useUpdatePreferences } from '@/lib/query/mutations';
-import { useVisibleComments, useVisibleFiles, useVisibleProjectIds, useVisibleTasks } from '@/lib/query/visibility';
+import { useVisibleComments, useVisibleFiles, useVisibleProjectIds, useVisibleProjects, useVisibleTasks } from '@/lib/query/visibility';
 
 // 命令面板（R6；cmdk）。PR-11：放出外观/主题/Settings；仍无 Switch workspace。
 
@@ -49,7 +49,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   const prefs = usePreferences();
   const updatePrefs = useUpdatePreferences();
   const tasks = useVisibleTasks();
-  const projects = useProjects();
+  const projects = useVisibleProjects();
   const members = useMembers();
   const files = useVisibleFiles();
   const comments = useVisibleComments();

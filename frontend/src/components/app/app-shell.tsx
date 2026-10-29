@@ -25,6 +25,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, NavLink, Outlet, useLocation, useMatch } from 'react-router';
 import { CreateDialogsProvider, useCreateDialogs } from '@/components/app/create-dialogs';
 import { EventDialogsProvider } from '@/components/app/event-dialogs';
+import { ProjectLifecycleProvider } from '@/components/app/project-lifecycle';
 import { SavedViewDialogsProvider } from '@/components/app/saved-view-dialogs';
 import { PrefsApplier } from '@/components/app/prefs-applier';
 import { KeyboardProvider } from '@/components/app/keyboard';
@@ -66,7 +67,7 @@ import { daysFromToday } from '@/lib/domain/dates';
 import { canSee } from '@/lib/domain/tasks';
 import { useLogout } from '@/lib/query/auth';
 import { useMeId, useMembers, useNotifs, usePreferences, useProjects, useSnapshotLoader } from '@/lib/query/entities';
-import { useListedProjects, useVisibleTasks } from '@/lib/query/visibility';
+import { useIsHiddenProject, useListedProjects, useVisibleTasks } from '@/lib/query/visibility';
 
 /**
  * 应用外壳（R1「应用外壳按 4_1-home.svg」；映射表「外壳 / 侧栏导航 / 工作区头 / 顶栏面包屑」行）。
@@ -80,29 +81,31 @@ export function AppShell() {
       <CreateDialogsProvider>
         <EventDialogsProvider>
           <SavedViewDialogsProvider>
-            <ShortcutsDialogProvider>
-              <SidebarProvider>
-                <KeyboardProvider>
-                  {snapshot.isSuccess ? <PrefsApplier /> : null}
-                  {snapshot.isSuccess ? <AppSidebar /> : <Sidebar />}
-                  <SidebarInset>
-                    <Topbar ready={snapshot.isSuccess} />
-                    <div id="main-content" tabIndex={-1} className="flex-1 outline-none">
-                      {snapshot.isSuccess ? (
-                        <>
-                          <Outlet />
-                          <TaskDrawer />
-                        </>
-                      ) : snapshot.isError ? (
-                        <FailedState />
-                      ) : (
-                        <ContentSkeleton />
-                      )}
-                    </div>
-                  </SidebarInset>
-                </KeyboardProvider>
-              </SidebarProvider>
-            </ShortcutsDialogProvider>
+            <ProjectLifecycleProvider>
+              <ShortcutsDialogProvider>
+                <SidebarProvider>
+                  <KeyboardProvider>
+                    {snapshot.isSuccess ? <PrefsApplier /> : null}
+                    {snapshot.isSuccess ? <AppSidebar /> : <Sidebar />}
+                    <SidebarInset>
+                      <Topbar ready={snapshot.isSuccess} />
+                      <div id="main-content" tabIndex={-1} className="flex-1 outline-none">
+                        {snapshot.isSuccess ? (
+                          <>
+                            <Outlet />
+                            <TaskDrawer />
+                          </>
+                        ) : snapshot.isError ? (
+                          <FailedState />
+                        ) : (
+                          <ContentSkeleton />
+                        )}
+                      </div>
+                    </SidebarInset>
+                  </KeyboardProvider>
+                </SidebarProvider>
+              </ShortcutsDialogProvider>
+            </ProjectLifecycleProvider>
           </SavedViewDialogsProvider>
         </EventDialogsProvider>
       </CreateDialogsProvider>
@@ -153,6 +156,7 @@ function AppSidebar() {
   const projects = useProjects();
   const tasks = useVisibleTasks();
   const listedProjects = useListedProjects();
+  const isHidden = useIsHiddenProject();
   const prefs = usePreferences();
   const logout = useLogout();
   const projectMatch = useMatch('/projects/:projectId/*');
@@ -183,7 +187,7 @@ function AppSidebar() {
   const myDue = tasks.filter(x => x.assignee_id === meId && x.status !== 'done' && x.due && daysFromToday(x.due) <= 0 && visibleIds.has(x.project_id)).length;
   // 侧栏：可见项目排除归档与已完成、按 order；不可见项目不论 status / archived 都照常列出，排在最后按名称升序
   // （FRIDAY 裁定 #12 17:27 总 AC、17:38 archived、17:39 order 追加 AC；集合与顺序见 useListedProjects）
-  const sideProjects = listedProjects.filter(p => !visibleIds.has(p.id) || p.status !== 'complete');
+  const sideProjects = listedProjects.filter(p => isHidden(p) || p.status !== 'complete');
 
   return (
     <Sidebar>
@@ -311,7 +315,6 @@ function AppSidebar() {
               <SidebarMenu>
                 <SidebarProjectList
                   projects={sideProjects}
-                  visibleIds={visibleIds}
                   currentProject={currentProject}
                   currentTab={projectMatch?.params['*']?.split('/')[0] || undefined}
                   expanded={expanded}

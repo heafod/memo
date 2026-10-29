@@ -12,7 +12,8 @@
   不存在 id 404、种子文件（仅元数据）404，均中文 detail；
 - 快照：上传后 ``files`` 含元数据（name/type/size_bytes/by_id/task_id）；
 - 任务关联：上传时 ``task_id`` 落库；任务不存在或跨项目 422；
-- 级联：删除项目后其文件元数据不再出现在快照；
+- 级联：删除项目后其文件元数据不再出现在快照，卷上内容一并删除（PR-15a）；
+  删盘失败只记日志、删除仍 204；
 - 认证：未认证上传 / 下载内容 401，detail 中文。
 
 测试在自建项目 PR6F 内运行，模块结束删除项目（文件行随项目级联删除）。
@@ -24,9 +25,11 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.routes import projects as projects_routes
 from app.api.routes.files import (
     BIDI_CONTROLS,
     MAX_FILE_BYTES,
+    _content_path,
     dedupe_filename,
     sanitize_filename,
 )
@@ -364,7 +367,7 @@ def test_upload_missing_file_422(
 def test_project_delete_cascades_file_metadata(
     authed_client: TestClient,
 ) -> None:  # R4b, R10
-    """删除项目级联删除文件元数据行：快照不再出现（卷内容可残留，见 PR 风险节）。"""
+    """删除项目级联删除文件元数据行：快照不再出现；提交后卷上内容也删掉（PR-15a）。"""
     resp = authed_client.post(
         "/api/projects", json={"key": "PR6D", "name": "PR-6 级联删除项目"}
     )
@@ -382,6 +385,7 @@ def test_project_delete_cascades_file_metadata(
         ids.append(up.json()["id"])
     files = _snapshot_files(authed_client)
     assert all(i in files for i in ids)
+    assert all(_content_path(uuid.UUID(i)).exists() for i in ids)
 
     assert authed_client.delete(f"/api/projects/{proj['id']}").status_code == 204
     files = _snapshot_files(authed_client)
@@ -391,3 +395,42 @@ def test_project_delete_cascades_file_metadata(
         resp = authed_client.get(f"/api/files/{i}/content")
         assert resp.status_code == 404
         assert resp.json()["detail"] == "文件不存在"  # R8
+    assert not any(_content_path(uuid.UUID(i)).exists() for i in ids)  # PR-15a
+
+
+class _UnlinkFails:
+    def unlink(self, missing_ok: bool = False) -> None:  # noqa: ARG002
+        raise PermissionError("只读卷")
+
+
+def test_project_delete_disk_failure_still_204(
+    authed_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:  # R4b
+    """删盘失败只记日志：删除仍 204，库内记录已删，内容端点 404（PR-15a）。"""
+    resp = authed_client.post(
+        "/api/projects", json={"key": "PR15F", "name": "PR-15a 删盘失败项目"}
+    )
+    assert resp.status_code == 201, resp.text
+    proj = resp.json()
+    up = _upload(authed_client, proj["id"], "删盘失败.txt")
+    assert up.status_code == 201, up.text
+    file_id = up.json()["id"]
+    real_path = _content_path(uuid.UUID(file_id))
+    assert real_path.exists()
+
+    monkeypatch.setattr(projects_routes, "_content_path", lambda _fid: _UnlinkFails())
+    # 测试会话里 alembic fileConfig 会把已建的模块 logger 置为 disabled；这里只为捕获日志而打开
+    monkeypatch.setattr(projects_routes.logger, "disabled", False)
+    with caplog.at_level("ERROR", logger=projects_routes.logger.name):
+        resp = authed_client.delete(f"/api/projects/{proj['id']}")
+    assert resp.status_code == 204, resp.text
+    assert any(file_id in r.getMessage() for r in caplog.records)
+    projects = authed_client.get("/api/projects").json()
+    assert all(p["id"] != proj["id"] for p in projects)
+    resp = authed_client.get(f"/api/files/{file_id}/content")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "文件不存在"  # R8
+    assert file_id not in _snapshot_files(authed_client)
+    real_path.unlink()  # 清理本测试留下的孤儿内容

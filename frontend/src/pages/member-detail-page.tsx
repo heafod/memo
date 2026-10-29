@@ -20,9 +20,9 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useMeId, useMembers, useProjects, useTeams } from '@/lib/query/entities';
+import { useMeId, useMembers, useTeams } from '@/lib/query/entities';
 import { useDeleteMember, useUpdateMember } from '@/lib/query/mutations';
-import { useWorkspaceTasks } from '@/lib/query/visibility';
+import { useVisibleProjects, useWorkspaceTasks } from '@/lib/query/visibility';
 
 // 成员详情（R5；原型 pageMember）；不存在 → 原地 404；可编辑 / 删除。
 
@@ -32,7 +32,7 @@ export function MemberDetailPage() {
   const { memberId } = useParams();
   const members = useMembers();
   const teams = useTeams();
-  const projects = useProjects();
+  const projects = useVisibleProjects();
   const tasks = useWorkspaceTasks();
   const meId = useMeId();
   const update = useUpdateMember();

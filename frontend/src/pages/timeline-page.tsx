@@ -5,8 +5,8 @@ import { TimelineSection } from '@/components/app/task-timeline';
 import { projectMilestones } from '@/lib/domain/timeline';
 import { Button } from '@/components/ui/button';
 import { activeProjects, canSee } from '@/lib/domain/tasks';
-import { useMeId, useProjects } from '@/lib/query/entities';
-import { useWorkspaceTasks } from '@/lib/query/visibility';
+import { useMeId } from '@/lib/query/entities';
+import { useVisibleProjects, useWorkspaceTasks } from '@/lib/query/visibility';
 
 /**
  * 工作区时间线（R4；原型 pageWsTimeline）。侧栏「时间线」入口；默认按项目分组。
@@ -18,7 +18,7 @@ export function TimelinePage() {
   const { newTask } = useCreateDialogs();
   const meId = useMeId();
   const tasks = useWorkspaceTasks();
-  const shownProjects = activeProjects(useProjects()).filter(p => canSee(p, meId));
+  const shownProjects = activeProjects(useVisibleProjects()).filter(p => canSee(p, meId));
   const milestones = shownProjects.flatMap(p => projectMilestones(p, true));
 
   return (

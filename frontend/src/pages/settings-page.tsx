@@ -22,6 +22,8 @@ import { useTranslation } from 'react-i18next';
 import { Link, Navigate, useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 import { NotFoundState } from '@/components/app/error-states';
+import { ProjectIcon } from '@/components/app/domain-ui';
+import { useProjectLifecycle } from '@/components/app/project-lifecycle';
 import { useShortcutsDialog } from '@/components/app/shortcuts-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,8 +41,9 @@ import {
   type ThemePref,
   type WorkspacePref,
 } from '@/lib/domain/prefs';
-import { useMeId, useMembers, usePreferences, useProjects } from '@/lib/query/entities';
+import { useMeId, useMembers, usePreferences } from '@/lib/query/entities';
 import { useChangePassword, useUpdateMember, useUpdatePreferences } from '@/lib/query/mutations';
+import { useVisibleProjects } from '@/lib/query/visibility';
 import { cn } from '@/lib/utils';
 
 /**
@@ -661,7 +664,9 @@ function LinkSec({ kind }: { kind: 'members' | 'teams' }) {
 
 function ArchivedProjectsSec() {
   const { t } = useTranslation();
-  const projects = useProjects().filter(p => p.archived);
+  // 只列我可见的已归档项目；恢复 / 删除见 project-lifecycle（PR-15a，R7）
+  const projects = useVisibleProjects().filter(p => p.archived);
+  const { restore, remove } = useProjectLifecycle();
   return (
     <div>
       <Heading title={t('settings.items.projects')} desc={t('settings.workspace.projectsDesc')} />
@@ -673,8 +678,14 @@ function ArchivedProjectsSec() {
         <ul className="max-w-lg divide-y divide-border rounded-lg border border-border" data-archived-list="">
           {projects.map(p => (
             <li key={p.id} className="flex items-center gap-2 px-3 py-2.5 text-[13px]">
-              <FolderKanban size={14} className="text-muted-foreground" />
+              <ProjectIcon project={p} size="sm" />
               <span className="flex-1 truncate">{p.name}</span>
+              <Button size="sm" variant="secondary" onClick={() => restore(p)} data-restore-project={p.id}>
+                {t('write.projectLife.restore')}
+              </Button>
+              <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => remove(p)} data-delete-project={p.id}>
+                {t('write.projectLife.delete')}
+              </Button>
             </li>
           ))}
         </ul>

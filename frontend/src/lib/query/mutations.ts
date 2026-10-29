@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import i18n from '@/i18n';
 import { api, ApiError } from '@/lib/api/client';
 import type { components } from '@/lib/api/schema';
-import { queryClient } from './client';
+import { PROJECT_TREE_KEYS, queryClient } from './client';
 import type { Comment, FileItem, Member, Notif, Preferences, Project, Task, Team } from './entities';
 import { assertVisibleProject, HiddenProjectError, taskProject } from './visibility';
 
@@ -139,6 +139,63 @@ export function useUpdateProject() {
     onError: (e, _v, ctx) => {
       ctx?.rollback();
       notifyError(e);
+    },
+  });
+}
+
+/**
+ * 删除 / 归档请求失败后的统一处理（FRIDAY 2058 ①②、2108）：调用前已 toast 服务端 detail，此处重新拉取一次项目列表。
+ * 项目仍在且未归档：用这次结果写回缓存，留在原页；已不存在或已归档：先 onGone 离开该项目页，再整体重拉项目树，项目随之从侧栏和列表消失。
+ * 先直接查列表再写缓存：若直接重拉缓存，项目页会在跳转生效前先渲染成 404。
+ */
+async function refetchAfterFailure(id: string, onGone?: (id: string) => void) {
+  const fresh = await unwrap(api.GET('/api/projects')).catch(() => null);
+  if (!fresh) return;
+  const p = fresh.find(x => x.id === id);
+  const gone = !p || ('archived' in p && p.archived);
+  if (gone) onGone?.(id);
+  else queryClient.setQueryData(['projects'], fresh);
+  await Promise.all(PROJECT_TREE_KEYS.filter(k => gone || k[0] !== 'projects').map(queryKey => queryClient.invalidateQueries({ queryKey })));
+}
+
+/**
+ * R7 归档 / 恢复项目（PR-15a）：只发 PATCH {archived}；失败提示中文 detail。
+ * 不做乐观更新：项目页见 archived 即跳回列表，乐观置位会让跳转先于 PATCH 成功（FRIDAY 1925 要求成功后才跳转）。
+ * 成功后整体重拉项目树：快照不下发已归档项目的任务、评论、文件等，恢复后要拉回。
+ * 失败（FRIDAY 2108）：404、500、网络错误等按 refetchAfterFailure 处理；409 保持 a37baa3 现状（MutationCache.onSettled 重拉，项目页按 AC4 回到列表）。
+ */
+export function useSetProjectArchived({ onGone }: { onGone?: (id: string) => void } = {}) {
+  return useMutation({
+    meta: { invalidates: PROJECT_TREE_KEYS },
+    mutationFn: async ({ id, archived }: { id: string; archived: boolean }) => {
+      assertVisibleProject(id);
+      return unwrap(api.PATCH('/api/projects/{project_id}', { params: { path: { project_id: id } }, body: { archived } }));
+    },
+    onError: async (e, { id }) => {
+      notifyError(e);
+      if (e instanceof ApiError && e.status === 409) return;
+      await refetchAfterFailure(id, onGone);
+    },
+  });
+}
+
+/**
+ * R7 永久删除项目（PR-15a，设置归档列表与项目菜单共用）：DELETE 204 后整体重拉项目树。
+ * onDeleted 在收到 204 之后、重拉之前调用：调用方借此先离开该项目页，避免重拉落地时项目页先闪一下 404（FRIDAY 1925）。
+ * 失败（含另一标签页已删掉而得到 404，FRIDAY 2058 ②）：先 toast 服务端 detail，onFailed 关闭确认框，再按 refetchAfterFailure 处理。
+ */
+export function useDeleteProject({ onDeleted, onFailed }: { onDeleted?: (id: string) => void; onFailed?: () => void } = {}) {
+  return useMutation({
+    meta: { invalidates: PROJECT_TREE_KEYS },
+    mutationFn: async (id: string) => {
+      assertVisibleProject(id);
+      await unwrap(api.DELETE('/api/projects/{project_id}', { params: { path: { project_id: id } } }));
+      onDeleted?.(id);
+    },
+    onError: async (e, id) => {
+      notifyError(e);
+      onFailed?.();
+      await refetchAfterFailure(id, onDeleted);
     },
   });
 }

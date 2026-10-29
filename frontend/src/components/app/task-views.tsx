@@ -14,9 +14,9 @@ import { DAY_MS, daysFromToday, nowMs } from '@/lib/domain/dates';
 import { DEFAULT_TABLE_HIDDEN, type TableCol } from '@/lib/domain/table-cols';
 import { applyFilters } from '@/lib/domain/filters';
 import { activeProjects, canSee, isOverdue, type Sort, sortTasks } from '@/lib/domain/tasks';
-import { type Member, type Preferences, type Project, type Task, useMeId, useMembers, usePreferences, useProjects } from '@/lib/query/entities';
+import { type Member, type Preferences, type Project, type Task, useMeId, useMembers, usePreferences } from '@/lib/query/entities';
 import { type TaskPatch, useUpdatePreferences, useUpdateTask } from '@/lib/query/mutations';
-import { useVisibleComments, useVisibleSubtasks, useVisibleTasks, useWorkspaceTasks } from '@/lib/query/visibility';
+import { useVisibleComments, useVisibleProjects, useVisibleSubtasks, useVisibleTasks, useWorkspaceTasks } from '@/lib/query/visibility';
 import { useViewFilters } from '@/lib/view-filters';
 
 /**
@@ -136,7 +136,7 @@ export function TableView({ projectId, viewKey, toolbarRight, hideToolbarNewTask
   const tasks = useVisibleTasks();
   const [scope] = useScopeTasks(projectId, presetFilter, filterKey);
   const members = useMembers();
-  const projects = useProjects();
+  const projects = useVisibleProjects();
   const prefs = usePreferences();
   const updatePrefs = useUpdatePreferences();
   const [q, setQ] = useState('');
@@ -224,7 +224,7 @@ export function ListView({
   const tasks = useVisibleTasks();
   const [scope] = useScopeTasks(projectId, presetFilter, filterKey);
   const members = useMembers();
-  const projects = useProjects();
+  const projects = useVisibleProjects();
   const subtasks = useVisibleSubtasks();
   const comments = useVisibleComments();
   const [q, setQ] = useState('');

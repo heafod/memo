@@ -13,8 +13,8 @@ import { daysFromToday } from '@/lib/domain/dates';
 import { fmtDate } from '@/lib/domain/format';
 import { isOverdue, progressOf, sortTasks } from '@/lib/domain/tasks';
 import { projectMilestones } from '@/lib/domain/timeline';
-import { useMeId, useMembers, useProjects, useTeams } from '@/lib/query/entities';
-import { useVisibleActivity, useVisibleTasks } from '@/lib/query/visibility';
+import { useMeId, useMembers, useTeams } from '@/lib/query/entities';
+import { useVisibleActivity, useVisibleProjects, useVisibleTasks } from '@/lib/query/visibility';
 import { cn } from '@/lib/utils';
 
 /**
@@ -26,7 +26,7 @@ export function ProjectOverview({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const meId = useMeId();
-  const projects = useProjects();
+  const projects = useVisibleProjects();
   const members = useMembers();
   const teams = useTeams();
   const visible = useVisibleTasks();

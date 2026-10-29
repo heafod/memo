@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { ActivityItem } from '@/components/app/activity-item';
 import { Input } from '@/components/ui/input';
 import { dayBucket } from '@/lib/domain/format';
-import { useMeId, useMembers, useProjects } from '@/lib/query/entities';
-import { useVisibleActivity, useVisibleTasks } from '@/lib/query/visibility';
+import { useMeId, useMembers } from '@/lib/query/entities';
+import { useVisibleActivity, useVisibleProjects, useVisibleTasks } from '@/lib/query/visibility';
 import { cn } from '@/lib/utils';
 
 // 动态页（R5；独立 /activity；按天分桶、类型过滤、按人过滤，仅可见项目）。
@@ -15,7 +15,7 @@ export function ActivityPage() {
   const { t } = useTranslation();
   const activity = useVisibleActivity();
   const members = useMembers();
-  const projects = useProjects();
+  const projects = useVisibleProjects();
   const tasks = useVisibleTasks();
   const meId = useMeId();
   const [type, setType] = useState<string>('all');

@@ -1,11 +1,13 @@
-import { activeProjects, canSee } from '@/lib/domain/tasks';
+import { activeProjects, canSee, isFullProject, visibleFullProjects } from '@/lib/domain/tasks';
 import { authKeys, type CurrentUser } from './auth';
 import { queryClient } from './client';
 import {
   type Activity,
   type Comment,
   type FileItem,
+  type HiddenProject,
   type Project,
+  type ProjectRow,
   type Subtask,
   type Task,
   useActivity,
@@ -25,18 +27,26 @@ import {
 export function useVisibleProjectIds(): ReadonlySet<string> {
   const meId = useMeId();
   const projects = useProjects();
-  return new Set(projects.filter(p => canSee(p, meId)).map(p => p.id));
+  return new Set(visibleFullProjects(projects, meId).map(p => p.id));
+}
+
+/** 当前用户可见的完整项目行（含归档；不排序）。成员页、团队页及其详情页的项目计数与列表用它（R24 补句，PR-15a）。 */
+export function useVisibleProjects(): Project[] {
+  const meId = useMeId();
+  return visibleFullProjects(useProjects(), meId);
 }
 
 /**
  * 侧栏与项目列表的项目集合：可见项目排除归档、按 order 排序；不可见项目不论 archived 都照常列出，
  * 不按 order，一律排在所有可见项目之后、彼此按名称升序（FRIDAY 裁定 #12 17:38 archived、17:39 order 追加 AC）。
  */
-export function useListedProjects(): Project[] {
+export function useListedProjects(): ProjectRow[] {
   const meId = useMeId();
   const projects = useProjects();
-  const visible = activeProjects(projects.filter(p => canSee(p, meId)));
-  const hidden = projects.filter(p => !canSee(p, meId)).sort((a, b) => (a.name > b.name ? 1 : a.name < b.name ? -1 : 0));
+  const full = visibleFullProjects(projects, meId);
+  const visible = activeProjects(full);
+  const shown = new Set(full.map(p => p.id));
+  const hidden = projects.filter(p => !shown.has(p.id)).sort((a, b) => (a.name > b.name ? 1 : a.name < b.name ? -1 : 0));
   return [...visible, ...hidden];
 }
 
@@ -46,13 +56,13 @@ export function useListedProjects(): Project[] {
  */
 export function useWorkspaceProjects(): Project[] {
   const meId = useMeId();
-  return activeProjects(useProjects().filter(p => canSee(p, meId)));
+  return activeProjects(visibleFullProjects(useProjects(), meId));
 }
 
 /** 是否为不可见项目（只可用名称、图标、负责人）。 */
-export function useIsHiddenProject(): (p: Project) => boolean {
+export function useIsHiddenProject(): (p: ProjectRow) => p is HiddenProject {
   const meId = useMeId();
-  return p => !canSee(p, meId);
+  return (p): p is HiddenProject => !(isFullProject(p) && canSee(p, meId));
 }
 
 /** 可见项目的任务（不可见项目的任务不进入任何计数、分组、依赖、搜索）。 */
@@ -104,7 +114,7 @@ export class HiddenProjectError extends Error {
 
 /** 写入前校验目标项目可见（与读取侧同一 canSee 规则，取当前缓存的项目与登录成员）。 */
 export function assertVisibleProject(projectId: string): void {
-  const projects = queryClient.getQueryData<Project[]>(['projects']) ?? [];
+  const projects = queryClient.getQueryData<ProjectRow[]>(['projects']) ?? [];
   const meId = queryClient.getQueryData<CurrentUser | null>(authKeys.me)?.owner_member_id ?? null;
   const p = projects.find(x => x.id === projectId);
   if (!p || !canSee(p, meId)) throw new HiddenProjectError();

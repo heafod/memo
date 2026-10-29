@@ -10,6 +10,22 @@ declare module '@tanstack/react-query' {
   }
 }
 
+/**
+ * 项目及其子实体的全部 query key（PR-15a）：归档 / 恢复 / 删除项目后整体重拉——快照不下发已归档项目的子实体，
+ * 恢复后要把它们拉回来；任何写入遇到 409（如项目已在别处被归档）也整体重拉，界面随之收起该项目而不白屏。
+ */
+export const PROJECT_TREE_KEYS: readonly QueryKey[] = [
+  ['projects'],
+  ['tasks'],
+  ['subtasks'],
+  ['comments'],
+  ['activity'],
+  ['notifs'],
+  ['files'],
+  ['events'],
+  ['savedViews'],
+];
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -18,6 +34,14 @@ export const queryClient = new QueryClient({
     },
   },
   mutationCache: new MutationCache({
+    // 409：toast 由各 mutation 的 onError 显示服务端 detail（R8），此处只负责重拉。
+    // 放在 onSettled 而非 onError：缓存级 onError 先于各 mutation 的 onError（乐观回滚）执行，
+    // 在那里重拉会被随后的回滚用旧数据覆盖；onSettled 在回滚之后执行。
+    onSettled: async (_data, error) => {
+      if (error instanceof ApiError && error.status === 409) {
+        await Promise.all(PROJECT_TREE_KEYS.map(queryKey => queryClient.invalidateQueries({ queryKey })));
+      }
+    },
     onSuccess: async (_data, _variables, _context, mutation) => {
       const keys = mutation.meta?.invalidates ?? [];
       await Promise.all(keys.map(queryKey => queryClient.invalidateQueries({ queryKey })));

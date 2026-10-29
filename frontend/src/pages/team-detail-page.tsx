@@ -20,7 +20,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useMembers, useProjects, useTeams } from '@/lib/query/entities';
+import { useMembers, useTeams } from '@/lib/query/entities';
+import { useVisibleProjects } from '@/lib/query/visibility';
 import { useDeleteTeam, useUpdateTeam } from '@/lib/query/mutations';
 
 // 团队详情（R5）；不存在 → 原地 404；可编辑 / 删除。
@@ -31,7 +32,7 @@ export function TeamDetailPage() {
   const { teamId } = useParams();
   const teams = useTeams();
   const members = useMembers();
-  const projects = useProjects();
+  const projects = useVisibleProjects();
   const update = useUpdateTeam();
   const del = useDeleteTeam();
   const [edit, setEdit] = useState(false);

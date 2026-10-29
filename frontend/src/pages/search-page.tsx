@@ -7,9 +7,9 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { pushRecentSearch, runSearch } from '@/lib/domain/search';
-import { type Preferences, useMembers, usePreferences, useProjects } from '@/lib/query/entities';
+import { type Preferences, useMembers, usePreferences } from '@/lib/query/entities';
 import { useUpdatePreferences } from '@/lib/query/mutations';
-import { useVisibleComments, useVisibleFiles, useVisibleProjectIds, useVisibleTasks } from '@/lib/query/visibility';
+import { useVisibleComments, useVisibleFiles, useVisibleProjectIds, useVisibleProjects, useVisibleTasks } from '@/lib/query/visibility';
 
 // 全局搜索页（R6）；最近搜索写入 preferences.recentSearches。
 
@@ -32,7 +32,7 @@ function SearchPageInner() {
   const updatePrefs = useUpdatePreferences();
   const recent = ((prefs as { recentSearches?: string[] }).recentSearches ?? []) as string[];
   const tasks = useVisibleTasks();
-  const projects = useProjects();
+  const projects = useVisibleProjects();
   const members = useMembers();
   const files = useVisibleFiles();
   const comments = useVisibleComments();
