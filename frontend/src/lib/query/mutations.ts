@@ -144,7 +144,8 @@ export function useUpdateProject() {
 }
 
 /**
- * R7 归档 / 恢复项目（PR-15a）：只发 PATCH {archived}；乐观更新让项目立刻离开或回到列表，失败回滚并提示中文 detail。
+ * R7 归档 / 恢复项目（PR-15a）：只发 PATCH {archived}；失败提示中文 detail。
+ * 不做乐观更新：项目页见 archived 即跳回列表，乐观置位会让跳转先于 PATCH 成功（FRIDAY 1925 要求成功后才跳转）。
  * 成功后整体重拉项目树：快照不下发已归档项目的任务、评论、文件等，恢复后要拉回。
  */
 export function useSetProjectArchived() {
@@ -154,24 +155,21 @@ export function useSetProjectArchived() {
       assertVisibleProject(id);
       return unwrap(api.PATCH('/api/projects/{project_id}', { params: { path: { project_id: id } }, body: { archived } }));
     },
-    onMutate: async ({ id, archived }) => {
-      await queryClient.cancelQueries({ queryKey: ['projects'] });
-      return { rollback: optimistic<Project>(['projects'], id, { archived }) };
-    },
-    onError: (e, _v, ctx) => {
-      ctx?.rollback();
-      notifyError(e);
-    },
+    onError: notifyError,
   });
 }
 
-/** R7 永久删除项目（PR-15a，只从设置归档列表进入）：DELETE 204 后整体重拉项目树。 */
-export function useDeleteProject() {
+/**
+ * R7 永久删除项目（PR-15a，设置归档列表与项目菜单共用）：DELETE 204 后整体重拉项目树。
+ * onDeleted 在收到 204 之后、重拉之前调用：调用方借此先离开该项目页，避免重拉落地时项目页先闪一下 404（FRIDAY 1925）。
+ */
+export function useDeleteProject(onDeleted?: (id: string) => void) {
   return useMutation({
     meta: { invalidates: PROJECT_TREE_KEYS },
     mutationFn: async (id: string) => {
       assertVisibleProject(id);
       await unwrap(api.DELETE('/api/projects/{project_id}', { params: { path: { project_id: id } } }));
+      onDeleted?.(id);
     },
     onError: notifyError,
   });

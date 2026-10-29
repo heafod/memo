@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router';
 import { toast } from 'sonner';
@@ -35,8 +35,20 @@ export function ProjectLifecycleProvider({ children }: { children: ReactNode }) 
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  // 请求成功之后、且那时仍在该项目页（含子路径）才跳回项目列表（FRIDAY 1925：原型先 mutate 成功再 go）；
+  // 失败时留在原页，由 mutation 的 onError 用 toast 显示服务端 detail。读成功那一刻的路径，而不是点击时的。
+  const pathRef = useRef(pathname);
+  useEffect(() => {
+    pathRef.current = pathname;
+  }, [pathname]);
+  const leaveIfOn = (id: string) => {
+    const path = pathRef.current;
+    if (path === `/projects/${id}` || path.startsWith(`/projects/${id}/`)) void navigate('/projects');
+  };
+
   const setArchived = useSetProjectArchived();
-  const del = useDeleteProject();
+  // 收到 204 后、重拉前先离开该项目页
+  const del = useDeleteProject(leaveIfOn);
   const [archiving, setArchiving] = useState<Project | null>(null);
   const [removing, setRemoving] = useState<Project | null>(null);
   const [typed, setTyped] = useState('');
@@ -51,22 +63,18 @@ export function ProjectLifecycleProvider({ children }: { children: ReactNode }) 
   }, []);
   const value = useMemo(() => ({ archive: setArchiving, restore, remove }), [restore, remove]);
 
-  // 当前就在该项目页（含子路径）时跳回项目列表（归档与删除共用）
-  const leaveIfOn = (p: Project) => {
-    if (pathname === `/projects/${p.id}` || pathname.startsWith(`/projects/${p.id}/`)) void navigate('/projects');
-  };
-
   const confirmArchive = (p: Project) => {
     setArchiving(null);
-    leaveIfOn(p);
     setArchived.mutate(
       { id: p.id, archived: true },
       {
-        onSuccess: () =>
+        onSuccess: () => {
+          leaveIfOn(p.id);
           toast(t('write.projectLife.archived', { name: p.name }), {
             // 撤销只发 PATCH {archived:false}（FRIDAY 18:10）
             action: { label: t('write.undo'), onClick: () => setArchived.mutate({ id: p.id, archived: false }) },
-          }),
+          });
+        },
       },
     );
   };
@@ -114,8 +122,7 @@ export function ProjectLifecycleProvider({ children }: { children: ReactNode }) 
                 e.preventDefault();
                 if (!removing) return;
                 const p = removing;
-                leaveIfOn(p);
-                // 删除不可逆，toast 不带「撤销」：有意偏离原型（FRIDAY 18:35 ①）
+                // 删除不可逆，toast 不带「撤销」：有意偏离原型（FRIDAY 18:35 ①）；收到 204 才跳转（见 useDeleteProject 的 onDeleted）并提示（FRIDAY 1925）
                 del.mutate(p.id, {
                   onSuccess: () => {
                     setRemoving(null);
