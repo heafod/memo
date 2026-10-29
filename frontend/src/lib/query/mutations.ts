@@ -162,8 +162,10 @@ export function useSetProjectArchived() {
 /**
  * R7 永久删除项目（PR-15a，设置归档列表与项目菜单共用）：DELETE 204 后整体重拉项目树。
  * onDeleted 在收到 204 之后、重拉之前调用：调用方借此先离开该项目页，避免重拉落地时项目页先闪一下 404（FRIDAY 1925）。
+ * 失败（含另一标签页已删掉而得到 404，FRIDAY 2058 ②）：先 toast 服务端 detail，onFailed 关闭确认框，再重新拉取；
+ * 拉取后项目已不存在或已归档，先 onDeleted 离开该项目页，再整体重拉项目树，项目随之从列表里消失。
  */
-export function useDeleteProject(onDeleted?: (id: string) => void) {
+export function useDeleteProject({ onDeleted, onFailed }: { onDeleted?: (id: string) => void; onFailed?: () => void } = {}) {
   return useMutation({
     meta: { invalidates: PROJECT_TREE_KEYS },
     mutationFn: async (id: string) => {
@@ -171,7 +173,15 @@ export function useDeleteProject(onDeleted?: (id: string) => void) {
       await unwrap(api.DELETE('/api/projects/{project_id}', { params: { path: { project_id: id } } }));
       onDeleted?.(id);
     },
-    onError: notifyError,
+    onError: async (e, id) => {
+      notifyError(e);
+      onFailed?.();
+      // 先直接查一次项目列表再决定是否离开：若直接重拉缓存，项目页会在跳转生效前先渲染成 404
+      const fresh = await unwrap(api.GET('/api/projects')).catch(() => null);
+      const p = fresh?.find(x => x.id === id);
+      if (fresh && (!p || ('archived' in p && p.archived))) onDeleted?.(id);
+      await Promise.all(PROJECT_TREE_KEYS.map(queryKey => queryClient.invalidateQueries({ queryKey })));
+    },
   });
 }
 

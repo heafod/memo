@@ -47,10 +47,10 @@ export function ProjectLifecycleProvider({ children }: { children: ReactNode }) 
   };
 
   const setArchived = useSetProjectArchived();
-  // 收到 204 后、重拉前先离开该项目页
-  const del = useDeleteProject(leaveIfOn);
   const [archiving, setArchiving] = useState<Project | null>(null);
   const [removing, setRemoving] = useState<Project | null>(null);
+  // 收到 204 后、重拉前先离开该项目页；失败时关闭确认框，重拉后项目已不在也离开（FRIDAY 2058 ②）
+  const del = useDeleteProject({ onDeleted: leaveIfOn, onFailed: () => setRemoving(null) });
   const [typed, setTyped] = useState('');
 
   const restore = useCallback(
@@ -123,12 +123,14 @@ export function ProjectLifecycleProvider({ children }: { children: ReactNode }) 
                 if (!removing) return;
                 const p = removing;
                 // 删除不可逆，toast 不带「撤销」：有意偏离原型（FRIDAY 18:35 ①）；收到 204 才跳转（见 useDeleteProject 的 onDeleted）并提示（FRIDAY 1925）
-                del.mutate(p.id, {
-                  onSuccess: () => {
+                // 只有成功才弹「已删除」；失败由 useDeleteProject 的 onError 提示 detail 并关闭确认框（FRIDAY 2058 ②）
+                del
+                  .mutateAsync(p.id)
+                  .then(() => {
                     setRemoving(null);
                     toast(t('write.projectLife.deleted', { name: p.name }));
-                  },
-                });
+                  })
+                  .catch(() => {});
               }}
             >
               {t('write.projectLife.deleteProject')}
