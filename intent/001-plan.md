@@ -63,7 +63,7 @@ README.md
 16. **PR-13a 规格修订**（R24–R28 入库、R4/R7/R18 补句、清单与 mapping）：无行为变更。
 17. **PR-13b snapshot P6**（R24，依赖 13a）：后端过滤 + 契约测试；前端可保留 canSee 作防御。保护路径：可能触 `backend/**`。
 18. **PR-14 过滤构建器**（R4/R18，依赖 13a）：`.fbuild` UI；与保存视图互写；清单勾选。
-19. **PR-15 项目生命周期与分享**（R7 归档段、R25，依赖 13a）：归档/恢复/删除 UI、Share、Edit project。
+19. **PR-15 项目生命周期与分享**（R7 归档段、R25，依赖 13a）：归档/恢复/删除 UI、Share、Edit project。15a 先做类型收窄：前端按 `ProjectPublic | ProjectHiddenPublic` 区分完整行和裁剪行，删除 PR-13b 在 `entities.ts` 留下的完整 `Project` 断言；验收：`entities.ts` 里没有该断言，tsc 通过。
 20. **PR-16 偏好接线与任务页**（R7，依赖 13a）：home / openTasks / confirmDelete 生效；可选 TaskPage。
 21. **PR-17 抽屉与菜单写齐**（R4 补、R26、R27，依赖 13a；子任务/反应含后端路由+测试）：抽屉属性写、菜单 Move/Copy link、反应、子任务。
 22. **PR-18 打磨与运维债**（R28，以及 R4b / R6 / R4 打磨句，依赖 13a）：任务与项目复制（R28）、搜索结果高亮、文件删除、抽屉全屏与复制链接；分支保护由用户或管理员在 GitHub 开，PR 只在 README / AGENTS 写明建议的 required checks 名单。
