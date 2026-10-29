@@ -27,7 +27,7 @@ def _snapshot(authed_client: TestClient) -> dict:
 
 
 def _web_project_id(authed_client: TestClient) -> str:
-    return next(p for p in _snapshot(authed_client)["projects"] if p["key"] == "WEB")[
+    return next(p for p in _snapshot(authed_client)["projects"] if p.get("key") == "WEB")[
         "id"
     ]
 

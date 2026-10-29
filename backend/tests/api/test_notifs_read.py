@@ -58,7 +58,7 @@ def test_patch_others_notif_returns_404(authed_client: TestClient) -> None:  # R
     snap = _snap(authed_client)
     me = _me(snap)
     sarah = next(m for m in snap["members"] if m["name"] == "陈莎莎")
-    web = next(p for p in snap["projects"] if p["key"] == "WEB")
+    web = next(p for p in snap["projects"] if p.get("key") == "WEB")
 
     # 造一条投递给陈莎莎的通知（对当前用户而言是「他人通知」）
     resp = authed_client.post(
