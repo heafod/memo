@@ -77,9 +77,10 @@ export default {
       due: 'Due date',
       project: 'Project',
       labels: 'Labels',
-      created: 'Created',
-      updated: 'Updated',
+      created: 'Created date',
+      updated: 'Updated date',
     },
+    due: { overdue: 'Overdue', today: 'Today', week: 'Next 7 days', later: 'Later', nodate: 'No due date' },
     age: { '1': 'Last 24 hours', '7': 'Last 7 days', '30': 'Last 30 days' },
   },
 } as const;

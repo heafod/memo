@@ -20,7 +20,7 @@ import { parseFilters } from '@/lib/domain/filters';
 import { canSee } from '@/lib/domain/tasks';
 import { type SavedView, useEvents, useMeId, useMembers, useProjects, useSavedViews } from '@/lib/query/entities';
 import { useVisibleTasks } from '@/lib/query/visibility';
-import { getViewFilters, resetViewFilters, setViewFilters } from '@/lib/view-filters';
+import { getViewFilters, seedViewFilters, setViewFilters } from '@/lib/view-filters';
 import { FilesView } from './project-files';
 import { ProjectOverview } from './project-overview';
 
@@ -56,7 +56,7 @@ export function ProjectPage() {
       <ProjectHeader projectId={project.id} tab={headerTab} savedViews={savedViews} />
       {isSaved ? (
         saved ? (
-          <SavedViewBody key={saved.id} projectId={project.id} view={saved} />
+          <SavedViewBody projectId={project.id} view={saved} />
         ) : (
           <NotFoundState />
         )
@@ -171,9 +171,8 @@ function SavedViewBody({ projectId, view }: { projectId: string; view: SavedView
   const { t } = useTranslation();
   const layout = view.layout === 'board' || view.layout === 'table' ? view.layout : 'list';
   const viewKey = `sv:${view.id}`;
-  // 应用视图：所存 filters 全部生效（R18）。每次进入 tab（挂载，按视图 id 重挂）时重置为所存条件；
-  // tab 内可在构建器 / 芯片里调整，但不写回服务端，切走再切回或刷新后恢复（1620 第 3 节）。
-  useState(() => resetViewFilters(viewKey, parseFilters(view.filters)));
+  // 应用视图：所存 filters 全部生效（R18）；首次打开时拷入会话条件，之后可在构建器 / 芯片里调整（原型 pages/project.js）。
+  seedViewFilters(viewKey, parseFilters(view.filters));
   if (layout === 'board') return <BoardView projectId={projectId} viewKey={viewKey} filterKey={viewKey} />;
   if (layout === 'table') return <TableView projectId={projectId} viewKey={viewKey} filterKey={viewKey} />;
   return (

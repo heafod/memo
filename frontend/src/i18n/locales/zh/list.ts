@@ -47,9 +47,10 @@ export default {
       due: '截止日期',
       project: '项目',
       labels: '标签',
-      created: '创建时间',
-      updated: '更新时间',
+      created: '创建日期',
+      updated: '更新日期',
     },
-    age: { '1': '近 24 小时', '7': '近 7 天', '30': '近 30 天' },
+    due: { overdue: '已逾期', today: '今天', week: '未来 7 天', later: '稍后', nodate: '无截止日期' },
+    age: { '1': '过去 24 小时', '7': '过去 7 天', '30': '过去 30 天' },
   },
 } as const;

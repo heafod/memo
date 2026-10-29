@@ -52,7 +52,7 @@ function useFieldOptions(): (f: string) => Opt[] {
           })),
         ];
       case 'due':
-        return DUE_OPTIONS.map(d => ({ id: d, name: t(`list.dueGroup.${d}`) }));
+        return DUE_OPTIONS.map(d => ({ id: d, name: t(`list.fb.due.${d}`) }));
       case 'project':
         return projects.map(p => ({ id: p.id, name: p.name, icon: <ProjectDot project={p} /> }));
       case 'labels':
