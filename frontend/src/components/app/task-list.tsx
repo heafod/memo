@@ -406,6 +406,7 @@ export function ViewToolbar({
   onGroup,
   groupOptions,
   sortOptions = SORT_FIELDS,
+  filter,
   right,
 }: {
   q: string;
@@ -416,6 +417,8 @@ export function ViewToolbar({
   onGroup?: (g: string) => void;
   groupOptions?: readonly ('status' | 'priority' | 'assignee' | 'project' | 'due' | 'none')[];
   sortOptions?: readonly SortField[];
+  /** 过滤构建器入口（R4；原型 viewToolbar「Filter」按钮，位于搜索之后）。 */
+  filter?: ReactNode;
   /** 工具栏右侧（原型 viewToolbar opts.right，如「新建任务」）。 */
   right?: ReactNode;
 }) {
@@ -432,6 +435,7 @@ export function ViewToolbar({
           className="h-7 w-56 pl-7 text-[13px]"
         />
       </div>
+      {filter}
       <Select value={sort.field} onValueChange={v => onSort({ field: v as SortField, dir: 1 })}>
         <SelectTrigger size="sm" aria-label={t('list.sortLabel')} className="h-7 text-[13px]">
           <span className="text-muted-foreground">{t('list.sortLabel')}</span>

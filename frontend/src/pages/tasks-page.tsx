@@ -64,7 +64,7 @@ export function TasksPage() {
       ))}
     </ToggleGroup>
   );
-  const scope = { viewKey: 'tasks', toolbarRight: seg, hideToolbarNewTask: true, presetFilter: preset };
+  const scope = { viewKey: 'tasks', filterKey: 'tasks', toolbarRight: seg, hideToolbarNewTask: true, presetFilter: preset };
 
   return (
     <div className="flex min-h-0 flex-col" data-page="tasks" data-mode={mode} data-tasks-filter={preset || undefined}>
