@@ -862,6 +862,36 @@ export interface components {
             /** Member Ids */
             member_ids?: string[];
         };
+        /**
+         * ProjectHiddenPublic
+         * @description 快照中不可见项目的裁剪行（R24：canSee 为 false）。
+         *
+         *     只保留 id、名称、图标与颜色、负责人，以及判断可见性所需的 ``private`` 与
+         *     ``member_ids``；``member_ids`` 恒为空列表（当前成员不在其中，不下发成员名单）。
+         *     描述、状态、日期、进度、成员、里程碑等其余字段不出现在 JSON 中。
+         */
+        ProjectHiddenPublic: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Icon */
+            icon: string | null;
+            /** Color */
+            color: string | null;
+            /** Lead Id */
+            lead_id: string | null;
+            /**
+             * Private
+             * @constant
+             */
+            private: true;
+            /** Member Ids */
+            member_ids: string[];
+        };
         /** ProjectPublic */
         ProjectPublic: {
             /**
@@ -1014,7 +1044,7 @@ export interface components {
             /** Teams */
             teams: components["schemas"]["TeamPublic"][];
             /** Projects */
-            projects: components["schemas"]["ProjectPublic"][];
+            projects: (components["schemas"]["ProjectPublic"] | components["schemas"]["ProjectHiddenPublic"])[];
             /** Tasks */
             tasks: components["schemas"]["TaskPublic"][];
             /** Subtasks */

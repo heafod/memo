@@ -2428,6 +2428,79 @@
         ],
         "title": "ProjectCreate"
       },
+      "ProjectHiddenPublic": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "lead_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Id"
+          },
+          "private": {
+            "type": "boolean",
+            "const": true,
+            "title": "Private"
+          },
+          "member_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Member Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "icon",
+          "color",
+          "lead_id",
+          "private",
+          "member_ids"
+        ],
+        "title": "ProjectHiddenPublic",
+        "description": "快照中不可见项目的裁剪行（R24：canSee 为 false）。\n\n只保留 id、名称、图标与颜色、负责人，以及判断可见性所需的 ``private`` 与\n``member_ids``；``member_ids`` 恒为空列表（当前成员不在其中，不下发成员名单）。\n描述、状态、日期、进度、成员、里程碑等其余字段不出现在 JSON 中。"
+      },
       "ProjectPublic": {
         "properties": {
           "id": {
@@ -2912,7 +2985,14 @@
           },
           "projects": {
             "items": {
-              "$ref": "#/components/schemas/ProjectPublic"
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ProjectPublic"
+                },
+                {
+                  "$ref": "#/components/schemas/ProjectHiddenPublic"
+                }
+              ]
             },
             "type": "array",
             "title": "Projects"

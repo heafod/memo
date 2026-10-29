@@ -9,7 +9,10 @@ import { queryClient } from './client';
 // 用 setQueryData 拆分写入各实体 key；视图只订阅实体 key，不直接订阅快照。
 
 type Schemas = components['schemas'];
-export type Snapshot = Schemas['Snapshot'];
+// R24 裁剪行，类型收窄留 PR-15a（FRIDAY 1535 裁定 A）：线上快照 projects 为
+// (ProjectPublic | ProjectHiddenPublic)[]，前端暂按完整 Project 使用，读裁剪行字段前由 isHidden / canSee 把关。
+// 唯一断言点见 fetchSnapshot；PR-15a 删除本断言并按两种行区分。
+export type Snapshot = Omit<Schemas['Snapshot'], 'projects'> & { projects: Project[] };
 export type Member = Schemas['MemberPublic'];
 export type Team = Schemas['TeamPublic'];
 export type Project = Schemas['ProjectPublic'];
@@ -44,7 +47,7 @@ export const snapshotKey = ['snapshot'] as const;
 async function fetchSnapshot(): Promise<Snapshot> {
   const { data, error, response } = await api.GET('/api/snapshot');
   if (data === undefined) throw new ApiError(response.status, error);
-  return data;
+  return data as Snapshot; // R24 裁剪行，类型收窄留 PR-15a（1535）
 }
 
 /** 拉快照并拆分写回全部实体 key（首次加载与「重拉快照」共用，保证一致）。 */
