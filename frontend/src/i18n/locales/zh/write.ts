@@ -53,7 +53,7 @@ export default {
     done: '已完成',
     added: '{{name}} 现在可以编辑 {{proj}}',
     removed: '已移除 {{name}}',
-    lostAccess: '你没有访问权限',
+    lostAccess: '你已无法访问 {{proj}}',
   },
   projectEdit: {
     renameEdit: '重命名与编辑',

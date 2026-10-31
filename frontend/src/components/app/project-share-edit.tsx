@@ -107,8 +107,8 @@ function ShareDialog({ id, onGone, onClose }: { id: string; onGone: (id: string)
     patch
       .mutateAsync({ id: p.id, patch: { member_ids: p.member_ids.filter(x => x !== mid) } })
       .then(fresh => {
-        // 把自己移出 private 项目（AC5）：已离开项目页，撤销会被不可见项目闸门挡下，所以不带撤销
-        if (!canSee(fresh, meId)) return void toast(t('write.projectShare.removed', { name }));
+        // 把自己移出 private 项目（AC5，1115 ①）：已离开项目页，不带撤销
+        if (!canSee(fresh, meId)) return void toast(t('write.projectShare.lostAccess', { proj: p.name }));
         toast(t('write.projectShare.removed', { name }), {
           action: {
             label: t('write.undo'),
@@ -125,8 +125,8 @@ function ShareDialog({ id, onGone, onClose }: { id: string; onGone: (id: string)
     patch
       .mutateAsync({ id: p.id, patch: { private: priv } })
       .then(fresh => {
-        // 切成 private 后自己不在成员里（规格待定项 2：照原型不拦，按 AC5）
-        if (!canSee(fresh, meId)) toast(t('write.projectShare.lostAccess'));
+        // 切成 private 后自己不在成员里（规格待定项 2：照原型不拦；AC5 文案按 1115 ①）
+        if (!canSee(fresh, meId)) toast(t('write.projectShare.lostAccess', { proj: p.name }));
       })
       .catch(() => {});
   };

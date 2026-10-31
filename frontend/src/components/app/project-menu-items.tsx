@@ -13,7 +13,7 @@ import { useToggleFav, useUpdateProject } from '@/lib/query/mutations';
 /**
  * 侧栏 / 项目卡片 / 项目页头菜单共用：收藏（R19）、重命名与编辑和分享（PR-15b，R25）、上移 / 下移（R23），
  * 末尾分隔线后是归档与红色删除（PR-15a，R7；原型 overlays/context-menu.js 第 32–48 行，FRIDAY 18:35 ②⑤）。
- * 原型在分享后还有「复制链接」「复制项目」，本批不做（规格 r1-1045「不做的」）。不可见项目不渲染本组件。
+ * 原型在分享后还有「复制链接」「复制项目」，本批不做（规格 r1-1045「不做的」，1115 ②归 PR-18）。不可见项目不渲染本组件；已归档项目不显示编辑和分享。
  */
 const SIDEBAR_MOVE_TOAST_MS = 1600;
 
@@ -58,6 +58,8 @@ function useProjectMenuActions(project: Project, visibleOrdered: readonly Projec
     moveUp: () => move(-1),
     moveDown: () => move(1),
     fav: project.fav,
+    // 已归档项目不给「重命名与编辑」「分享」（AC1；1115 ⑥）。不可见项目是裁剪行，类型上进不来本组件
+    editable: !project.archived,
     edit: () => shareEdit.edit(project),
     share: () => shareEdit.share(project),
     archive: () => lifecycle.archive(project),
@@ -77,14 +79,18 @@ export function ProjectDropdownItems({ project, visibleOrdered }: { project: Pro
         <Star />
         {a.fav ? t('write.fav.remove') : t('write.fav.add')}
       </DropdownMenuItem>
-      <DropdownMenuItem onSelect={a.edit} data-edit-project={project.id}>
-        <Pencil />
-        {t('write.projectEdit.renameEdit')}
-      </DropdownMenuItem>
-      <DropdownMenuItem onSelect={a.share} data-share-project={project.id}>
-        <Share2 />
-        {t('write.projectShare.share')}
-      </DropdownMenuItem>
+      {a.editable && (
+        <>
+          <DropdownMenuItem onSelect={a.edit} data-edit-project={project.id}>
+            <Pencil />
+            {t('write.projectEdit.renameEdit')}
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={a.share} data-share-project={project.id}>
+            <Share2 />
+            {t('write.projectShare.share')}
+          </DropdownMenuItem>
+        </>
+      )}
       {(a.canUp || a.canDown) && <DropdownMenuSeparator />}
       {a.canUp && (
         <DropdownMenuItem onSelect={a.moveUp}>
@@ -121,14 +127,18 @@ export function ProjectContextItems({ project, visibleOrdered }: { project: Proj
         <Star />
         {a.fav ? t('write.fav.remove') : t('write.fav.add')}
       </ContextMenuItem>
-      <ContextMenuItem onSelect={a.edit} data-edit-project={project.id}>
-        <Pencil />
-        {t('write.projectEdit.renameEdit')}
-      </ContextMenuItem>
-      <ContextMenuItem onSelect={a.share} data-share-project={project.id}>
-        <Share2 />
-        {t('write.projectShare.share')}
-      </ContextMenuItem>
+      {a.editable && (
+        <>
+          <ContextMenuItem onSelect={a.edit} data-edit-project={project.id}>
+            <Pencil />
+            {t('write.projectEdit.renameEdit')}
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={a.share} data-share-project={project.id}>
+            <Share2 />
+            {t('write.projectShare.share')}
+          </ContextMenuItem>
+        </>
+      )}
       {(a.canUp || a.canDown) && <ContextMenuSeparator />}
       {a.canUp && (
         <ContextMenuItem onSelect={a.moveUp}>

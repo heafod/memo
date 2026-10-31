@@ -53,7 +53,7 @@ export default {
     done: 'Done',
     added: '{{name}} can now edit {{proj}}',
     removed: 'Removed {{name}}',
-    lostAccess: "You don't have access",
+    lostAccess: 'You no longer have access to {{proj}}',
   },
   projectEdit: {
     renameEdit: 'Rename & edit',
