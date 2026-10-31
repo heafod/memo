@@ -7,9 +7,16 @@ comments/activity/notifs/files/events/savedViews——对齐原型消费形态�
 
 import uuid
 from datetime import date, datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_serializer,
+    field_validator,
+)
 
 MemberRole = Literal["Owner", "Admin", "Member", "Guest"]
 MemberStatus = Literal["active", "invited"]
@@ -123,6 +130,32 @@ class ProjectHiddenPublic(BaseModel):
     member_ids: list[uuid.UUID]
 
 
+# 字段名 ``date`` 与类型同名：类体内用别名标注，避免遮蔽（mypy valid-type）
+_Date = date
+
+
+class MilestoneIn(BaseModel):
+    """里程碑入参（PR-15b，R25）：只有名称与日期两个字段，不允许额外字段。
+
+    名称去掉首尾空格后 1–80 字；日期按 ISO 字符串落 JSONB，与现有数据
+    ``{name, date}`` 同形，``ProjectPublic.milestones`` 输出形状不变。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=80)
+    ]
+    date: _Date
+
+    @field_serializer("date")
+    def _date_iso(self, value: _Date) -> str:
+        return value.isoformat()
+
+
+MILESTONES_MAX = 50
+
+
 class ProjectCreate(BaseModel):
     key: str = Field(min_length=1, max_length=16)
     name: str = Field(min_length=1, max_length=120)
@@ -135,7 +168,9 @@ class ProjectCreate(BaseModel):
     start: date | None = None
     fav: bool = False
     desc: str = ""
-    milestones: list[dict[str, Any]] = Field(default_factory=list)
+    milestones: list[MilestoneIn] = Field(
+        default_factory=list, max_length=MILESTONES_MAX
+    )
     private: bool = False
     member_ids: list[uuid.UUID] = Field(default_factory=list)
 
@@ -151,11 +186,24 @@ class ProjectUpdate(BaseModel):
     start: date | None = None
     fav: bool | None = None
     desc: str | None = None
-    milestones: list[dict[str, Any]] | None = None
+    milestones: list[MilestoneIn] | None = Field(
+        default=None, max_length=MILESTONES_MAX
+    )
     private: bool | None = None
     archived: bool | None = None
     order: float | None = None
     member_ids: list[uuid.UUID] | None = None
+
+    @field_validator("milestones")
+    @classmethod
+    def _milestones_not_null(
+        cls, value: list[MilestoneIn] | None
+    ) -> list[MilestoneIn] | None:
+        # AC16（PR-15b，R25）：不传 milestones 时校验器不运行；显式传 null 返回 422，
+        # 避免把 JSONB 写成 null 让 /snapshot 500。
+        if value is None:
+            raise ValueError("milestones 不能为 null")
+        return value
 
 
 class TaskPublic(BaseModel):

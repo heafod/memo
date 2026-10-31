@@ -5,6 +5,7 @@ import { api, ApiError } from '@/lib/api/client';
 import type { components } from '@/lib/api/schema';
 import { PROJECT_TREE_KEYS, queryClient } from './client';
 import type { Comment, FileItem, Member, Notif, Preferences, Project, Task, Team } from './entities';
+import { canSee, isFullProject } from '@/lib/domain/tasks';
 import { assertVisibleProject, HiddenProjectError, taskProject } from './visibility';
 
 // 写操作（PR-9c）。约定见 docs/query-conventions.md「全局失效约定」：成功后经 meta.invalidates 统一失效。
@@ -15,6 +16,7 @@ type Schemas = components['schemas'];
 export type TaskPatch = Schemas['TaskUpdate'];
 export type TaskCreate = Schemas['TaskCreate'];
 export type ProjectCreate = Schemas['ProjectCreate'];
+export type ProjectUpdate = Schemas['ProjectUpdate'];
 
 async function unwrap<T>(p: Promise<{ data?: T; error?: unknown; response: Response }>): Promise<T> {
   const { data, error, response } = await p;
@@ -144,18 +146,41 @@ export function useUpdateProject() {
 }
 
 /**
- * 删除 / 归档请求失败后的统一处理（FRIDAY 2058 ①②、2108）：调用前已 toast 服务端 detail，此处重新拉取一次项目列表。
- * 项目仍在且未归档：用这次结果写回缓存，留在原页；已不存在或已归档：先 onGone 离开该项目页，再整体重拉项目树，项目随之从侧栏和列表消失。
- * 先直接查列表再写缓存：若直接重拉缓存，项目页会在跳转生效前先渲染成 404。
+ * 删除 / 归档 / 分享 / 设置请求失败后的统一处理（FRIDAY 2058 ①②、2108；PR-15b 规格第 7 条）：调用前已 toast 服务端 detail，此处重新拉取一次项目列表。
+ * 项目仍可见且未归档：用这次结果写回缓存，留在原页；已不可见（R24 裁剪行）、已归档或已不存在：先 onGone 离开该项目页，
+ * 再整体重拉项目树，项目随之从侧栏和列表消失（不可见时以裁剪行排在侧栏末尾）。
+ * 先直接查列表再写缓存：若直接重拉缓存，项目页会在跳转生效前先渲染成 404 / 403。
  */
 async function refetchAfterFailure(id: string, onGone?: (id: string) => void) {
   const fresh = await unwrap(api.GET('/api/projects')).catch(() => null);
   if (!fresh) return;
   const p = fresh.find(x => x.id === id);
-  const gone = !p || ('archived' in p && p.archived);
+  const gone = !p || !isFullProject(p) || p.archived;
   if (gone) onGone?.(id);
   else queryClient.setQueryData(['projects'], fresh);
   await Promise.all(PROJECT_TREE_KEYS.filter(k => gone || k[0] !== 'projects').map(queryKey => queryClient.invalidateQueries({ queryKey })));
+}
+
+/**
+ * R25 项目分享 / 设置 / 状态（PR-15b）：只发 PATCH，带改动过的字段（member_ids、private、status 或设置弹窗里改过的字段）。
+ * 不做乐观更新：成功后整体重拉项目树（加入或离开项目会改变可见的任务、文件等）。
+ * 成功后若项目对「我」已不可见（private 且我不在成员里，AC5）：在重拉之前先 onGone 离开该项目页，避免项目页先渲染成 403。
+ * 失败（规格第 7 条，含 409）：toast 服务端 detail，再按 refetchAfterFailure 处理。
+ */
+export function usePatchProject({ meId, onGone }: { meId: string | null | undefined; onGone?: (id: string) => void }) {
+  return useMutation({
+    meta: { invalidates: PROJECT_TREE_KEYS },
+    mutationFn: async ({ id, patch }: { id: string; patch: ProjectUpdate }): Promise<Project> => {
+      assertVisibleProject(id);
+      const p = await unwrap(api.PATCH('/api/projects/{project_id}', { params: { path: { project_id: id } }, body: patch }));
+      if (!canSee(p, meId)) onGone?.(id);
+      return p;
+    },
+    onError: async (e, { id }) => {
+      notifyError(e);
+      await refetchAfterFailure(id, onGone);
+    },
+  });
 }
 
 /**

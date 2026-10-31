@@ -7,10 +7,13 @@ R29（PR-13d）：列表行与快照共用 ``serializers.project_row``（不可�
 子任务行（外键 SET NULL / 关联表级联不会删掉这些行），其余子实体靠外键级联。
 PR-15a：提交后再删掉该项目文件在卷上的内容；删盘失败只记日志，仍返回 204
 （库里的记录已删，内容成为孤儿文件，不影响任何读面）。
+PR-15b（R25）：创建与 PATCH 用合并后的值（请求里有用请求值，否则用库里的值）
+校验开始日期不晚于目标日期，否则 422；放在路径 404 与归档 409 之后。
 """
 
 import logging
 import uuid
+from datetime import date
 
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import delete, or_
@@ -55,6 +58,11 @@ def _check_refs(session: SessionDep, payload: ProjectCreate | ProjectUpdate) -> 
                 raise HTTPException(status_code=422, detail="项目成员不存在")
 
 
+def _check_dates(start: date | None, due: date | None) -> None:
+    if start is not None and due is not None and start > due:
+        raise HTTPException(status_code=422, detail="开始日期不能晚于目标日期")
+
+
 @router.get("", response_model=list[ProjectPublic | ProjectHiddenPublic])
 def list_projects(
     session: SessionDep, current_user: CurrentUser
@@ -74,6 +82,7 @@ def create_project(
     if session.exec(select(Project).where(Project.key == payload.key)).first():
         raise HTTPException(status_code=409, detail="该项目标识已存在")
     _check_refs(session, payload)
+    _check_dates(payload.start, payload.due)
     fields = payload.model_dump(exclude_unset=True)
     member_ids = fields.pop("member_ids", [])
     project = Project(**fields)
@@ -108,6 +117,13 @@ def update_project(
     if project.archived and fields != {"archived": False}:
         visibility.raise_archived()
     _check_refs(session, payload)
+    # AC17（PR-15b，R25 / R29）：只有请求体带了 start 或 due 才检查合并后的日期，
+    # 库里已有颠倒日期时，改名、收藏、取消归档不受影响。
+    if "start" in fields or "due" in fields:
+        _check_dates(
+            fields["start"] if "start" in fields else project.start,
+            fields["due"] if "due" in fields else project.due,
+        )
     member_ids = fields.pop("member_ids", None)
     archived_changed = "archived" in fields and fields["archived"] != project.archived
     for key, value in fields.items():

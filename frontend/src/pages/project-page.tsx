@@ -1,11 +1,28 @@
-import { CalendarDays, ChartGantt, LayoutDashboard, List, ListFilter, MoreHorizontal, Paperclip, Plus, SquareKanban, Table2 } from 'lucide-react';
+import {
+  CalendarDays,
+  ChartGantt,
+  ChevronDown,
+  LayoutDashboard,
+  List,
+  ListFilter,
+  MoreHorizontal,
+  Paperclip,
+  Plus,
+  Settings,
+  Share2,
+  SquareKanban,
+  Table2,
+  UserPlus,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
-import { AvatarStack, ProjectIcon, ProjectStatusBadge } from '@/components/app/domain-ui';
+import { AvatarStack, ProjectIcon } from '@/components/app/domain-ui';
 import { ForbiddenState, NotFoundState } from '@/components/app/error-states';
 import { FavButton } from '@/components/app/fav-button';
+import { PickList } from '@/components/app/pickers';
 import { ProjectDropdownItems } from '@/components/app/project-menu-items';
+import { useLeaveProjectPage, useProjectShareEdit } from '@/components/app/project-share-edit';
 import { TaskCalendar } from '@/components/app/task-calendar';
 import { TimelineSection } from '@/components/app/task-timeline';
 import { projectMilestones } from '@/lib/domain/timeline';
@@ -17,9 +34,19 @@ import { Button } from '@/components/ui/button';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DEFAULT_PROJECT_TAB, ENABLED_PROJECT_TABS, PROJECT_TABS, STATUSES } from '@/lib/domain/constants';
+import {
+  DEFAULT_PROJECT_TAB,
+  ENABLED_PROJECT_TABS,
+  PROJECT_STATUS_COLOR,
+  PROJECT_STATUSES,
+  PROJECT_TABS,
+  type ProjectStatus,
+  STATUSES,
+} from '@/lib/domain/constants';
 import { parseFilters } from '@/lib/domain/filters';
-import { type SavedView, useEvents, useMembers, useProjects, useSavedViews } from '@/lib/query/entities';
+import { type Project, type SavedView, useEvents, useMeId, useMembers, useProjects, useSavedViews } from '@/lib/query/entities';
+import { usePatchProject } from '@/lib/query/mutations';
+import { toast } from 'sonner';
 import { useIsHiddenProject, useVisibleProjects, useVisibleTasks, useWorkspaceProjects } from '@/lib/query/visibility';
 import { getViewFilters, seedViewFilters, setViewFilters } from '@/lib/view-filters';
 import { FilesView } from './project-files';
@@ -91,6 +118,7 @@ function ProjectHeader({ projectId, tab, savedViews }: { projectId: string; tab:
   const sidebarOrdered = useWorkspaceProjects().filter(x => x.status !== 'complete');
   const members = useMembers();
   const { openSave, openRename, openDelete } = useSavedViewDialogs();
+  const shareEdit = useProjectShareEdit();
   const p = projects.find(x => x.id === projectId)!;
 
   // 「保存视图」写入当前构建器的全部条件（R18；原型 saveViewSubmit 取 viewOf(key).filters）：保存视图 tab 取其会话条件，其余取项目视图条件。
@@ -107,20 +135,51 @@ function ProjectHeader({ projectId, tab, savedViews }: { projectId: string; tab:
         <ProjectIcon project={p} size="lg" />
         <h1 className="text-xl font-semibold">{p.name}</h1>
         <FavButton kind="project" id={p.id} fav={p.fav} name={p.name} />
-        <ProjectStatusBadge status={p.status} />
+        <ProjectStatusPicker project={p} />
         <span className="flex-1" />
-        <AvatarStack ids={p.member_ids} members={members} max={4} />
-        {/* 页头「更多」菜单（原型 pages/project.js:69 ctxBtn data-ctx="project"），与侧栏 / 卡片菜单同一组条目 */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button type="button" variant="ghost" size="icon-sm" aria-label={t('ui.more')} data-project-more={p.id}>
-              <MoreHorizontal />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <ProjectDropdownItems project={p} visibleOrdered={sidebarOrdered} />
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {/* 页头入口（原型 pages/project.js 第 64–69 行）：头像堆叠、添加成员、分享打开 Share，齿轮打开「项目设置」（PR-15b，R25） */}
+        <div className="flex items-center gap-1">
+          <button type="button" className="flex" onClick={() => shareEdit.share(p)} aria-label={t('write.projectShare.members')} data-header-members="">
+            <AvatarStack ids={p.member_ids} members={members} max={5} />
+          </button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => shareEdit.share(p)}
+            aria-label={t('write.projectShare.addMember')}
+            title={t('write.projectShare.addMember')}
+            data-header-add-member=""
+          >
+            <UserPlus />
+          </Button>
+          <Button type="button" variant="secondary" size="sm" className="max-md:hidden" onClick={() => shareEdit.share(p)} data-header-share="">
+            <Share2 />
+            {t('write.projectShare.share')}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => shareEdit.edit(p)}
+            aria-label={t('write.projectEdit.settings')}
+            title={t('write.projectEdit.settings')}
+            data-header-settings=""
+          >
+            <Settings />
+          </Button>
+          {/* 页头「更多」菜单（原型 pages/project.js:69 ctxBtn data-ctx="project"），与侧栏 / 卡片菜单同一组条目 */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="ghost" size="icon-sm" aria-label={t('ui.more')} data-project-more={p.id}>
+                <MoreHorizontal />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <ProjectDropdownItems project={p} visibleOrdered={sidebarOrdered} />
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
       <Tabs value={tab ?? ''} onValueChange={v => void navigate(`/projects/${p.id}/${v}`)} className="mt-3 gap-0">
         <TabsList variant="line" aria-label={t('project.tabsLabel')} className="gap-[2px] p-0 group-data-horizontal/tabs:h-auto">
@@ -169,6 +228,42 @@ function ProjectHeader({ projectId, tab, savedViews }: { projectId: string; tab:
         </TabsList>
       </Tabs>
     </div>
+  );
+}
+
+/**
+ * 页头状态 pill（原型 pages/project.js 第 61 行 + popovers.js pstatus）：列出 PSTAT 全部状态、当前状态打勾，选中即 PATCH status。
+ * 失败按规格第 7 条处理（usePatchProject）；成功提示用原型文案「{name} 已标记为{status}」。
+ */
+function ProjectStatusPicker({ project }: { project: Project }) {
+  const { t } = useTranslation();
+  const meId = useMeId();
+  const leave = useLeaveProjectPage();
+  const patch = usePatchProject({ meId, onGone: leave });
+  const label = (s: string) => t(`domain.projectStatus.${s as ProjectStatus}`);
+  const items = PROJECT_STATUSES.map(s => ({
+    id: s,
+    label: label(s),
+    icon: <i className="size-[7px] shrink-0 rounded-full" style={{ background: PROJECT_STATUS_COLOR[s] }} />,
+  }));
+  const pick = (s: string) =>
+    patch
+      .mutateAsync({ id: project.id, patch: { status: s as ProjectStatus } })
+      .then(() => toast(t('write.projectEdit.statusMarked', { name: project.name, status: label(s) })))
+      .catch(() => {});
+  return (
+    <PickList items={items} value={project.status} onPick={pick} ariaLabel={t('write.projectEdit.status')}>
+      <button
+        type="button"
+        className="inline-flex h-6 shrink-0 items-center gap-1.5 rounded-sm border border-border bg-card px-2 text-xs font-medium hover:bg-accent"
+        aria-label={t('write.projectEdit.status')}
+        data-status-pill=""
+      >
+        <i className="size-[7px] rounded-full" style={{ background: PROJECT_STATUS_COLOR[project.status as ProjectStatus] }} />
+        {label(project.status)}
+        <ChevronDown size={12} />
+      </button>
+    </PickList>
   );
 }
 
