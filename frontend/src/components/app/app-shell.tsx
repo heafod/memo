@@ -26,6 +26,7 @@ import { Link, NavLink, Outlet, useLocation, useMatch } from 'react-router';
 import { CreateDialogsProvider, useCreateDialogs } from '@/components/app/create-dialogs';
 import { EventDialogsProvider } from '@/components/app/event-dialogs';
 import { ProjectLifecycleProvider } from '@/components/app/project-lifecycle';
+import { ProjectShareEditProvider } from '@/components/app/project-share-edit';
 import { SavedViewDialogsProvider } from '@/components/app/saved-view-dialogs';
 import { PrefsApplier } from '@/components/app/prefs-applier';
 import { KeyboardProvider } from '@/components/app/keyboard';
@@ -82,29 +83,31 @@ export function AppShell() {
         <EventDialogsProvider>
           <SavedViewDialogsProvider>
             <ProjectLifecycleProvider>
-              <ShortcutsDialogProvider>
-                <SidebarProvider>
-                  <KeyboardProvider>
-                    {snapshot.isSuccess ? <PrefsApplier /> : null}
-                    {snapshot.isSuccess ? <AppSidebar /> : <Sidebar />}
-                    <SidebarInset>
-                      <Topbar ready={snapshot.isSuccess} />
-                      <div id="main-content" tabIndex={-1} className="flex-1 outline-none">
-                        {snapshot.isSuccess ? (
-                          <>
-                            <Outlet />
-                            <TaskDrawer />
-                          </>
-                        ) : snapshot.isError ? (
-                          <FailedState />
-                        ) : (
-                          <ContentSkeleton />
-                        )}
-                      </div>
-                    </SidebarInset>
-                  </KeyboardProvider>
-                </SidebarProvider>
-              </ShortcutsDialogProvider>
+              <ProjectShareEditProvider>
+                <ShortcutsDialogProvider>
+                  <SidebarProvider>
+                    <KeyboardProvider>
+                      {snapshot.isSuccess ? <PrefsApplier /> : null}
+                      {snapshot.isSuccess ? <AppSidebar /> : <Sidebar />}
+                      <SidebarInset>
+                        <Topbar ready={snapshot.isSuccess} />
+                        <div id="main-content" tabIndex={-1} className="flex-1 outline-none">
+                          {snapshot.isSuccess ? (
+                            <>
+                              <Outlet />
+                              <TaskDrawer />
+                            </>
+                          ) : snapshot.isError ? (
+                            <FailedState />
+                          ) : (
+                            <ContentSkeleton />
+                          )}
+                        </div>
+                      </SidebarInset>
+                    </KeyboardProvider>
+                  </SidebarProvider>
+                </ShortcutsDialogProvider>
+              </ProjectShareEditProvider>
             </ProjectLifecycleProvider>
           </SavedViewDialogsProvider>
         </EventDialogsProvider>

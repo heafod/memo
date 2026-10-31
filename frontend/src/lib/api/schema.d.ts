@@ -779,6 +779,22 @@ export interface components {
             /** Timezone */
             timezone?: string | null;
         };
+        /**
+         * MilestoneIn
+         * @description 里程碑入参（PR-15b，R25）：只有名称与日期两个字段，不允许额外字段。
+         *
+         *     名称去掉首尾空格后 1–80 字；日期按 ISO 字符串落 JSONB，与现有数据
+         *     ``{name, date}`` 同形，``ProjectPublic.milestones`` 输出形状不变。
+         */
+        MilestoneIn: {
+            /** Name */
+            name: string;
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+        };
         /** NotifPublic */
         NotifPublic: {
             /**
@@ -865,9 +881,7 @@ export interface components {
              */
             desc: string;
             /** Milestones */
-            milestones?: {
-                [key: string]: unknown;
-            }[];
+            milestones?: components["schemas"]["MilestoneIn"][];
             /**
              * Private
              * @default false
@@ -973,9 +987,7 @@ export interface components {
             /** Desc */
             desc?: string | null;
             /** Milestones */
-            milestones?: {
-                [key: string]: unknown;
-            }[] | null;
+            milestones?: components["schemas"]["MilestoneIn"][] | null;
             /** Private */
             private?: boolean | null;
             /** Archived */
