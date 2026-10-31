@@ -10,12 +10,17 @@
   超过 50 个）一律 422，合法时 200 且读回一致；只改 ``start`` 或只改 ``due``
   使开始晚于目标日期返回 422「开始日期不能晚于目标日期」；已归档项目 409，
   不可见项目 404。
+- AC16 ``test_milestones_null_422``：POST 与 PATCH 显式传 ``milestones: null``
+  返回 422，库里的 ``milestones`` 不变，之后两个账号的 ``/snapshot`` 都是 200。
+- AC17 ``test_legacy_inverted_dates``：直接写库造出 start 晚于 due 的项目，只改
+  name、fav、归档 / 取消归档都 200；带 start 或 due 且合并后仍颠倒时 422。
 
 用例在共享种子库上自造数据并在结束时清理，不依赖执行顺序。
 """
 
 import uuid
 from collections.abc import Generator
+from datetime import date
 from typing import Any
 
 import pytest
@@ -329,3 +334,74 @@ def test_archived_409_and_hidden_404(
             assert got.status_code == 404 and got.json() == {"detail": "项目不存在"}
     finally:
         _delete(b, hidden["id"])
+
+
+def test_milestones_null_422(
+    authed_client: TestClient,
+    proj: dict[str, Any],
+    second: tuple[TestClient, str],
+) -> None:
+    pid = proj["id"]
+    # POST：显式 null → 422，不建项目
+    tag = uuid.uuid4().hex[:6].upper()
+    resp = authed_client.post(
+        "/api/projects",
+        json={"key": f"T{tag}", "name": f"PR-15b {tag}", "milestones": None},
+    )
+    assert resp.status_code == 422, resp.text
+    with Session(engine) as session:
+        assert (
+            session.exec(select(Project).where(Project.key == f"T{tag}")).first()
+            is None
+        )
+    # PATCH：先写入一个里程碑，再显式 null → 422，库里不变
+    resp = authed_client.patch(f"/api/projects/{pid}", json={"milestones": [_OK]})
+    assert resp.status_code == 200, resp.text
+    resp = authed_client.patch(f"/api/projects/{pid}", json={"milestones": None})
+    assert resp.status_code == 422, resp.text
+    resp = authed_client.patch(
+        f"/api/projects/{pid}", json={"name": "改名", "milestones": None}
+    )
+    assert resp.status_code == 422, resp.text
+    with Session(engine) as session:
+        row = session.get(Project, uuid.UUID(pid))
+        assert row is not None
+        assert row.milestones == [_OK] and row.name == proj["name"]
+    # 不传 milestones 保持现状
+    resp = authed_client.patch(f"/api/projects/{pid}", json={"name": "改名"})
+    assert resp.status_code == 200 and resp.json()["milestones"] == [_OK]
+    # 之后任何用户的 /snapshot 都是 200
+    b, _ = second
+    for client in (authed_client, b):
+        assert client.get("/api/snapshot").status_code == 200
+
+
+def test_legacy_inverted_dates(
+    authed_client: TestClient, proj: dict[str, Any]
+) -> None:
+    pid = proj["id"]
+    # 直接写库造旧数据：start 晚于 due
+    with Session(engine) as session:
+        row = session.get(Project, uuid.UUID(pid))
+        assert row is not None
+        row.start = date(2026, 12, 5)
+        row.due = date(2026, 12, 1)
+        session.add(row)
+        session.commit()
+    for body in (
+        {"name": "旧数据改名"},
+        {"fav": True},
+        {"archived": True},
+        {"archived": False},
+    ):
+        resp = authed_client.patch(f"/api/projects/{pid}", json=body)
+        assert resp.status_code == 200, (body, resp.text)
+    row_json = _row(_snap(authed_client), pid)
+    assert row_json["archived"] is False and row_json["name"] == "旧数据改名"
+    # 带了 start 或 due、合并后仍颠倒 → 422
+    for body in ({"due": "2026-12-02"}, {"start": "2026-12-06"}):
+        resp = authed_client.patch(f"/api/projects/{pid}", json=body)
+        assert resp.status_code == 422 and resp.json() == DATES
+    # 带了日期且合并后自洽 → 200
+    resp = authed_client.patch(f"/api/projects/{pid}", json={"start": "2026-11-30"})
+    assert resp.status_code == 200, resp.text

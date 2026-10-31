@@ -117,10 +117,13 @@ def update_project(
     if project.archived and fields != {"archived": False}:
         visibility.raise_archived()
     _check_refs(session, payload)
-    _check_dates(
-        fields["start"] if "start" in fields else project.start,
-        fields["due"] if "due" in fields else project.due,
-    )
+    # AC17（PR-15b，R25 / R29）：只有请求体带了 start 或 due 才检查合并后的日期，
+    # 库里已有颠倒日期时，改名、收藏、取消归档不受影响。
+    if "start" in fields or "due" in fields:
+        _check_dates(
+            fields["start"] if "start" in fields else project.start,
+            fields["due"] if "due" in fields else project.due,
+        )
     member_ids = fields.pop("member_ids", None)
     archived_changed = "archived" in fields and fields["archived"] != project.archived
     for key, value in fields.items():

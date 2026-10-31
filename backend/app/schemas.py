@@ -15,6 +15,7 @@ from pydantic import (
     Field,
     StringConstraints,
     field_serializer,
+    field_validator,
 )
 
 MemberRole = Literal["Owner", "Admin", "Member", "Guest"]
@@ -192,6 +193,17 @@ class ProjectUpdate(BaseModel):
     archived: bool | None = None
     order: float | None = None
     member_ids: list[uuid.UUID] | None = None
+
+    @field_validator("milestones")
+    @classmethod
+    def _milestones_not_null(
+        cls, value: list[MilestoneIn] | None
+    ) -> list[MilestoneIn] | None:
+        # AC16（PR-15b，R25）：不传 milestones 时校验器不运行；显式传 null 返回 422，
+        # 避免把 JSONB 写成 null 让 /snapshot 500。
+        if value is None:
+            raise ValueError("milestones 不能为 null")
+        return value
 
 
 class TaskPublic(BaseModel):
