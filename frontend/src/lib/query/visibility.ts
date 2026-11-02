@@ -1,3 +1,4 @@
+import i18n from '@/i18n';
 import { activeProjects, canSee, isFullProject, visibleFullProjects } from '@/lib/domain/tasks';
 import { authKeys, type CurrentUser } from './auth';
 import { queryClient } from './client';
@@ -46,7 +47,10 @@ export function useListedProjects(): ProjectRow[] {
   const full = visibleFullProjects(projects, meId);
   const visible = activeProjects(full);
   const shown = new Set(full.map(p => p.id));
-  const hidden = projects.filter(p => !shown.has(p.id)).sort((a, b) => (a.name > b.name ? 1 : a.name < b.name ? -1 : 0));
+  // 不可见项目：按名称（localeCompare，跟随界面语言），同名再按 id，与 compareProjects 同一套比较（PR-18 AC9）
+  const hidden = projects
+    .filter(p => !shown.has(p.id))
+    .sort((a, b) => a.name.localeCompare(b.name, i18n.language) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return [...visible, ...hidden];
 }
 
