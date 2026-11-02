@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router';
 import { ActivityItem } from '@/components/app/activity-item';
-import { DueDate, FileTypeIcon, LabelTag, MemberAvatar, PriorityPill, ProjectDot, StatusIcon, StatusPill } from '@/components/app/domain-ui';
+import { DueDate, FileTypeIcon, LabelTag, MemberAvatar, PriorityPill, ProjectDot, StatusPill } from '@/components/app/domain-ui';
 import { FavButton, FAV_TOAST_MS } from '@/components/app/fav-button';
 import {
   depItems,
@@ -37,6 +37,7 @@ import {
   useStatusItems,
 } from '@/components/app/pick-items';
 import { DatePick, MultiPickList, PickList } from '@/components/app/pickers';
+import { CommentReactions, SubtaskDetail, SubtaskSection } from '@/components/app/task-collab';
 import { FileDropzone, FilePickButton } from '@/components/app/upload-ui';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -151,7 +152,14 @@ function DrawerTaskBody({ task, project, full, onToggleFull }: { task: Task; pro
   const meId = useMeId();
   const assignee = members.find(m => m.id === task.assignee_id);
   const subs = subtasks.filter(s => s.parent_task_id === task.id).sort((a, b) => a.order - b.order);
-  const doneSubs = subs.filter(s => s.done).length;
+  // 子任务详情（原型 S.ui.subOpen）：打开时替换抽屉正文；关闭后焦点回到该行标题（原型 lastSub）
+  const [subOpen, setSubOpen] = useState<string | null>(null);
+  const openSub = subs.find(s => s.id === subOpen);
+  const closeSub = () => {
+    const id = subOpen;
+    setSubOpen(null);
+    requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-sub-open="${id}"]`)?.focus());
+  };
   const cs = comments.filter(c => c.task_id === task.id).sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
   const acts = activity.filter(a => a.task_id === task.id).sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
   const atts = files.filter(f => f.task_id === task.id);
@@ -224,7 +232,8 @@ function DrawerTaskBody({ task, project, full, onToggleFull }: { task: Task; pro
         </Button>
         <SheetTitle className="sr-only">{t('task.dialogTitle', { title: task.title })}</SheetTitle>
       </SheetHeader>
-      <div className="flex flex-col gap-5 p-5">
+      {openSub && <SubtaskDetail task={task} subs={subs} sub={openSub} onNav={setSubOpen} onClose={closeSub} />}
+      <div className={cn('flex flex-col gap-5 p-5', openSub && 'hidden')}>
         {task.status === 'done' ? (
           <Alert>
             <CircleCheck className="text-[var(--green)]" />
@@ -378,24 +387,7 @@ function DrawerTaskBody({ task, project, full, onToggleFull }: { task: Task; pro
 
         <DescriptionEditor key={task.id} html={task.desc} onCommit={v => patch({ desc: v })} />
 
-        {subs.length > 0 && (
-          <section>
-            <h3 className="mb-2 flex items-center gap-2 text-[13px] font-semibold">
-              {t('task.subtasks')}
-              <span className="font-normal tabular-nums text-muted-foreground">
-                {doneSubs}/{subs.length}
-              </span>
-            </h3>
-            <ul className="flex flex-col">
-              {subs.map(s => (
-                <li key={s.id} className={cn('flex items-center gap-2 py-1 text-sm', s.done && 'text-muted-foreground line-through')}>
-                  <StatusIcon status={s.done ? 'done' : 'todo'} />
-                  {s.title}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        <SubtaskSection task={task} subs={subs} onOpen={setSubOpen} />
 
         <section>
           <div className="mb-2 flex items-center gap-2">
@@ -447,7 +439,6 @@ function DrawerTaskBody({ task, project, full, onToggleFull }: { task: Task; pro
             {cs.length === 0 && <p className="py-2 text-[13px] text-muted-foreground">{t('task.noComments')}</p>}
             {cs.map(c => {
               const by = members.find(m => m.id === c.by_id);
-              const reactions = Object.entries(c.reactions).filter(([, ids]) => ids.length);
               return (
                 <div key={c.id} className="flex gap-2.5 py-2.5">
                   <MemberAvatar member={by} size="md" />
@@ -469,16 +460,7 @@ function DrawerTaskBody({ task, project, full, onToggleFull }: { task: Task; pro
                       )}
                     </div>
                     <CommentText text={c.text} members={members.map(m => m.name)} />
-                    {reactions.length > 0 && (
-                      <div className="mt-1 flex gap-1">
-                        {reactions.map(([emoji, ids]) => (
-                          <span key={emoji} className="inline-flex h-6 items-center gap-1 rounded-full border border-border px-2 text-xs">
-                            {emoji}
-                            <span className="tabular-nums">{ids.length}</span>
-                          </span>
-                        ))}
-                      </div>
-                    )}
+                    <CommentReactions comment={c} meId={meId} members={members} />
                   </div>
                 </div>
               );

@@ -4,7 +4,7 @@ import i18n from '@/i18n';
 import { api, ApiError } from '@/lib/api/client';
 import type { components } from '@/lib/api/schema';
 import { PROJECT_TREE_KEYS, queryClient } from './client';
-import type { Comment, FileItem, Member, Notif, Preferences, Project, Task, Team } from './entities';
+import type { Comment, FileItem, Member, Notif, Preferences, Project, Subtask, Task, Team } from './entities';
 import { canSee, isFullProject } from '@/lib/domain/tasks';
 import { assertVisibleProject, HiddenProjectError, taskProject } from './visibility';
 
@@ -272,6 +272,76 @@ export function useDeleteComment() {
     mutationFn: async (c: Comment) => {
       assertVisibleProject(taskProject(c.task_id));
       await unwrap(api.DELETE('/api/comments/{comment_id}', { params: { path: { comment_id: c.id } } }));
+    },
+    onError: notifyError,
+  });
+}
+
+/** 表情回应切换（R26）：只增删当前成员自己的 id；乐观切换，失败回滚并提示服务端 detail。 */
+export function useToggleReaction(meId: string | null | undefined) {
+  return useMutation({
+    meta: { invalidates: [['comments']] },
+    mutationFn: async ({ comment, emoji }: { comment: Comment; emoji: string }): Promise<Comment> => {
+      assertVisibleProject(taskProject(comment.task_id));
+      return unwrap(api.POST('/api/comments/{comment_id}/reactions', { params: { path: { comment_id: comment.id } }, body: { emoji } }));
+    },
+    onMutate: async ({ comment, emoji }) => {
+      await queryClient.cancelQueries({ queryKey: ['comments'] });
+      const cur = queryClient.getQueryData<Comment[]>(['comments'])?.find(c => c.id === comment.id) ?? comment;
+      const reactions: Record<string, string[]> = { ...cur.reactions };
+      if (meId) {
+        const ids = reactions[emoji] ?? [];
+        const next = ids.includes(meId) ? ids.filter(i => i !== meId) : [...ids, meId];
+        if (next.length) reactions[emoji] = next;
+        else delete reactions[emoji];
+      }
+      return { rollback: optimistic<Comment>(['comments'], comment.id, { reactions }) };
+    },
+    onError: (e, _v, ctx) => {
+      ctx?.rollback();
+      notifyError(e);
+    },
+  });
+}
+
+/** 新建子任务（R27）：挂到父任务末尾。 */
+export function useCreateSubtask() {
+  return useMutation({
+    meta: { invalidates: [['subtasks'], ['activity']] },
+    mutationFn: async (body: { task_id: string; title: string }): Promise<Subtask> => {
+      assertVisibleProject(taskProject(body.task_id));
+      return unwrap(api.POST('/api/subtasks', { body }));
+    },
+    onError: notifyError,
+  });
+}
+
+/** 改子任务 done / title（R27）：乐观更新，失败回滚。 */
+export function useUpdateSubtask() {
+  return useMutation({
+    meta: { invalidates: [['subtasks'], ['activity']] },
+    mutationFn: async ({ sub, patch }: { sub: Subtask; patch: { done?: boolean; title?: string } }): Promise<Subtask> => {
+      assertVisibleProject(taskProject(sub.parent_task_id));
+      return unwrap(api.PATCH('/api/subtasks/{subtask_id}', { params: { path: { subtask_id: sub.id } }, body: patch }));
+    },
+    onMutate: async ({ sub, patch }) => {
+      await queryClient.cancelQueries({ queryKey: ['subtasks'] });
+      return { rollback: optimistic<Subtask>(['subtasks'], sub.id, patch) };
+    },
+    onError: (e, _v, ctx) => {
+      ctx?.rollback();
+      notifyError(e);
+    },
+  });
+}
+
+/** 删除子任务（R27）。 */
+export function useDeleteSubtask() {
+  return useMutation({
+    meta: { invalidates: [['subtasks']] },
+    mutationFn: async (sub: Subtask) => {
+      assertVisibleProject(taskProject(sub.parent_task_id));
+      await unwrap(api.DELETE('/api/subtasks/{subtask_id}', { params: { path: { subtask_id: sub.id } } }));
     },
     onError: notifyError,
   });

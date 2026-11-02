@@ -22,6 +22,10 @@ export default {
   repeat: '<who>{{who}}</who> <m>set repeat on</m> <obj>{{obj}}</obj>',
   estimated: '<who>{{who}}</who> <m>changed estimate on</m> <obj>{{obj}}</obj>',
   fileAdded: '<who>{{who}}</who> <m>added file {{x}} to</m> <obj>{{obj}}</obj>',
+  quote: '“{{x}}”',
+  subCompleted: '<who>{{who}}</who> <m>completed subtask {{x}} in</m> <obj>{{obj}}</obj>',
+  subReopened: '<who>{{who}}</who> <m>reopened subtask {{x}} in</m> <obj>{{obj}}</obj>',
+  subAdded: '<who>{{who}}</who> <m>added subtask {{x}} to</m> <obj>{{obj}}</obj>',
   archived: '<who>{{who}}</who> <m>archived</m> <obj>{{obj}}</obj>',
   updated: '<who>{{who}}</who> <m>updated</m> <obj>{{obj}}</obj>',
 } as const;

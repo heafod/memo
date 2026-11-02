@@ -29,7 +29,13 @@ function priorityName(t: TFunction, raw: string): string {
   return id && (PRIORITIES as readonly string[]).includes(id) ? t(`domain.priority.${id as (typeof PRIORITIES)[number]}`) : raw;
 }
 
-type PhraseKey = `activity.${Exclude<keyof typeof activityLocale, 'you' | 'someone' | 'inProject'>}`;
+/** 后端存的是 “标题”（原型 actions.js logAct），去掉弯引号后按语言重新加引号（原型 actZh 的 zq）。 */
+function quoted(t: TFunction, raw: string): string {
+  const bare = raw.startsWith('“') && raw.endsWith('”') ? raw.slice(1, -1) : raw;
+  return t('activity.quote', { x: bare });
+}
+
+type PhraseKey = `activity.${Exclude<keyof typeof activityLocale, 'you' | 'someone' | 'inProject' | 'quote'>}`;
 type Phrase = { key: PhraseKey; values?: Record<string, string> };
 
 function phrase(t: TFunction, a: Activity): Phrase {
@@ -69,6 +75,12 @@ function phrase(t: TFunction, a: Activity): Phrase {
       return { key: 'activity.estimated' };
     case 'added a file to':
       return { key: 'activity.fileAdded', values: { x: e } };
+    case 'completed subtask on':
+      return e ? { key: 'activity.subCompleted', values: { x: quoted(t, e) } } : { key: 'activity.updated' };
+    case 'reopened subtask on':
+      return e ? { key: 'activity.subReopened', values: { x: quoted(t, e) } } : { key: 'activity.updated' };
+    case 'added subtask to':
+      return e ? { key: 'activity.subAdded', values: { x: quoted(t, e) } } : { key: 'activity.updated' };
     case 'archived':
       return { key: 'activity.archived' };
     default:

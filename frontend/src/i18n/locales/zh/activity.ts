@@ -23,6 +23,10 @@ export default {
   repeat: '<who>{{who}}</who> <m>设置了</m> <obj>{{obj}}</obj> <m>的重复规则</m>',
   estimated: '<who>{{who}}</who> <m>更改了</m> <obj>{{obj}}</obj> <m>的预估</m>',
   fileAdded: '<who>{{who}}</who> <m>向</m> <obj>{{obj}}</obj> <m>添加了文件 {{x}}</m>',
+  quote: '「{{x}}」',
+  subCompleted: '<who>{{who}}</who> <m>完成了</m> <obj>{{obj}}</obj> <m>中的子任务 {{x}}</m>',
+  subReopened: '<who>{{who}}</who> <m>重新打开了</m> <obj>{{obj}}</obj> <m>中的子任务 {{x}}</m>',
+  subAdded: '<who>{{who}}</who> <m>向</m> <obj>{{obj}}</obj> <m>添加了子任务 {{x}}</m>',
   archived: '<who>{{who}}</who> <m>归档了</m> <obj>{{obj}}</obj>',
   updated: '<who>{{who}}</who> <m>更新了</m> <obj>{{obj}}</obj>',
 } as const;
