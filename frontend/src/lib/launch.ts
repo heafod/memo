@@ -37,7 +37,8 @@ const sitePath = (s: string) => s.startsWith('/') && !s.startsWith('//') && !BAD
 
 /**
  * 校验 `next`（防开放重定向）：只接受站内路径，其余一律返回 null（静默忽略，按启动页走）。
- * 原文与解码后都须以单个 `/` 开头、不含 `\` 与控制字符；按当前 origin 解析后 origin 不变；目标不是登录页。
+ * 原文与解码后都须以单个 `/` 开头、不含 `\` 与控制字符；再按 URL 规则解析掉 `.` / `..` 段（含 `%2e`），
+ * 解析后不得以 `//` 或 `/\` 开头、origin 不变、目标不是登录页（1621 第 1 条）；返回解析后的地址。
  * 目标正好是 `/` 时也返回 null，按启动页处理。
  */
 export function safeNext(raw: string | null | undefined): string | null {
@@ -49,13 +50,16 @@ export function safeNext(raw: string | null | undefined): string | null {
     return null;
   }
   if (!sitePath(decoded)) return null;
-  let url: URL;
-  try {
-    url = new URL(raw, window.location.origin);
-  } catch {
-    return null;
-  }
-  if (url.origin !== window.location.origin || isLoginPath(url.pathname)) return null;
+  const resolve = (s: string) => {
+    try {
+      return new URL(s, window.location.origin);
+    } catch {
+      return null;
+    }
+  };
+  const ok = (u: URL | null): u is URL => !!u && u.origin === window.location.origin && sitePath(u.pathname) && !isLoginPath(u.pathname);
+  const url = resolve(raw);
+  if (!ok(url) || !ok(resolve(decoded))) return null;
   const target = url.pathname + url.search + url.hash;
   return target === '/' ? null : target;
 }
