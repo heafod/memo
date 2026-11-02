@@ -289,6 +289,9 @@ class CommentCreate(BaseModel):
 
 
 class CommentUpdate(BaseModel):
+    # 多余字段 422，排在 403 之前（0515 Q10）
+    model_config = ConfigDict(extra="forbid")
+
     text: str = Field(min_length=1, max_length=10000)
 
 
