@@ -35,4 +35,7 @@ export default {
   taskCreated: 'Task created',
   download: 'Download',
   close: 'Close',
+  sidePanel: 'Side panel',
+  fullPage: 'Full page',
+  toggleFullPage: 'Toggle full page',
 } as const;

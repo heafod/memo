@@ -30,4 +30,7 @@ export default {
   taskCreated: '任务已创建',
   download: '下载',
   close: '关闭',
+  sidePanel: '侧边面板',
+  fullPage: '整页',
+  toggleFullPage: '切换整页',
 } as const;

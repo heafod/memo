@@ -1,4 +1,19 @@
-import { AtSign, Bold, Circle, CircleCheck, ClockAlert, Download, Heading, Italic, List, ListOrdered, Paperclip, Trash2 } from 'lucide-react';
+import {
+  AtSign,
+  Bold,
+  Circle,
+  CircleCheck,
+  ClockAlert,
+  Download,
+  Heading,
+  Italic,
+  List,
+  ListOrdered,
+  Maximize2,
+  Minimize2,
+  Paperclip,
+  Trash2,
+} from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
@@ -19,8 +34,9 @@ import type { Priority, TaskStatus } from '@/lib/domain/constants';
 import { daysFromToday } from '@/lib/domain/dates';
 import { sanitizeHtml } from '@/lib/domain/html';
 import { fileSize, fmtDate, timeAgo } from '@/lib/domain/format';
+import { mergePrefs, type PrefsData } from '@/lib/domain/prefs';
 import { activeProjects, isOverdue } from '@/lib/domain/tasks';
-import { type Member, type Project, type Task, useMeId, useMembers } from '@/lib/query/entities';
+import { type Member, type Project, type Task, useMeId, useMembers, usePreferences } from '@/lib/query/entities';
 import { type TaskPatch, useCreateComment, useDeleteComment, useUpdateTask, useUploadFiles } from '@/lib/query/mutations';
 import { useVisibleActivity, useVisibleComments, useVisibleFiles, useVisibleProjects, useVisibleSubtasks, useVisibleTasks } from '@/lib/query/visibility';
 import { cn } from '@/lib/utils';
@@ -29,7 +45,11 @@ import { cn } from '@/lib/utils';
  * 任务详情抽屉（原型 overlays/drawer.js）。9a 只读展示；9c 写面：标记完成 / 重新打开、收藏星标、标题与属性编辑、
  * 描述富文本、评论发布与删除（含 @提及）、附件上传（关联本任务）。
  * 由 URL 查询参数 ?task=<id> 打开，任一页面可用；不可见项目的任务不渲染，也就没有任何写入口（写入层另有闸门）。
- * 未做（无后端写接口或不在 9c 范围）：子任务勾选与新增、表情回应、移除附件、标签 / 重复 / 估算 / 依赖编辑、整页展开、复制链接、更多菜单。
+ * 未做（无后端写接口或不在 9c 范围）：子任务勾选与新增、表情回应、移除附件、标签 / 重复 / 估算 / 依赖编辑、复制链接、更多菜单。
+ *
+ * 整页模式（R7「任务打开方式」，PR-16；原型 drawer.js:20、49、57 与 actions.js:393）：
+ * 偏好为 page 时以整页模式打开同一个抽屉；头部按钮只切换这一次的显示方式，不改偏好；
+ * 抽屉开着时切到别的任务：偏好为 page 或当前已是整页，就保持整页；关闭后复位。
  */
 export function TaskDrawer() {
   const { t } = useTranslation();
@@ -41,6 +61,14 @@ export function TaskDrawer() {
   // 只在可见、未归档项目里打开（已归档项目没有任何写入口，PR-15a AC4）
   const project = task ? projects.find(p => p.id === task.project_id && !p.archived) : undefined;
   const open = !!task && !!project;
+  const openTasks = mergePrefs(usePreferences() as PrefsData | null).openTasks;
+  const openId = open ? task.id : null;
+  const [shownId, setShownId] = useState<string | null>(null);
+  const [full, setFull] = useState(false);
+  if (openId !== shownId) {
+    setShownId(openId);
+    setFull(openId !== null && (openTasks === 'page' || (shownId !== null && full)));
+  }
 
   const close = () =>
     setParams(
@@ -55,7 +83,14 @@ export function TaskDrawer() {
   return (
     <Sheet open={open} onOpenChange={o => !o && close()}>
       <SheetContent
-        className="w-full gap-0 overflow-y-auto sm:max-w-xl"
+        data-full={full ? '' : undefined}
+        className={cn(
+          'w-full gap-0 overflow-y-auto sm:max-w-xl',
+          // 整页（原型 .drawer.full）：居中、四周留 24px、圆角；窄屏铺满
+          full &&
+            'data-[side=right]:inset-0 data-[side=right]:h-auto data-[side=right]:w-full data-[side=right]:sm:max-w-none sm:data-[side=right]:inset-x-auto sm:data-[side=right]:inset-y-6 sm:data-[side=right]:left-1/2 sm:data-[side=right]:w-[min(980px,calc(100vw-48px))] sm:data-[side=right]:-translate-x-1/2 sm:data-[side=right]:rounded-xl sm:data-[side=right]:border',
+        )}
+        overlayClassName={full ? 'bg-black/40' : undefined}
         aria-describedby={undefined}
         // toaster 在 Sheet 外；点 toast「撤销」属正当操作，勿当「点外部」关抽屉（EDITH #13）
         onPointerDownOutside={e => {
@@ -67,7 +102,7 @@ export function TaskDrawer() {
           if (t instanceof Element && t.closest('[data-sonner-toaster], [data-sonner-toast]')) e.preventDefault();
         }}
       >
-        {open && <DrawerBody taskId={task.id} />}
+        {open && <DrawerBody taskId={task.id} full={full} onToggleFull={() => setFull(f => !f)} />}
         {!open && <SheetTitle className="sr-only">{t('task.close')}</SheetTitle>}
       </SheetContent>
     </Sheet>
@@ -79,16 +114,16 @@ export function TaskDrawer() {
  * 与外层 TaskDrawer 一致，按「抽屉不打开」处理（main 的既有做法），渲染为空而不是断言存在。
  * 外层与此处各自读缓存，并发渲染（如路由跳转的 transition）中途重拉落地时两者可能看到不同版本，故此处必须自行兜底。
  */
-function DrawerBody({ taskId }: { taskId: string }) {
+function DrawerBody({ taskId, full, onToggleFull }: { taskId: string; full: boolean; onToggleFull: () => void }) {
   const tasks = useVisibleTasks();
   const projects = useVisibleProjects();
   const task = tasks.find(x => x.id === taskId);
   const project = task ? projects.find(p => p.id === task.project_id && !p.archived) : undefined;
   if (!task || !project) return null;
-  return <DrawerTaskBody task={task} project={project} />;
+  return <DrawerTaskBody task={task} project={project} full={full} onToggleFull={onToggleFull} />;
 }
 
-function DrawerTaskBody({ task, project }: { task: Task; project: Project }) {
+function DrawerTaskBody({ task, project, full, onToggleFull }: { task: Task; project: Project; full: boolean; onToggleFull: () => void }) {
   const { t } = useTranslation();
   // 依赖、附件、动态等只取可见项目数据（FRIDAY 裁定 #12 17:27 总 AC）：可见任务依赖不可见项目任务时不显示该依赖
   const tasks = useVisibleTasks();
@@ -159,6 +194,17 @@ function DrawerTaskBody({ task, project }: { task: Task; project: Project }) {
           {task.status === 'done' ? t('write.drawer.completed') : t('write.drawer.markComplete')}
         </Button>
         <FavButton kind="task" id={task.id} fav={task.fav} name={task.title} />
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="hidden sm:inline-flex"
+          onClick={onToggleFull}
+          title={full ? t('task.sidePanel') : t('task.fullPage')}
+          aria-label={t('task.toggleFullPage')}
+          data-toggle-full=""
+        >
+          {full ? <Minimize2 /> : <Maximize2 />}
+        </Button>
         <SheetTitle className="sr-only">{t('task.dialogTitle', { title: task.title })}</SheetTitle>
       </SheetHeader>
       <div className="flex flex-col gap-5 p-5">
