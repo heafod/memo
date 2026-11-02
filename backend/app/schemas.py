@@ -13,6 +13,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    StrictBool,
     StringConstraints,
     field_serializer,
     field_validator,
@@ -288,6 +289,48 @@ class CommentCreate(BaseModel):
 
 class CommentUpdate(BaseModel):
     text: str = Field(min_length=1, max_length=10000)
+
+
+REACTION_EMOJIS = ("👍", "🎉", "❤️", "👀", "🚀", "✅")  # 原型 popovers.js 第 354 行
+
+
+class ReactionToggle(BaseModel):
+    """表情回应切换（R26）：对当前成员增删这一个表情。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # 白名单在 handler 里查（404 → 409 → 422 之后），这里只管类型
+    emoji: str
+
+
+# 空 / 全空格标题由 handler 在 404 → 409 之后判 422（FRIDAY 1745 Q1），这里不 strip
+_SubtaskTitle = Annotated[str, Field(max_length=255)]
+
+
+class SubtaskCreate(BaseModel):
+    """新建子任务（R27）：挂到父任务末尾。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    task_id: uuid.UUID
+    title: _SubtaskTitle
+
+
+class SubtaskUpdate(BaseModel):
+    """改子任务（R27）：只允许 done / title。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: _SubtaskTitle | None = None
+    done: StrictBool | None = None
+
+    @field_validator("title", "done")
+    @classmethod
+    def _not_null(cls, value: object) -> object:
+        # 显式 null 不是合法改动（只能省略字段）
+        if value is None:
+            raise ValueError("不能为空")
+        return value
 
 
 class ActivityPublic(BaseModel):
