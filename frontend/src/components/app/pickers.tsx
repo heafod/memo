@@ -15,6 +15,8 @@ export interface PickItem {
   id: string;
   label: string;
   icon?: ReactNode;
+  /** 选中该项不打勾（原型「清除预估」项没有选中态）。 */
+  noCheck?: boolean;
 }
 
 export function PickList({
@@ -57,7 +59,48 @@ export function PickList({
               >
                 {it.icon}
                 <span className="truncate">{it.label}</span>
-                {it.id === value && <Check className="ml-auto" />}
+                {it.id === value && !it.noCheck && <Check className="ml-auto" />}
+              </CommandItem>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** 多选列表（原型 popovers.js 标签 popToggleLabel、依赖 popToggleDep）：点一项切换一项，弹层保持打开。 */
+export function MultiPickList({
+  items,
+  values,
+  onToggle,
+  search,
+  children,
+  ariaLabel,
+}: {
+  items: PickItem[];
+  values: readonly string[];
+  onToggle: (id: string) => void;
+  search?: string;
+  children: ReactNode;
+  ariaLabel: string;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Popover>
+      <PopoverTrigger asChild aria-label={ariaLabel}>
+        {children}
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-1" align="start" data-pop="">
+        <Command>
+          {search && <CommandInput placeholder={search} aria-label={search} />}
+          <CommandList>
+            <CommandEmpty>{t('write.noMatches')}</CommandEmpty>
+            {items.map(it => (
+              <CommandItem key={it.id} value={`${it.label} ${it.id}`} onSelect={() => onToggle(it.id)} data-pick={it.id}>
+                {it.icon}
+                <span className="truncate">{it.label}</span>
+                {values.includes(it.id) && <Check className="ml-auto" />}
               </CommandItem>
             ))}
           </CommandList>

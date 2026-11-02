@@ -2,6 +2,7 @@ import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
 import { attachClosestEdge, extractClosestEdge } from '@atlaskit/pragmatic-drag-and-drop-hitbox/closest-edge';
 import {
+  MoreHorizontal,
   Calendar,
   ChevronDown,
   ChevronRight,
@@ -39,6 +40,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '@/components/ui/context-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -101,7 +103,7 @@ export function TaskList({
   const all = groups.flatMap(g => g.tasks.map(x => x.id));
   const selIds = all.filter(id => selected.has(id));
   const nSel = selIds.length;
-  const tpl = `${editable ? '16px ' : ''}${selectable || completable ? '30px ' : ''}minmax(220px,1fr) ${columns.map(c => COL_WIDTH[c]).join(' ')}`;
+  const tpl = `${editable ? '16px ' : ''}${selectable || completable ? '30px ' : ''}minmax(220px,1fr) ${columns.map(c => COL_WIDTH[c]).join(' ')} 28px`;
   const toggle = (id: string, on: boolean) =>
     setSelected(s => {
       const n = new Set(s);
@@ -134,6 +136,7 @@ export function TaskList({
             {t(`list.columns.${c}`)}
           </span>
         ))}
+        <span role="columnheader" />
       </div>
       {groups.map(g => (
         <Collapsible key={g.key} defaultOpen={!g.defaultCollapsed}>
@@ -376,6 +379,24 @@ function TaskRow({
               {cell[c]}
             </span>
           ))}
+          {/* 行末 ⋯（原型 c-more）：菜单与右键菜单逐项一致（1715 第 3 条，只加在列表行） */}
+          <span role="cell" className="grid place-items-center" onClick={e => e.stopPropagation()} onContextMenu={e => e.stopPropagation()}>
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={t('write.taskMenu.moreActions')}
+                  data-row-more={task.id}
+                  className="grid size-6 place-items-center rounded-md text-muted-foreground opacity-0 outline-none group-hover/row:opacity-100 hover:bg-accent focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:opacity-100"
+                >
+                  <MoreHorizontal size={15} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" data-task-more={task.id}>
+                <TaskContextItems task={task} kind="dropdown" />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </span>
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent data-task-ctx={task.id}>
