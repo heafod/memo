@@ -66,8 +66,12 @@ export function ProjectPage() {
   const savedViews = useSavedViews().filter(v => v.project_id === projectId);
   const project = projects.find(p => p.id === projectId);
 
-  if (!project) return <NotFoundState />;
-  if (isHidden(project)) return <ForbiddenState project={project} lead={members.find(m => m.id === project.lead_id)} />;
+  // 已发起离开本页的导航（地址栏已不在本项目下）但路由树还没换下来时，项目随重拉从缓存消失：不渲染 404 / 403，
+  // 免得跳回 /projects 前闪一帧「页面未找到」（PR-18 AC11；路由更新走 transition，可能晚于查询缓存触发的渲染）
+  const here = window.location.pathname;
+  const leaving = here !== `/projects/${projectId}` && !here.startsWith(`/projects/${projectId}/`);
+  if (!project) return leaving ? null : <NotFoundState />;
+  if (isHidden(project)) return leaving ? null : <ForbiddenState project={project} lead={members.find(m => m.id === project.lead_id)} />;
   // 已归档项目的地址回到项目列表（FRIDAY 18:10；归档后快照不再带它的任务）
   if (project.archived) return <Navigate to="/projects" replace />;
   if (!tab) return <Navigate to={`/projects/${project.id}/${DEFAULT_PROJECT_TAB}${search}${hash}`} replace />;
