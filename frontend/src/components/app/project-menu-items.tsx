@@ -6,9 +6,9 @@ import { useProjectLifecycle } from '@/components/app/project-lifecycle';
 import { useProjectShareEdit } from '@/components/app/project-share-edit';
 import { ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context-menu';
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { orderAfterStep } from '@/lib/domain/project-order';
+import { planStep } from '@/lib/domain/project-order';
 import type { Project } from '@/lib/query/entities';
-import { useToggleFav, useUpdateProject } from '@/lib/query/mutations';
+import { useReorderProjects, useToggleFav } from '@/lib/query/mutations';
 
 /**
  * 侧栏 / 项目卡片 / 项目页头菜单共用：收藏（R19）、重命名与编辑和分享（PR-15b，R25）、上移 / 下移（R23），
@@ -20,7 +20,7 @@ const SIDEBAR_MOVE_TOAST_MS = 1600;
 function useProjectMenuActions(project: Project, visibleOrdered: readonly Project[]) {
   const { t } = useTranslation();
   const fav = useToggleFav();
-  const update = useUpdateProject();
+  const reorder = useReorderProjects();
   const lifecycle = useProjectLifecycle();
   const shareEdit = useProjectShareEdit();
   const i = visibleOrdered.findIndex(p => p.id === project.id);
@@ -39,10 +39,11 @@ function useProjectMenuActions(project: Project, visibleOrdered: readonly Projec
   };
 
   const move = (dir: -1 | 1) => {
-    const order = orderAfterStep(visibleOrdered, project.id, dir);
-    if (order == null) return;
-    update
-      .mutateAsync({ id: project.id, patch: { order } })
+    const plan = planStep(visibleOrdered, project.id, dir);
+    if (!plan) return;
+    // 需要时先重编再移动，逐个 PATCH；任一失败不提示成功，toast detail 并重新拉取，不回滚（AC10）
+    reorder
+      .mutateAsync(plan)
       .then(() =>
         toast(dir < 0 ? t('write.sidebar.movedUp', { name: project.name }) : t('write.sidebar.movedDown', { name: project.name }), {
           duration: SIDEBAR_MOVE_TOAST_MS,

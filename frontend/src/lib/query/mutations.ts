@@ -160,6 +160,23 @@ export function useUpdateProject() {
 }
 
 /**
+ * R23 上移 / 下移需要先重编 order 时（PR-18 AC10）：没有批量接口，按顺序逐个 PATCH。
+ * 不做乐观更新、不回滚：任一请求失败即停止，toast 服务端 detail；结束时按 meta.invalidates 重新拉取，以服务端为准（清单第 289 行）。
+ */
+export function useReorderProjects() {
+  return useMutation({
+    meta: { invalidates: [['projects']] },
+    mutationFn: async (patches: readonly { id: string; order: number }[]) => {
+      for (const { id, order } of patches) {
+        assertVisibleProject(id);
+        await unwrap(api.PATCH('/api/projects/{project_id}', { params: { path: { project_id: id } }, body: { order } }));
+      }
+    },
+    onError: notifyError,
+  });
+}
+
+/**
  * 删除 / 归档 / 分享 / 设置请求失败后的统一处理（FRIDAY 2058 ①②、2108；PR-15b 规格第 7 条）：调用前已 toast 服务端 detail，此处重新拉取一次项目列表。
  * 项目仍可见且未归档：用这次结果写回缓存，留在原页；已不可见（R24 裁剪行）、已归档或已不存在：先 onGone 离开该项目页，
  * 再整体重拉项目树，项目随之从侧栏和列表消失（不可见时以裁剪行排在侧栏末尾）。
