@@ -126,7 +126,14 @@ export function useCreateProject() {
   return useMutation({
     meta: { invalidates: [['projects'], ['tasks'], ['activity'], ['notifs']] },
     mutationFn: async ({ body, tasks }: { body: ProjectCreate; tasks: Omit<TaskCreate, 'project_id'>[] }): Promise<Project> => {
+      // 新建前读可见项目（侧栏口径：完整行、未归档）的最小 order；新建接口不收 order，建好后补一次 PATCH 排到侧栏最上面（PR-18 AC8）
+      const others = (queryClient.getQueryData<Project[]>(['projects']) ?? []).filter(x => isFullProject(x) && !x.archived);
       const p = await unwrap(api.POST('/api/projects', { body }));
+      if (others.length) {
+        const order = Math.min(...others.map(x => x.order)) - 1;
+        // 补发失败：toast 服务端 detail，项目保留；mutation 结束时按 meta.invalidates 重新拉取，以服务端为准（清单第 289 行）
+        await unwrap(api.PATCH('/api/projects/{project_id}', { params: { path: { project_id: p.id } }, body: { order } })).catch(notifyError);
+      }
       for (const t of tasks) await unwrap(api.POST('/api/tasks', { body: { ...t, project_id: p.id } }));
       return p;
     },
@@ -148,6 +155,29 @@ export function useUpdateProject() {
     onError: (e, _v, ctx) => {
       ctx?.rollback();
       notifyError(e);
+    },
+  });
+}
+
+/**
+ * R23 上移 / 下移需要先重编 order 时（PR-18 AC10）：没有批量接口，按顺序逐个 PATCH。
+ * 不做乐观更新、不回滚：任一请求失败即停止，toast 服务端 detail；结束时按 meta.invalidates 重新拉取，以服务端为准（清单第 289 行）。
+ */
+export function useReorderProjects() {
+  return useMutation({
+    meta: { invalidates: [['projects']] },
+    mutationFn: async (patches: readonly { id: string; order: number }[]) => {
+      for (const { id, order } of patches) {
+        assertVisibleProject(id);
+        await unwrap(api.PATCH('/api/projects/{project_id}', { params: { path: { project_id: id } }, body: { order } }));
+      }
+    },
+    // meta.invalidates 只在成功时生效；失败（任意状态码、网络错误、中途失败）也要重拉，侧栏以服务端为准（AC10，2155 Q10）。
+    // 409 由 MutationCache.onSettled 整体重拉，401 交给全局登录处理，这里不重复。
+    onError: e => {
+      notifyError(e);
+      if (e instanceof ApiError && (e.status === 409 || e.status === 401)) return;
+      void queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
   });
 }

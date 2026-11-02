@@ -1,13 +1,14 @@
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
 import { draggable, dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter';
-import { ChartGantt, ChevronRight, GripVertical, List, Lock, Paperclip, SquareKanban, Star } from 'lucide-react';
+import { ChartGantt, ChevronRight, GripVertical, List, Lock, MoreHorizontal, Paperclip, SquareKanban, Star } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { DropLine } from '@/components/app/drop-line';
 import { ProjectIcon } from '@/components/app/domain-ui';
-import { ProjectContextItems } from '@/components/app/project-menu-items';
+import { ProjectContextItems, ProjectDropdownItems } from '@/components/app/project-menu-items';
 import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '@/components/ui/context-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { SidebarMenuAction, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem } from '@/components/ui/sidebar';
 import { PROJECT_STATUS_COLOR, type ProjectStatus } from '@/lib/domain/constants';
 import { orderAmongVisible } from '@/lib/domain/project-order';
@@ -131,6 +132,19 @@ export function SidebarProjectRow({
         </span>
       )}
       {visible ? <ContextMenuTrigger asChild>{button}</ContextMenuTrigger> : button}
+      {full && (
+        // 悬停显示 ⋯（原型 shell/layout.js 第 128 行 ctxBtn，在展开箭头左边）；菜单与右键菜单同一组项目操作（PR-18 AC8）
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <SidebarMenuAction showOnHover className="right-10" aria-label={t('write.sidebar.more')} data-sidebar-more={project.id}>
+              <MoreHorizontal />
+            </SidebarMenuAction>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" data-project-more={project.id}>
+            <ProjectDropdownItems project={full} visibleOrdered={visibleOrdered} />
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
       {visible && (
         <SidebarMenuAction showOnHover={!open} className="right-5" aria-label={t('shell.nav.toggleSubPages')} aria-expanded={open} onClick={onToggle}>
           <ChevronRight className={open ? 'rotate-90' : ''} />

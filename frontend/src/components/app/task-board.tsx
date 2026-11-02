@@ -406,7 +406,7 @@ function BoardCard({
             </Link>
           </div>
         </ContextMenuTrigger>
-        <div className="absolute top-2 right-2 flex gap-0.5 opacity-0 group-hover/card:opacity-100">
+        <div className="absolute top-2 right-2 flex gap-0.5 opacity-0 group-hover/card:opacity-100 has-[[data-state=open]]:opacity-100">
           <Button
             type="button"
             variant="ghost"
@@ -416,6 +416,17 @@ function BoardCard({
           >
             {task.status === 'done' ? <RotateCcw /> : <Check />}
           </Button>
+          {/* 卡片悬停 ⋯（原型 views/board.js 第 29 行 ctxBtn）：与右键菜单同一组任务菜单项（PR-18 AC3） */}
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="ghost" size="icon-xs" aria-label={t('ui.more')} data-card-more={task.id}>
+                <MoreHorizontal />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" data-task-more={task.id}>
+              <TaskContextItems task={task} kind="dropdown" />
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
       <ContextMenuContent data-task-ctx={task.id}>

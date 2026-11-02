@@ -6,7 +6,7 @@ export default {
   groupLabel: '分组',
   sort: { manual: '手动', title: '标题', due: '截止日期', priority: '优先级', status: '状态', assignee: '负责人', created: '创建时间', updated: '更新时间' },
   group: { status: '状态', priority: '优先级', assignee: '负责人', project: '项目', due: '截止日期', none: '无' },
-  dueGroup: { overdue: '已逾期', today: '今天', week: '未来 7 天', later: '更晚', nodate: '无截止日期' },
+  dueGroup: { overdue: '已逾期', today: '今天', week: '未来 7 天', later: '稍后', nodate: '无截止日期' },
   allTasks: '全部任务',
   unassigned: '未分配',
   selectAll: '全选',

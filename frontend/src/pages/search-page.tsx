@@ -61,6 +61,13 @@ function SearchPageInner() {
   };
   const total = counts.tasks + counts.projects + counts.members + counts.files + counts.comments;
 
+  // 打开任务保留当前查询串（q 等），Link 默认 push：后退一次关掉抽屉、停在 /search?q（PR-18 AC5，2155 Q5 (a)）
+  const taskHref = (id: string) => {
+    const next = new URLSearchParams(params);
+    next.set('task', id);
+    return `?${next.toString()}`;
+  };
+
   const commit = (term: string) => {
     const nextQ = term.trim();
     setParams(prev => {
@@ -165,10 +172,12 @@ function SearchPageInner() {
               {showTasks && results.tasks.length > 0 && (
                 <Section title={t('search.tabs.tasks')} count={counts.tasks}>
                   {results.tasks.map(tk => (
-                    <Link key={tk.id} to={`?task=${tk.id}`} className="flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-accent/50" data-hit="task">
+                    <Link key={tk.id} to={taskHref(tk.id)} className="flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-accent/50" data-hit="task">
                       <StatusIcon status={tk.status} />
                       <span className="font-mono text-[11px] text-muted-foreground">{tk.key}</span>
-                      <span className="flex-1 truncate">{tk.title}</span>
+                      <span className="flex-1 truncate">
+                        <Hl text={tk.title} q={q} />
+                      </span>
                     </Link>
                   ))}
                 </Section>
@@ -183,7 +192,9 @@ function SearchPageInner() {
                       data-hit="project"
                     >
                       <ProjectGlyph icon={p.icon ?? 'folder'} size={14} />
-                      <span className="flex-1 truncate">{p.name}</span>
+                      <span className="flex-1 truncate">
+                        <Hl text={p.name} q={q} />
+                      </span>
                     </Link>
                   ))}
                 </Section>
@@ -193,7 +204,9 @@ function SearchPageInner() {
                   {results.members.map(m => (
                     <Link key={m.id} to={`/members/${m.id}`} className="flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-accent/50" data-hit="member">
                       <MemberAvatar member={m} />
-                      <span className="flex-1 truncate">{m.name}</span>
+                      <span className="flex-1 truncate">
+                        <Hl text={m.name} q={q} />
+                      </span>
                       <span className="text-muted-foreground">{m.email}</span>
                     </Link>
                   ))}
@@ -209,7 +222,9 @@ function SearchPageInner() {
                       data-hit="file"
                     >
                       <FileText size={14} />
-                      <span className="flex-1 truncate">{f.name}</span>
+                      <span className="flex-1 truncate">
+                        <Hl text={f.name} q={q} />
+                      </span>
                     </a>
                   ))}
                 </Section>
@@ -222,14 +237,16 @@ function SearchPageInner() {
                     return (
                       <Link
                         key={c.id}
-                        to={tk ? `?task=${tk.id}` : '#'}
+                        to={tk ? taskHref(tk.id) : '#'}
                         className="flex items-start gap-2 px-3 py-2 text-[13px] hover:bg-accent/50"
                         data-hit="comment"
                       >
                         <MessageSquare size={14} className="mt-0.5 shrink-0" />
                         <span className="min-w-0 flex-1">
                           <span className="text-muted-foreground">{t('search.commentBy', { who: who?.name ?? '', task: tk?.title ?? '' })}</span>
-                          <span className="mt-0.5 line-clamp-2 block">{c.text}</span>
+                          <span className="mt-0.5 line-clamp-2 block">
+                            <Hl text={c.text} q={q} />
+                          </span>
                         </span>
                       </Link>
                     );
@@ -264,5 +281,22 @@ function Section({ title, count, children }: { title: string; count: number; chi
       </h2>
       <div className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">{children}</div>
     </section>
+  );
+}
+
+/**
+ * 匹配高亮（原型 ui/helpers.js 第 62 行 hl()）：不区分大小写找第一处匹配，原文大小写不变，包进 <mark>（PR-18 AC6）。
+ * 以 React 文本节点输出，查询词里的 `<`、`&` 不会被当成 HTML。匹配口径同 runSearch（去首尾空格后小写包含）。
+ */
+function Hl({ text, q }: { text: string; q: string }) {
+  const needle = q.trim().toLowerCase();
+  const i = needle ? text.toLowerCase().indexOf(needle) : -1;
+  if (i < 0) return text;
+  return (
+    <>
+      {text.slice(0, i)}
+      <mark>{text.slice(i, i + needle.length)}</mark>
+      {text.slice(i + needle.length)}
+    </>
   );
 }

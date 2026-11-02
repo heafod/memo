@@ -27,13 +27,25 @@ export function orderAmongVisible(
   return target.order + (edge === 'top' ? -1 : 1);
 }
 
-/** 上移 / 下移：与拖到相邻可见项目同规则（r23-spec）。 */
-export function orderAfterStep(visible: readonly Project[], id: string, dir: -1 | 1): number | null {
+/** 上移 / 下移的写入计划：按顺序逐个 PATCH 的 {id, order}；到头返回 null。 */
+export type OrderPatch = { id: string; order: number };
+
+/**
+ * 上移 / 下移：与拖到相邻可见项目同规则（r23-spec）。到头返回 null。
+ * 插值后名次不变（与目标邻居 order 相同，中点仍是同一值）时，先把可见项目按当前顺序重编成 0..n-1，
+ * 只列出值变了的项目，再按重编后的值插值移动（PR-18 AC10，2155 Q10 (b)）。返回值最后一项是被移动的项目。
+ */
+export function planStep(visible: readonly Project[], id: string, dir: -1 | 1): OrderPatch[] | null {
   const list = [...visible].sort(compareProjects);
   const i = list.findIndex(p => p.id === id);
   if (i < 0) return null;
   const j = i + dir;
   if (j < 0 || j >= list.length) return null;
-  // 上移 = 插到 j 前面（top）；下移 = 插到 j 后面（bottom）——等价于与邻居交换位置的分数插值
-  return orderAmongVisible(list, id, list[j]!.id, dir < 0 ? 'top' : 'bottom');
+  const edge = dir < 0 ? 'top' : 'bottom';
+  const order = orderAmongVisible(list, id, list[j]!.id, edge);
+  const moved = list.map(p => (p.id === id ? { ...p, order } : p)).sort(compareProjects);
+  if (moved.findIndex(p => p.id === id) !== i) return [{ id, order }];
+  const renum = list.map((p, k) => ({ ...p, order: k }));
+  const patches = list.flatMap((p, k) => (p.id !== id && p.order !== k ? [{ id: p.id, order: k }] : []));
+  return [...patches, { id, order: orderAmongVisible(renum, id, renum[j]!.id, edge) }];
 }

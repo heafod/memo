@@ -3,9 +3,9 @@ export default {
   status: {
     backlog: 'Backlog',
     todo: 'To Do',
-    progress: 'In progress',
-    review: 'In review',
-    done: 'Completed',
+    progress: 'In Progress',
+    review: 'Review',
+    done: 'Done',
   },
   priority: {
     urgent: 'Urgent',
@@ -26,9 +26,9 @@ export default {
   },
   projectStatus: {
     planning: 'Planning',
-    active: 'In progress',
+    active: 'In Progress',
     risk: 'At Risk',
-    hold: 'Paused',
+    hold: 'On Hold',
     complete: 'Completed',
   },
   role: {

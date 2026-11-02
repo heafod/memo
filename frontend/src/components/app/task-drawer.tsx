@@ -8,15 +8,18 @@ import {
   GitBranch,
   Heading,
   Italic,
+  Link as LinkIcon,
   List,
   ListOrdered,
   Maximize2,
   Minimize2,
+  MoreHorizontal,
   Paperclip,
   Repeat,
   Tag,
   Timer,
   Trash2,
+  XIcon,
 } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -38,11 +41,13 @@ import {
 } from '@/components/app/pick-items';
 import { DatePick, MultiPickList, PickList } from '@/components/app/pickers';
 import { CommentReactions, SubtaskDetail, SubtaskSection } from '@/components/app/task-collab';
+import { copyTaskLink, TaskContextItems } from '@/components/app/task-menu-items';
 import { FileDropzone, FilePickButton } from '@/components/app/upload-ui';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { fmtComment } from '@/lib/domain/comments';
 import type { Priority, TaskStatus } from '@/lib/domain/constants';
@@ -101,13 +106,16 @@ export function TaskDrawer() {
       <SheetContent
         data-full={full ? '' : undefined}
         className={cn(
-          'w-full gap-0 overflow-y-auto sm:max-w-xl',
+          'gap-0 overflow-y-auto',
+          // 任务抽屉宽 min(620px, 100vw)（原型 overlays.css 第 96 行；PR-18 AC3，0005）；只覆盖本抽屉，通用 sheet 默认值不变
+          !full && 'data-[side=right]:w-[min(620px,100vw)] data-[side=right]:sm:max-w-none',
           // 整页（原型 .drawer.full）：居中、四周留 24px、圆角；窄屏铺满
           full &&
             'data-[side=right]:inset-0 data-[side=right]:h-auto data-[side=right]:w-full data-[side=right]:sm:max-w-none sm:data-[side=right]:inset-x-auto sm:data-[side=right]:inset-y-6 sm:data-[side=right]:left-1/2 sm:data-[side=right]:w-[min(980px,calc(100vw-48px))] sm:data-[side=right]:-translate-x-1/2 sm:data-[side=right]:rounded-xl sm:data-[side=right]:border',
         )}
         overlayClassName={full ? 'bg-black/40' : undefined}
         aria-describedby={undefined}
+        showCloseButton={false}
         // toaster 在 Sheet 外；点 toast「撤销」属正当操作，勿当「点外部」关抽屉（EDITH #13）
         onPointerDownOutside={e => {
           const t = e.target;
@@ -200,29 +208,42 @@ function DrawerTaskBody({ task, project, full, onToggleFull }: { task: Task; pro
 
   return (
     <>
-      <SheetHeader className="flex-row items-center gap-2 border-b border-border py-3 pr-12">
-        <Link to={`/projects/${project.id}`} className="inline-flex items-center gap-1.5 text-[13px] hover:underline">
+      <SheetHeader className="flex-row items-center gap-2 border-b border-border py-3 pr-3">
+        {/* 空间不够时只截断项目名（省略号），⋯ 和关闭按钮始终完整可见（PR-18 AC3，2340） */}
+        <Link to={`/projects/${project.id}`} className="inline-flex min-w-0 items-center gap-1.5 text-[13px] hover:underline">
           <ProjectDot project={project} />
-          {project.name}
+          <span className="truncate">{project.name}</span>
         </Link>
         <span className="text-muted-foreground">/</span>
-        <span className="font-mono text-xs text-muted-foreground">{task.key}</span>
+        <span className="shrink-0 font-mono text-xs text-muted-foreground">{task.key}</span>
         <span className="flex-1" />
         <Button
           variant={task.status === 'done' ? 'secondary' : 'ghost'}
           size="sm"
-          className={cn(task.status === 'done' && 'text-[var(--green)] hover:text-[var(--green)]')}
+          className={cn('shrink-0', task.status === 'done' && 'text-[var(--green)] hover:text-[var(--green)]')}
           onClick={toggleDone}
           data-toggle-done=""
         >
           {task.status === 'done' ? <CircleCheck /> : <Circle />}
-          {task.status === 'done' ? t('write.drawer.completed') : t('write.drawer.markComplete')}
+          {/* ≤640px 隐藏文字、保留图标（原型 hide-m） */}
+          <span className="[@media(max-width:640px)]:hidden">{task.status === 'done' ? t('write.drawer.completed') : t('write.drawer.markComplete')}</span>
         </Button>
         <FavButton kind="task" id={task.id} fav={task.fav} name={task.title} />
+        {/* 顶栏顺序：完成 → 收藏 → 复制链接 → 全屏切换 → ⋯ → 关闭（原型 drawer.js 第 54–59 行；PR-18 AC3 / AC4） */}
         <Button
           variant="ghost"
           size="icon-sm"
-          className="hidden sm:inline-flex"
+          onClick={() => copyTaskLink(task, t)}
+          title={t('write.taskMenu.copyLink')}
+          aria-label={t('write.taskMenu.copyLink')}
+          data-drawer-copy-link=""
+        >
+          <LinkIcon />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="[@media(max-width:640px)]:hidden"
           onClick={onToggleFull}
           title={full ? t('task.sidePanel') : t('task.fullPage')}
           aria-label={t('task.toggleFullPage')}
@@ -230,6 +251,22 @@ function DrawerTaskBody({ task, project, full, onToggleFull }: { task: Task; pro
         >
           {full ? <Minimize2 /> : <Maximize2 />}
         </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon-sm" aria-label={t('ui.more')} data-drawer-more="">
+              <MoreHorizontal />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" data-task-more={task.id}>
+            <TaskContextItems task={task} kind="dropdown" />
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {/* 关闭按钮在顶栏内、排在最右（原型 drawer.js 第 59 行；0005） */}
+        <SheetClose asChild>
+          <Button variant="ghost" size="icon-sm" aria-label={t('ui.close')}>
+            <XIcon />
+          </Button>
+        </SheetClose>
         <SheetTitle className="sr-only">{t('task.dialogTitle', { title: task.title })}</SheetTitle>
       </SheetHeader>
       {openSub && <SubtaskDetail task={task} subs={subs} sub={openSub} onNav={setSubOpen} onClose={closeSub} />}

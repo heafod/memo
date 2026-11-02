@@ -78,7 +78,7 @@ export default {
     copyUnavailable: "Copy isn't available here — {{link}}",
     moreActions: 'More actions',
     open: 'Open',
-    markComplete: 'Mark done',
+    markComplete: 'Mark complete',
     reopen: 'Reopen',
     status: 'Status…',
     assignee: 'Assign to…',
