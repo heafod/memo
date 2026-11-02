@@ -1045,6 +1045,227 @@
         }
       }
     },
+    "/api/comments/{comment_id}/reactions": {
+      "post": {
+        "tags": [
+          "comments"
+        ],
+        "summary": "Toggle Reaction",
+        "operationId": "comments-toggle_reaction",
+        "parameters": [
+          {
+            "name": "comment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Comment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReactionToggle"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentPublic"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/subtasks": {
+      "post": {
+        "tags": [
+          "subtasks"
+        ],
+        "summary": "Create Subtask",
+        "operationId": "subtasks-create_subtask",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubtaskCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubtaskPublic"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/subtasks/{subtask_id}": {
+      "patch": {
+        "tags": [
+          "subtasks"
+        ],
+        "summary": "Update Subtask",
+        "operationId": "subtasks-update_subtask",
+        "parameters": [
+          {
+            "name": "subtask_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Subtask Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubtaskUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubtaskPublic"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "subtasks"
+        ],
+        "summary": "Delete Subtask",
+        "operationId": "subtasks-delete_subtask",
+        "parameters": [
+          {
+            "name": "subtask_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Subtask Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/notifs": {
       "get": {
         "tags": [
@@ -3050,6 +3271,21 @@
         "type": "object",
         "title": "ProjectUpdate"
       },
+      "ReactionToggle": {
+        "properties": {
+          "emoji": {
+            "type": "string",
+            "title": "Emoji"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "emoji"
+        ],
+        "title": "ReactionToggle",
+        "description": "表情回应切换（R26）：对当前成员增删这一个表情。"
+      },
       "SavedViewCreate": {
         "properties": {
           "project_id": {
@@ -3273,6 +3509,28 @@
         "title": "Snapshot",
         "description": "全量快照（R11）：R10 全实体 + 当前用户偏好，不分页（种子级规模口径）。"
       },
+      "SubtaskCreate": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Task Id"
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 255,
+            "title": "Title"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "task_id",
+          "title"
+        ],
+        "title": "SubtaskCreate",
+        "description": "新建子任务（R27）：挂到父任务末尾。"
+      },
       "SubtaskPublic": {
         "properties": {
           "id": {
@@ -3338,6 +3596,37 @@
           "order"
         ],
         "title": "SubtaskPublic"
+      },
+      "SubtaskUpdate": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 255
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "done": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Done"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SubtaskUpdate",
+        "description": "改子任务（R27）：只允许 done / title。"
       },
       "TaskCreate": {
         "properties": {

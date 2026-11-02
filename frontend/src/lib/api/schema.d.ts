@@ -316,6 +316,58 @@ export interface paths {
         patch: operations["comments-update_comment"];
         trace?: never;
     };
+    "/api/comments/{comment_id}/reactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Toggle Reaction */
+        post: operations["comments-toggle_reaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/subtasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Subtask */
+        post: operations["subtasks-create_subtask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/subtasks/{subtask_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Subtask */
+        delete: operations["subtasks-delete_subtask"];
+        options?: never;
+        head?: never;
+        /** Update Subtask */
+        patch: operations["subtasks-update_subtask"];
+        trace?: never;
+    };
     "/api/notifs": {
         parameters: {
             query?: never;
@@ -998,6 +1050,14 @@ export interface components {
             member_ids?: string[] | null;
         };
         /**
+         * ReactionToggle
+         * @description 表情回应切换（R26）：对当前成员增删这一个表情。
+         */
+        ReactionToggle: {
+            /** Emoji */
+            emoji: string;
+        };
+        /**
          * SavedViewCreate
          * @description 保存视图创建载荷（R18：命名 + 布局 + 过滤条件；排序与分组不收）。
          *
@@ -1092,6 +1152,19 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * SubtaskCreate
+         * @description 新建子任务（R27）：挂到父任务末尾。
+         */
+        SubtaskCreate: {
+            /**
+             * Task Id
+             * Format: uuid
+             */
+            task_id: string;
+            /** Title */
+            title: string;
+        };
         /** SubtaskPublic */
         SubtaskPublic: {
             /**
@@ -1116,6 +1189,16 @@ export interface components {
             due: string | null;
             /** Order */
             order: number;
+        };
+        /**
+         * SubtaskUpdate
+         * @description 改子任务（R27）：只允许 done / title。
+         */
+        SubtaskUpdate: {
+            /** Title */
+            title?: string | null;
+            /** Done */
+            done?: boolean | null;
         };
         /** TaskCreate */
         TaskCreate: {
@@ -2107,6 +2190,174 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommentPublic"];
+                };
+            };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "comments-toggle_reaction": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReactionToggle"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentPublic"];
+                };
+            };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "subtasks-create_subtask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubtaskCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubtaskPublic"];
+                };
+            };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "subtasks-delete_subtask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subtask_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "subtasks-update_subtask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subtask_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubtaskUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubtaskPublic"];
                 };
             };
             /** @description 项目已归档，无法修改 */

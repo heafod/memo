@@ -21,7 +21,7 @@ import { type ReactNode, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router';
-import { DueDate, LabelTag, MemberAvatar, PriorityPill, ProjectDot, StatusIcon, StatusPill } from '@/components/app/domain-ui';
+import { DueDate, LabelTag, MemberAvatar, PriorityPill, ProjectDot, StatusPill } from '@/components/app/domain-ui';
 import { DropLine } from '@/components/app/drop-line';
 import { TaskContextItems } from '@/components/app/task-menu-items';
 import { FAV_TOAST_MS } from '@/components/app/fav-button';
@@ -47,7 +47,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { type Sort, SORT_FIELDS, type SortField } from '@/lib/domain/tasks';
 import type { Priority, TaskStatus } from '@/lib/domain/constants';
 import { type Comment, type Member, type Project, type Subtask, type Task, useMeId } from '@/lib/query/entities';
-import { type TaskPatch, useBulkUpdateTasks, useDeleteTasks, useUpdateTask } from '@/lib/query/mutations';
+import { type TaskPatch, useBulkUpdateTasks, useDeleteTasks, useUpdateSubtask, useUpdateTask } from '@/lib/query/mutations';
 import { cn } from '@/lib/utils';
 
 // 任务列表（映射表「列表视图 .tlist…」「我的任务 .list-wrap」行；原型 components/task-list.js listHtml / taskRow）。
@@ -217,6 +217,7 @@ function TaskRow({
   useEffect(() => () => window.clearTimeout(openTimer.current), []);
   const subs = ctx.subtasks.filter(s => s.parent_task_id === task.id).sort((a, b) => a.order - b.order);
   const doneSubs = subs.filter(s => s.done).length;
+  const updateSub = useUpdateSubtask();
   const nComments = ctx.comments.filter(c => c.task_id === task.id).length;
   const assignee = ctx.members.find(m => m.id === task.assignee_id);
   const project = ctx.projects.find(p => p.id === task.project_id);
@@ -409,7 +410,9 @@ function TaskRow({
             role="row"
             className={cn('flex h-9 items-center gap-2 border-b border-border pl-20 text-[13px]', s.done && 'text-muted-foreground line-through')}
           >
-            <StatusIcon status={s.done ? 'done' : 'todo'} size={13} />
+            <span role="cell" className="contents">
+              <Checkbox aria-label={t('task.sub.complete')} checked={s.done} onCheckedChange={v => updateSub.mutate({ sub: s, patch: { done: v === true } })} />
+            </span>
             <span role="cell">{s.title}</span>
           </div>
         ))}

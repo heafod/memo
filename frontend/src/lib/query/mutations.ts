@@ -4,7 +4,7 @@ import i18n from '@/i18n';
 import { api, ApiError } from '@/lib/api/client';
 import type { components } from '@/lib/api/schema';
 import { PROJECT_TREE_KEYS, queryClient } from './client';
-import type { Comment, FileItem, Member, Notif, Preferences, Project, Task, Team } from './entities';
+import type { Comment, FileItem, Member, Notif, Preferences, Project, Subtask, Task, Team } from './entities';
 import { canSee, isFullProject } from '@/lib/domain/tasks';
 import { assertVisibleProject, HiddenProjectError, taskProject } from './visibility';
 
@@ -41,6 +41,7 @@ function optimistic<T extends { id: string }>(key: QueryKey, id: string, patch: 
   return () => queryClient.setQueryData(key, prev);
 }
 
+const SUBTASK_KEYS: readonly QueryKey[] = [['subtasks'], ['tasks'], ['activity']];
 const TASK_WRITE: readonly QueryKey[] = [['tasks'], ['activity'], ['notifs']];
 
 export interface UpdateTaskVars {
@@ -274,6 +275,91 @@ export function useDeleteComment() {
       await unwrap(api.DELETE('/api/comments/{comment_id}', { params: { path: { comment_id: c.id } } }));
     },
     onError: notifyError,
+  });
+}
+
+/**
+ * 17b 子任务 / 表情回应失败（AC13 及 1918 裁定）：先 toast（有状态码用服务端 detail，网络错误用「网络错误」），
+ * 再在回滚之后重拉受影响的数据。409 由 MutationCache.onSettled 整体重拉，401 交给全局登录处理，这里都不重复。
+ */
+function failAndRefetch(e: unknown, keys: readonly QueryKey[]) {
+  if (e instanceof HiddenProjectError) return;
+  toast.error(e instanceof ApiError ? errorMessage(e) : i18n.t('errors.networkShort'));
+  if (e instanceof ApiError && (e.status === 409 || e.status === 401)) return;
+  void Promise.all(keys.map(queryKey => queryClient.invalidateQueries({ queryKey })));
+}
+
+/** 表情回应切换（R26）：只增删当前成员自己的 id；乐观切换，失败回滚并提示服务端 detail。 */
+export function useToggleReaction(meId: string | null | undefined) {
+  return useMutation({
+    meta: { invalidates: [['comments']] },
+    mutationFn: async ({ comment, emoji }: { comment: Comment; emoji: string }): Promise<Comment> => {
+      assertVisibleProject(taskProject(comment.task_id));
+      return unwrap(api.POST('/api/comments/{comment_id}/reactions', { params: { path: { comment_id: comment.id } }, body: { emoji } }));
+    },
+    onMutate: async ({ comment, emoji }) => {
+      await queryClient.cancelQueries({ queryKey: ['comments'] });
+      const cur = queryClient.getQueryData<Comment[]>(['comments'])?.find(c => c.id === comment.id) ?? comment;
+      const reactions: Record<string, string[]> = { ...cur.reactions };
+      if (meId) {
+        const ids = reactions[emoji] ?? [];
+        const next = ids.includes(meId) ? ids.filter(i => i !== meId) : [...ids, meId];
+        if (next.length) reactions[emoji] = next;
+        else delete reactions[emoji];
+      }
+      return { rollback: optimistic<Comment>(['comments'], comment.id, { reactions }) };
+    },
+    onError: (e, _v, ctx) => {
+      ctx?.rollback();
+      failAndRefetch(e, [['comments'], ['activity']]);
+    },
+  });
+}
+
+/** 新建子任务（R27）：挂到父任务末尾。 */
+export function useCreateSubtask() {
+  return useMutation({
+    meta: { invalidates: [['subtasks'], ['activity']] },
+    mutationFn: async (body: { task_id: string; title: string }): Promise<Subtask> => {
+      assertVisibleProject(taskProject(body.task_id));
+      return unwrap(api.POST('/api/subtasks', { body }));
+    },
+    onError: e => {
+      failAndRefetch(e, SUBTASK_KEYS);
+    },
+  });
+}
+
+/** 改子任务 done / title（R27）：乐观更新，失败回滚。 */
+export function useUpdateSubtask() {
+  return useMutation({
+    meta: { invalidates: [['subtasks'], ['activity']] },
+    mutationFn: async ({ sub, patch }: { sub: Subtask; patch: { done?: boolean; title?: string } }): Promise<Subtask> => {
+      assertVisibleProject(taskProject(sub.parent_task_id));
+      return unwrap(api.PATCH('/api/subtasks/{subtask_id}', { params: { path: { subtask_id: sub.id } }, body: patch }));
+    },
+    onMutate: async ({ sub, patch }) => {
+      await queryClient.cancelQueries({ queryKey: ['subtasks'] });
+      return { rollback: optimistic<Subtask>(['subtasks'], sub.id, patch) };
+    },
+    onError: (e, _v, ctx) => {
+      ctx?.rollback();
+      failAndRefetch(e, SUBTASK_KEYS);
+    },
+  });
+}
+
+/** 删除子任务（R27）。 */
+export function useDeleteSubtask() {
+  return useMutation({
+    meta: { invalidates: [['subtasks']] },
+    mutationFn: async (sub: Subtask) => {
+      assertVisibleProject(taskProject(sub.parent_task_id));
+      await unwrap(api.DELETE('/api/subtasks/{subtask_id}', { params: { path: { subtask_id: sub.id } } }));
+    },
+    onError: e => {
+      failAndRefetch(e, SUBTASK_KEYS);
+    },
   });
 }
 
