@@ -48,9 +48,7 @@ export function useListedProjects(): ProjectRow[] {
   const visible = activeProjects(full);
   const shown = new Set(full.map(p => p.id));
   // 不可见项目：按名称（localeCompare，跟随界面语言），同名再按 id，与 compareProjects 同一套比较（PR-18 AC9）
-  const hidden = projects
-    .filter(p => !shown.has(p.id))
-    .sort((a, b) => a.name.localeCompare(b.name, i18n.language) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  const hidden = projects.filter(p => !shown.has(p.id)).sort((a, b) => a.name.localeCompare(b.name, i18n.language) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return [...visible, ...hidden];
 }
 

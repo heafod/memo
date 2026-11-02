@@ -263,8 +263,7 @@ interface MsRow {
 }
 
 /** 按日期升序；Array.prototype.sort 稳定，日期相同保持输入顺序 */
-const sortMilestonesByDate = <M extends { date: string }>(ms: readonly M[]): M[] =>
-  [...ms].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+const sortMilestonesByDate = <M extends { date: string }>(ms: readonly M[]): M[] => [...ms].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
 const MS_NAME_MAX = 80;
 
