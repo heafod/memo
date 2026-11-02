@@ -2340,6 +2340,29 @@
         "type": "object",
         "title": "MemberUpdate"
       },
+      "MilestoneIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "date"
+        ],
+        "title": "MilestoneIn",
+        "description": "里程碑入参（PR-15b，R25）：只有名称与日期两个字段，不允许额外字段。\n\n名称去掉首尾空格后 1–80 字；日期按 ISO 字符串落 JSONB，与现有数据\n``{name, date}`` 同形，``ProjectPublic.milestones`` 输出形状不变。"
+      },
       "NotifPublic": {
         "properties": {
           "id": {
@@ -2574,10 +2597,10 @@
           },
           "milestones": {
             "items": {
-              "additionalProperties": true,
-              "type": "object"
+              "$ref": "#/components/schemas/MilestoneIn"
             },
             "type": "array",
+            "maxItems": 50,
             "title": "Milestones"
           },
           "private": {
@@ -2964,10 +2987,10 @@
             "anyOf": [
               {
                 "items": {
-                  "additionalProperties": true,
-                  "type": "object"
+                  "$ref": "#/components/schemas/MilestoneIn"
                 },
-                "type": "array"
+                "type": "array",
+                "maxItems": 50
               },
               {
                 "type": "null"
