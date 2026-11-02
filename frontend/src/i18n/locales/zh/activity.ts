@@ -27,6 +27,11 @@ export default {
   subCompleted: '<who>{{who}}</who> <m>完成了</m> <obj>{{obj}}</obj> <m>中的子任务 {{x}}</m>',
   subReopened: '<who>{{who}}</who> <m>重新打开了</m> <obj>{{obj}}</obj> <m>中的子任务 {{x}}</m>',
   subAdded: '<who>{{who}}</who> <m>向</m> <obj>{{obj}}</obj> <m>添加了子任务 {{x}}</m>',
+  subAssigned: '<who>{{who}}</who> <m>将</m> <obj>{{obj}}</obj> <m>的子任务指派给 {{x}}</m>',
+  subUnassigned: '<who>{{who}}</who> <m>移除了</m> <obj>{{obj}}</obj> <m>的子任务负责人</m>',
+  subDue: '<who>{{who}}</who> <m>将</m> <obj>{{obj}}</obj> <m>的子任务截止日期设为 {{x}}</m>',
+  subDueCleared: '<who>{{who}}</who> <m>清除了</m> <obj>{{obj}}</obj> <m>的子任务截止日期</m>',
+  subConverted: '<who>{{who}}</who> <m>将</m> <obj>{{obj}}</obj> <m>的一个子任务转为了 {{x}}</m>',
   archived: '<who>{{who}}</who> <m>归档了</m> <obj>{{obj}}</obj>',
   updated: '<who>{{who}}</who> <m>更新了</m> <obj>{{obj}}</obj>',
 } as const;

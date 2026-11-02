@@ -15,6 +15,8 @@ import { assertVisibleProject, HiddenProjectError, taskProject } from './visibil
 type Schemas = components['schemas'];
 export type TaskPatch = Schemas['TaskUpdate'];
 export type TaskCreate = Schemas['TaskCreate'];
+/** 子任务 PATCH 体：title / done / note 不收 null（后端 _not_null），assignee_id / due 可写 null（PR-18 AC16–AC20）。 */
+export type SubtaskPatch = Partial<Pick<Subtask, 'title' | 'done' | 'note' | 'assignee_id' | 'due'>>;
 export type ProjectCreate = Schemas['ProjectCreate'];
 export type ProjectUpdate = Schemas['ProjectUpdate'];
 
@@ -364,7 +366,7 @@ export function useCreateSubtask() {
 export function useUpdateSubtask() {
   return useMutation({
     meta: { invalidates: [['subtasks'], ['activity']] },
-    mutationFn: async ({ sub, patch }: { sub: Subtask; patch: { done?: boolean; title?: string } }): Promise<Subtask> => {
+    mutationFn: async ({ sub, patch }: { sub: Subtask; patch: SubtaskPatch }): Promise<Subtask> => {
       assertVisibleProject(taskProject(sub.parent_task_id));
       return unwrap(api.PATCH('/api/subtasks/{subtask_id}', { params: { path: { subtask_id: sub.id } }, body: patch }));
     },
@@ -376,6 +378,22 @@ export function useUpdateSubtask() {
       ctx?.rollback();
       failAndRefetch(e, SUBTASK_KEYS);
     },
+  });
+}
+
+/**
+ * 子任务转为任务（PR-18 AC21/AC24）：不做乐观更新，成功后才移除子任务行（0515 Q13）。
+ * 断网 / 超时：toast「网络错误」并重拉，不自动重发（retry 0）；离线时 mutation 暂停，恢复联网后只发一次。
+ */
+export function useConvertSubtask() {
+  return useMutation({
+    meta: { invalidates: [...SUBTASK_KEYS, ['notifs']] },
+    retry: 0,
+    mutationFn: async (sub: Subtask): Promise<Task> => {
+      assertVisibleProject(taskProject(sub.parent_task_id));
+      return unwrap(api.POST('/api/subtasks/{subtask_id}/convert', { params: { path: { subtask_id: sub.id } } }));
+    },
+    onError: e => failAndRefetch(e, [...SUBTASK_KEYS, ['notifs']]),
   });
 }
 

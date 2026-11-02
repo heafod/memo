@@ -988,6 +988,16 @@
               }
             }
           },
+          "403": {
+            "description": "非作者",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -1024,6 +1034,16 @@
           },
           "409": {
             "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "非作者",
             "content": {
               "application/json": {
                 "schema": {
@@ -1242,6 +1262,60 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/subtasks/{subtask_id}/convert": {
+      "post": {
+        "tags": [
+          "subtasks"
+        ],
+        "summary": "Convert Subtask",
+        "description": "转为任务（R27 / R28，原型 actions/subtasks.js 第 56–81 行）：一次请求、一个事务。\n\n新任务在父任务同一项目末尾，key / order 与 ``POST /api/tasks`` 同一函数；通知同新建任务；\n只记一条 converted a subtask of（不记 created）。",
+        "operationId": "subtasks-convert_subtask",
+        "parameters": [
+          {
+            "name": "subtask_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Subtask Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskPublic"
+                }
+              }
+            }
           },
           "409": {
             "description": "项目已归档，无法修改",
@@ -2048,6 +2122,7 @@
             "title": "Text"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "text"
@@ -3621,12 +3696,48 @@
               }
             ],
             "title": "Done"
+          },
+          "assignee_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assignee Id"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
           }
         },
         "additionalProperties": false,
         "type": "object",
         "title": "SubtaskUpdate",
-        "description": "改子任务（R27）：只允许 done / title。"
+        "description": "改子任务（R27）：done / title / assignee_id / due / note；assignee_id、due 可写 null 清除。"
       },
       "TaskCreate": {
         "properties": {

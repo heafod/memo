@@ -368,6 +368,29 @@ export interface paths {
         patch: operations["subtasks-update_subtask"];
         trace?: never;
     };
+    "/api/subtasks/{subtask_id}/convert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Convert Subtask
+         * @description 转为任务（R27 / R28，原型 actions/subtasks.js 第 56–81 行）：一次请求、一个事务。
+         *
+         *     新任务在父任务同一项目末尾，key / order 与 ``POST /api/tasks`` 同一函数；通知同新建任务；
+         *     只记一条 converted a subtask of（不记 created）。
+         */
+        post: operations["subtasks-convert_subtask"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/notifs": {
         parameters: {
             query?: never;
@@ -1192,13 +1215,19 @@ export interface components {
         };
         /**
          * SubtaskUpdate
-         * @description 改子任务（R27）：只允许 done / title。
+         * @description 改子任务（R27）：done / title / assignee_id / due / note；assignee_id、due 可写 null 清除。
          */
         SubtaskUpdate: {
             /** Title */
             title?: string | null;
             /** Done */
             done?: boolean | null;
+            /** Assignee Id */
+            assignee_id?: string | null;
+            /** Due */
+            due?: string | null;
+            /** Note */
+            note?: string | null;
         };
         /** TaskCreate */
         TaskCreate: {
@@ -2148,6 +2177,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description 非作者 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
+                };
+            };
             /** @description 项目已归档，无法修改 */
             409: {
                 headers: {
@@ -2190,6 +2228,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommentPublic"];
+                };
+            };
+            /** @description 非作者 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
                 };
             };
             /** @description 项目已归档，无法修改 */
@@ -2358,6 +2405,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SubtaskPublic"];
+                };
+            };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "subtasks-convert_subtask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subtask_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskPublic"];
                 };
             };
             /** @description 项目已归档，无法修改 */
