@@ -27,7 +27,7 @@ export function orderAmongVisible(
   return target.order + (edge === 'top' ? -1 : 1);
 }
 
-/** 上移 / 下移：与拖到相邻可见项目同规则（r23-spec）。 */
+/** 上移 / 下移：与拖到相邻可见项目同规则（r23-spec）。到头或名次不会变时返回 null，调用方不发请求也不提示。 */
 export function orderAfterStep(visible: readonly Project[], id: string, dir: -1 | 1): number | null {
   const list = [...visible].sort(compareProjects);
   const i = list.findIndex(p => p.id === id);
@@ -35,5 +35,8 @@ export function orderAfterStep(visible: readonly Project[], id: string, dir: -1 
   const j = i + dir;
   if (j < 0 || j >= list.length) return null;
   // 上移 = 插到 j 前面（top）；下移 = 插到 j 后面（bottom）——等价于与邻居交换位置的分数插值
-  return orderAmongVisible(list, id, list[j]!.id, dir < 0 ? 'top' : 'bottom');
+  const order = orderAmongVisible(list, id, list[j]!.id, dir < 0 ? 'top' : 'bottom');
+  // 用新 order 按 compareProjects 重排，名次没变（例如 order 相同、中点仍是同一值）就视为未移动（PR-18 AC10）
+  const moved = list.map(p => (p.id === id ? { ...p, order } : p)).sort(compareProjects);
+  return moved.findIndex(p => p.id === id) === i ? null : order;
 }
