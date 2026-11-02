@@ -5,6 +5,7 @@ import {
   CircleCheck,
   ClockAlert,
   Download,
+  GitBranch,
   Heading,
   Italic,
   List,
@@ -12,6 +13,9 @@ import {
   Maximize2,
   Minimize2,
   Paperclip,
+  Repeat,
+  Tag,
+  Timer,
   Trash2,
 } from 'lucide-react';
 import { type ReactNode, useEffect, useRef, useState } from 'react';
@@ -21,8 +25,18 @@ import { Link, useSearchParams } from 'react-router';
 import { ActivityItem } from '@/components/app/activity-item';
 import { DueDate, FileTypeIcon, LabelTag, MemberAvatar, PriorityPill, ProjectDot, StatusIcon, StatusPill } from '@/components/app/domain-ui';
 import { FavButton, FAV_TOAST_MS } from '@/components/app/fav-button';
-import { projectItems, useAssigneeItems, usePriorityItems, useStatusItems } from '@/components/app/pick-items';
-import { DatePick, PickList } from '@/components/app/pickers';
+import {
+  depItems,
+  moveTargets,
+  projectItems,
+  useAssigneeItems,
+  useEstimateItems,
+  useLabelItems,
+  usePriorityItems,
+  useRecurItems,
+  useStatusItems,
+} from '@/components/app/pick-items';
+import { DatePick, MultiPickList, PickList } from '@/components/app/pickers';
 import { FileDropzone, FilePickButton } from '@/components/app/upload-ui';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -35,7 +49,7 @@ import { daysFromToday } from '@/lib/domain/dates';
 import { sanitizeHtml } from '@/lib/domain/html';
 import { fileSize, fmtDate, timeAgo } from '@/lib/domain/format';
 import { mergePrefs, type PrefsData } from '@/lib/domain/prefs';
-import { activeProjects, isOverdue } from '@/lib/domain/tasks';
+import { isOverdue } from '@/lib/domain/tasks';
 import { type Member, type Project, type Task, useMeId, useMembers, usePreferences } from '@/lib/query/entities';
 import { type TaskPatch, useCreateComment, useDeleteComment, useUpdateTask, useUploadFiles } from '@/lib/query/mutations';
 import { useVisibleActivity, useVisibleComments, useVisibleFiles, useVisibleProjects, useVisibleSubtasks, useVisibleTasks } from '@/lib/query/visibility';
@@ -45,7 +59,8 @@ import { cn } from '@/lib/utils';
  * 任务详情抽屉（原型 overlays/drawer.js）。9a 只读展示；9c 写面：标记完成 / 重新打开、收藏星标、标题与属性编辑、
  * 描述富文本、评论发布与删除（含 @提及）、附件上传（关联本任务）。
  * 由 URL 查询参数 ?task=<id> 打开，任一页面可用；不可见项目的任务不渲染，也就没有任何写入口（写入层另有闸门）。
- * 未做（无后端写接口或不在 9c 范围）：子任务勾选与新增、表情回应、移除附件、标签 / 重复 / 估算 / 依赖编辑、复制链接、更多菜单。
+ * PR-17a：标签 / 重复 / 估算 / 阻塞于 改为 popover 编辑（原型 drawer.js:74–77、popovers.js），各发 PATCH 只带该字段。
+ * 未做（无后端写接口或不在本批范围）：子任务勾选与新增、表情回应、移除附件、复制链接、更多菜单。
  *
  * 整页模式（R7「任务打开方式」，PR-16；原型 drawer.js:20、49、57 与 actions.js:393）：
  * 偏好为 page 时以整页模式打开同一个抽屉；头部按钮只切换这一次的显示方式，不改偏好；
@@ -147,7 +162,6 @@ function DrawerTaskBody({ task, project, full, onToggleFull }: { task: Task; pro
       <dd className="min-w-0">{value}</dd>
     </>
   );
-  const none = <span className="text-muted-foreground">{t('task.none')}</span>;
   const update = useUpdateTask();
   const patch = (p: TaskPatch) => update.mutate({ id: task.id, patch: p });
   // 原型 actions.js toggleDone：完成时提示「已完成「{title}」」并可撤销（回到原状态）；重新打开回到 todo（无 prevStatus 字段）
@@ -169,7 +183,10 @@ function DrawerTaskBody({ task, project, full, onToggleFull }: { task: Task; pro
   const statusItems = useStatusItems();
   const priorityItems = usePriorityItems();
   const assigneeItems = useAssigneeItems(members, meId);
-  const targets = activeProjects(projects.filter(p => p.status !== 'complete' || p.id === project.id));
+  const targets = moveTargets(projects, project.id);
+  const labelItems = useLabelItems();
+  const recurItems = useRecurItems();
+  const estimateItems = useEstimateItems();
   const upload = useUploadFiles(project.id, task.id);
   const delComment = useDeleteComment();
 
@@ -294,32 +311,68 @@ function DrawerTaskBody({ task, project, full, onToggleFull }: { task: Task; pro
           )}
           {prop(
             t('task.props.labels'),
-            task.labels.length ? (
-              <span className="flex flex-wrap gap-1">
-                {task.labels.map(l => (
-                  <LabelTag key={l} id={l} />
-                ))}
-              </span>
-            ) : (
-              none
-            ),
+            <MultiPickList
+              items={labelItems}
+              values={task.labels}
+              onToggle={l => patch({ labels: task.labels.includes(l) ? task.labels.filter(x => x !== l) : [...task.labels, l] })}
+              search={t('write.pick.filterLabels')}
+              ariaLabel={t('task.props.labels')}
+            >
+              <button type="button" className={cn(valBtn, 'h-auto min-h-7 flex-wrap', !task.labels.length && 'text-muted-foreground')} data-prop="labels">
+                {task.labels.length ? (
+                  task.labels.map(l => <LabelTag key={l} id={l} />)
+                ) : (
+                  <>
+                    <Tag />
+                    {t('write.pick.addLabels')}
+                  </>
+                )}
+              </button>
+            </MultiPickList>,
           )}
-          {prop(t('task.props.repeat'), task.recur ? t(`task.recur.${task.recur as 'Weekly'}`, { defaultValue: task.recur }) : t('task.noRepeat'))}
-          {prop(t('task.props.estimate'), task.estimate ?? none)}
+          {prop(
+            t('task.props.repeat'),
+            <PickList items={recurItems} value={task.recur ?? ''} onPick={v => patch({ recur: v || null })} ariaLabel={t('task.props.repeat')}>
+              <button type="button" className={cn(valBtn, !task.recur && 'text-muted-foreground')} data-prop="recur">
+                <Repeat />
+                {task.recur ? t(`task.recur.${task.recur as 'Weekly'}`, { defaultValue: task.recur }) : t('task.noRepeat')}
+              </button>
+            </PickList>,
+          )}
+          {prop(
+            t('task.props.estimate'),
+            <PickList items={estimateItems} value={task.estimate ?? ''} onPick={v => patch({ estimate: v || null })} ariaLabel={t('task.props.estimate')}>
+              <button type="button" className={cn(valBtn, !task.estimate && 'text-muted-foreground')} data-prop="estimate">
+                <Timer />
+                {task.estimate ?? t('write.pick.addEstimate')}
+              </button>
+            </PickList>,
+          )}
           {prop(
             t('task.props.blockedBy'),
-            deps.length ? (
-              <span className="flex flex-col gap-1">
-                {deps.map(d => (
-                  <Link key={d.id} to={`?task=${d.id}`} className="inline-flex items-center gap-1.5 hover:underline">
-                    <span className="rounded bg-muted px-1 font-mono text-[11px]">{d.key}</span>
-                    <span className="truncate">{d.title}</span>
-                  </Link>
-                ))}
-              </span>
-            ) : (
-              none
-            ),
+            <MultiPickList
+              items={depItems(task, tasks)}
+              values={task.dep_ids}
+              onToggle={d => patch({ dep_ids: task.dep_ids.includes(d) ? task.dep_ids.filter(x => x !== d) : [...task.dep_ids, d] })}
+              search={t('write.pick.blockedBy')}
+              ariaLabel={t('task.props.blockedBy')}
+            >
+              <button type="button" className={cn(valBtn, 'h-auto min-h-7 flex-wrap', !deps.length && 'text-muted-foreground')} data-prop="deps">
+                {deps.length ? (
+                  deps.map(d => (
+                    <span key={d.id} className="inline-flex min-w-0 items-center gap-1.5">
+                      <span className="rounded bg-muted px-1 font-mono text-[11px]">{d.key}</span>
+                      <span className="max-w-40 truncate">{d.title}</span>
+                    </span>
+                  ))
+                ) : (
+                  <>
+                    <GitBranch />
+                    {t('write.pick.noDeps')}
+                  </>
+                )}
+              </button>
+            </MultiPickList>,
           )}
         </dl>
 
