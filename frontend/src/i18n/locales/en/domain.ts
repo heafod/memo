@@ -26,9 +26,9 @@ export default {
   },
   projectStatus: {
     planning: 'Planning',
-    active: 'In progress',
+    active: 'In Progress',
     risk: 'At Risk',
-    hold: 'Paused',
+    hold: 'On Hold',
     complete: 'Completed',
   },
   role: {
