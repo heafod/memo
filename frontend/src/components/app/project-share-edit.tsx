@@ -262,6 +262,10 @@ interface MsRow {
   date: string;
 }
 
+/** 按日期升序；Array.prototype.sort 稳定，日期相同保持输入顺序 */
+const sortMilestonesByDate = <M extends { date: string }>(ms: readonly M[]): M[] =>
+  [...ms].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+
 const sameMilestones = (a: readonly { name: string; date: string }[], b: readonly { name: string; date: string }[]) =>
   a.length === b.length && a.every((m, i) => m.name === b[i].name && m.date === b[i].date);
 
@@ -323,8 +327,7 @@ function EditProjectForm({ p, onGone, onClose }: { p: Project; onGone: (id: stri
       if (e.name) nameRef.current?.focus();
       return;
     }
-    // 按日期升序；Array.prototype.sort 稳定，日期相同保持输入顺序
-    const milestones = [...kept].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    const milestones = sortMilestonesByDate(kept);
     const body: ProjectUpdate = {};
     if (name !== initial.name) body.name = name;
     if (f.desc !== initial.desc) body.desc = f.desc;
@@ -338,7 +341,8 @@ function EditProjectForm({ p, onGone, onClose }: { p: Project; onGone: (id: stri
     }
     if (f.start !== initial.start) body.start = f.start || null;
     if (f.due !== initial.due) body.due = f.due || null;
-    if (!sameMilestones(milestones, initial.milestones)) body.milestones = milestones;
+    // 排序后再比较（PR-18 AC13）：库里未按日期存储时，未改动保存不发请求
+    if (!sameMilestones(milestones, sortMilestonesByDate(initial.milestones))) body.milestones = milestones;
     if (!Object.keys(body).length) return onClose();
     patch
       .mutateAsync({ id: p.id, patch: body })
