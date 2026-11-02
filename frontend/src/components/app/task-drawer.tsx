@@ -8,10 +8,12 @@ import {
   GitBranch,
   Heading,
   Italic,
+  Link as LinkIcon,
   List,
   ListOrdered,
   Maximize2,
   Minimize2,
+  MoreHorizontal,
   Paperclip,
   Repeat,
   Tag,
@@ -38,8 +40,10 @@ import {
 } from '@/components/app/pick-items';
 import { DatePick, MultiPickList, PickList } from '@/components/app/pickers';
 import { CommentReactions, SubtaskDetail, SubtaskSection } from '@/components/app/task-collab';
+import { copyTaskLink, TaskContextItems } from '@/components/app/task-menu-items';
 import { FileDropzone, FilePickButton } from '@/components/app/upload-ui';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -219,6 +223,17 @@ function DrawerTaskBody({ task, project, full, onToggleFull }: { task: Task; pro
           {task.status === 'done' ? t('write.drawer.completed') : t('write.drawer.markComplete')}
         </Button>
         <FavButton kind="task" id={task.id} fav={task.fav} name={task.title} />
+        {/* 顶栏顺序：完成 → 收藏 → 复制链接 → 全屏切换 → ⋯ → 关闭（原型 drawer.js 第 54–59 行；PR-18 AC3 / AC4） */}
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => copyTaskLink(task, t)}
+          title={t('write.taskMenu.copyLink')}
+          aria-label={t('write.taskMenu.copyLink')}
+          data-drawer-copy-link=""
+        >
+          <LinkIcon />
+        </Button>
         <Button
           variant="ghost"
           size="icon-sm"
@@ -230,6 +245,16 @@ function DrawerTaskBody({ task, project, full, onToggleFull }: { task: Task; pro
         >
           {full ? <Minimize2 /> : <Maximize2 />}
         </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon-sm" aria-label={t('ui.more')} data-drawer-more="">
+              <MoreHorizontal />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" data-task-more={task.id}>
+            <TaskContextItems task={task} kind="dropdown" />
+          </DropdownMenuContent>
+        </DropdownMenu>
         <SheetTitle className="sr-only">{t('task.dialogTitle', { title: task.title })}</SheetTitle>
       </SheetHeader>
       {openSub && <SubtaskDetail task={task} subs={subs} sub={openSub} onNav={setSubOpen} onClose={closeSub} />}

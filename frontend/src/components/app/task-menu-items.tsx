@@ -1,3 +1,4 @@
+import type { TFunction } from 'i18next';
 import { Check, CheckCircle2, CircleDot, FolderInput, Link as LinkIcon, PanelRightOpen, RotateCcw, SignalHigh, Star, Trash2, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -44,6 +45,18 @@ const DROP = {
 /** 复制任务链接（原型 actions.js:140 copy()）：只用 navigator.clipboard；失败（含无此 API）提示链接本身约 6 秒（1715 第 7 条）。 */
 function taskLink(task: Pick<Task, 'id' | 'project_id'>): string {
   return `${window.location.origin}/projects/${task.project_id}?task=${task.id}`;
+}
+
+/** 任务菜单「复制链接」与抽屉顶栏复制链接按钮共用（PR-18 AC4：地址格式和 toast 与 PR-17 AC5 相同）。 */
+// eslint-disable-next-line react-refresh/only-export-components
+export function copyTaskLink(task: Pick<Task, 'id' | 'project_id'>, t: TFunction): void {
+  const link = taskLink(task);
+  const fail = () => toast.info(t('write.taskMenu.copyUnavailable', { link }), { duration: 6000 });
+  try {
+    void navigator.clipboard.writeText(link).then(() => toast(t('write.taskMenu.linkCopied')), fail);
+  } catch {
+    fail();
+  }
 }
 
 /**
@@ -106,15 +119,7 @@ export function TaskContextItems({ task, kind = 'context' }: { task: Task; kind?
     );
   };
 
-  const copyLink = () => {
-    const link = taskLink(task);
-    const fail = () => toast.info(t('write.taskMenu.copyUnavailable', { link }), { duration: 6000 });
-    try {
-      void navigator.clipboard.writeText(link).then(() => toast(t('write.taskMenu.linkCopied')), fail);
-    } catch {
-      fail();
-    }
-  };
+  const copyLink = () => copyTaskLink(task, t);
 
   return (
     <>
