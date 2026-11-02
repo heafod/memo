@@ -126,7 +126,14 @@ export function useCreateProject() {
   return useMutation({
     meta: { invalidates: [['projects'], ['tasks'], ['activity'], ['notifs']] },
     mutationFn: async ({ body, tasks }: { body: ProjectCreate; tasks: Omit<TaskCreate, 'project_id'>[] }): Promise<Project> => {
+      // 新建前读可见项目（侧栏口径：完整行、未归档）的最小 order；新建接口不收 order，建好后补一次 PATCH 排到侧栏最上面（PR-18 AC8）
+      const others = (queryClient.getQueryData<Project[]>(['projects']) ?? []).filter(x => isFullProject(x) && !x.archived);
       const p = await unwrap(api.POST('/api/projects', { body }));
+      if (others.length) {
+        const order = Math.min(...others.map(x => x.order)) - 1;
+        // 补发失败：toast 服务端 detail，项目保留；mutation 结束时按 meta.invalidates 重新拉取，以服务端为准（清单第 289 行）
+        await unwrap(api.PATCH('/api/projects/{project_id}', { params: { path: { project_id: p.id } }, body: { order } })).catch(notifyError);
+      }
       for (const t of tasks) await unwrap(api.POST('/api/tasks', { body: { ...t, project_id: p.id } }));
       return p;
     },
