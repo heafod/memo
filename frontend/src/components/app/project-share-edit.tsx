@@ -266,6 +266,8 @@ interface MsRow {
 const sortMilestonesByDate = <M extends { date: string }>(ms: readonly M[]): M[] =>
   [...ms].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 
+const MS_NAME_MAX = 80;
+
 const sameMilestones = (a: readonly { name: string; date: string }[], b: readonly { name: string; date: string }[]) =>
   a.length === b.length && a.every((m, i) => m.name === b[i].name && m.date === b[i].date);
 
@@ -303,6 +305,13 @@ function EditProjectForm({ p, onGone, onClose }: { p: Project; onGone: (id: stri
 
   const setMs = (key: number, k: 'name' | 'date', v: string) =>
     setF(s => ({ ...s, milestones: s.milestones.map(m => (m.key === key ? { ...m, [k]: v } : m)) }));
+  // 名称最多 MS_NAME_MAX 个字符，按 code point 计（emoji 算 1 个，同后端 MilestoneIn）；maxLength 按 UTF-16 计，口径不一致故不用。
+  // 库里已有的超长名称不截断：上限取「80 与改前长度」中较大的那个，只拦住继续变长（PR-18 AC13）
+  const setMsName = (key: number, prev: string, v: string) => {
+    const cps = [...v];
+    const cap = Math.max(MS_NAME_MAX, [...prev].length);
+    setMs(key, 'name', cps.length > cap ? cps.slice(0, cap).join('') : v);
+  };
   const addMs = () => {
     const key = ++seq.current;
     setF(s => ({ ...s, milestones: [...s.milestones, { key, name: '', date: '' }] }));
@@ -501,7 +510,7 @@ function EditProjectForm({ p, onGone, onClose }: { p: Project; onGone: (id: stri
                       className="flex-1"
                       autoFocus={m.key === focusKey}
                       value={m.name}
-                      onChange={e => setMs(m.key, 'name', e.target.value)}
+                      onChange={e => setMsName(m.key, m.name, e.target.value)}
                       placeholder={t('write.projectEdit.milestoneName')}
                       aria-label={t('write.projectEdit.milestoneName')}
                       aria-invalid={!!errs[`ms-${m.key}`]}
