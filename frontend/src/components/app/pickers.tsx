@@ -19,6 +19,12 @@ export interface PickItem {
   noCheck?: boolean;
 }
 
+/** 原型 popList（popovers.js 第 71–72 行）：按名称不区分大小写的子串过滤，保持原列表顺序（不用 cmdk 的模糊打分排序）。 */
+const filterByLabel = (items: readonly PickItem[], q: string): readonly PickItem[] => {
+  const needle = q.toLowerCase();
+  return needle ? items.filter(it => it.label.toLowerCase().includes(needle)) : items;
+};
+
 export function PickList({
   items,
   value,
@@ -37,22 +43,30 @@ export function PickList({
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={o => {
+        setOpen(o);
+        if (!o) setQ('');
+      }}
+    >
       <PopoverTrigger asChild aria-label={ariaLabel}>
         {children}
       </PopoverTrigger>
       <PopoverContent className="w-60 p-1" align="start" data-pop="">
-        <Command>
-          {search && <CommandInput placeholder={search} aria-label={search} />}
+        <Command shouldFilter={false}>
+          {search && <CommandInput placeholder={search} aria-label={search} value={q} onValueChange={setQ} />}
           <CommandList>
             <CommandEmpty>{t('write.noMatches')}</CommandEmpty>
-            {items.map(it => (
+            {filterByLabel(items, q).map(it => (
               <CommandItem
                 key={it.id || '__none'}
                 value={`${it.label} ${it.id}`}
                 onSelect={() => {
                   setOpen(false);
+                  setQ('');
                   if (it.id !== value) onPick(it.id);
                 }}
                 data-pick={it.id}
@@ -86,17 +100,18 @@ export function MultiPickList({
   ariaLabel: string;
 }) {
   const { t } = useTranslation();
+  const [q, setQ] = useState('');
   return (
-    <Popover>
+    <Popover onOpenChange={o => !o && setQ('')}>
       <PopoverTrigger asChild aria-label={ariaLabel}>
         {children}
       </PopoverTrigger>
       <PopoverContent className="w-72 p-1" align="start" data-pop="">
-        <Command>
-          {search && <CommandInput placeholder={search} aria-label={search} />}
+        <Command shouldFilter={false}>
+          {search && <CommandInput placeholder={search} aria-label={search} value={q} onValueChange={setQ} />}
           <CommandList>
             <CommandEmpty>{t('write.noMatches')}</CommandEmpty>
-            {items.map(it => (
+            {filterByLabel(items, q).map(it => (
               <CommandItem key={it.id} value={`${it.label} ${it.id}`} onSelect={() => onToggle(it.id)} data-pick={it.id}>
                 {it.icon}
                 <span className="truncate">{it.label}</span>
