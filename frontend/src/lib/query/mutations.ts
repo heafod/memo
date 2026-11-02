@@ -41,6 +41,7 @@ function optimistic<T extends { id: string }>(key: QueryKey, id: string, patch: 
   return () => queryClient.setQueryData(key, prev);
 }
 
+const SUBTASK_KEYS: readonly QueryKey[] = [['subtasks'], ['tasks'], ['activity']];
 const TASK_WRITE: readonly QueryKey[] = [['tasks'], ['activity'], ['notifs']];
 
 export interface UpdateTaskVars {
@@ -277,6 +278,17 @@ export function useDeleteComment() {
   });
 }
 
+/**
+ * 17b 子任务 / 表情回应失败（AC13 及 1918 裁定）：先 toast（有状态码用服务端 detail，网络错误用「网络错误」），
+ * 再在回滚之后重拉受影响的数据。409 由 MutationCache.onSettled 整体重拉，401 交给全局登录处理，这里都不重复。
+ */
+function failAndRefetch(e: unknown, keys: readonly QueryKey[]) {
+  if (e instanceof HiddenProjectError) return;
+  toast.error(e instanceof ApiError ? errorMessage(e) : i18n.t('errors.networkShort'));
+  if (e instanceof ApiError && (e.status === 409 || e.status === 401)) return;
+  void Promise.all(keys.map(queryKey => queryClient.invalidateQueries({ queryKey })));
+}
+
 /** 表情回应切换（R26）：只增删当前成员自己的 id；乐观切换，失败回滚并提示服务端 detail。 */
 export function useToggleReaction(meId: string | null | undefined) {
   return useMutation({
@@ -299,7 +311,7 @@ export function useToggleReaction(meId: string | null | undefined) {
     },
     onError: (e, _v, ctx) => {
       ctx?.rollback();
-      notifyError(e);
+      failAndRefetch(e, [['comments'], ['activity']]);
     },
   });
 }
@@ -312,7 +324,9 @@ export function useCreateSubtask() {
       assertVisibleProject(taskProject(body.task_id));
       return unwrap(api.POST('/api/subtasks', { body }));
     },
-    onError: notifyError,
+    onError: e => {
+      failAndRefetch(e, SUBTASK_KEYS);
+    },
   });
 }
 
@@ -330,7 +344,7 @@ export function useUpdateSubtask() {
     },
     onError: (e, _v, ctx) => {
       ctx?.rollback();
-      notifyError(e);
+      failAndRefetch(e, SUBTASK_KEYS);
     },
   });
 }
@@ -343,7 +357,9 @@ export function useDeleteSubtask() {
       assertVisibleProject(taskProject(sub.parent_task_id));
       await unwrap(api.DELETE('/api/subtasks/{subtask_id}', { params: { path: { subtask_id: sub.id } } }));
     },
-    onError: notifyError,
+    onError: e => {
+      failAndRefetch(e, SUBTASK_KEYS);
+    },
   });
 }
 
