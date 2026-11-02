@@ -172,7 +172,13 @@ export function useReorderProjects() {
         await unwrap(api.PATCH('/api/projects/{project_id}', { params: { path: { project_id: id } }, body: { order } }));
       }
     },
-    onError: notifyError,
+    // meta.invalidates 只在成功时生效；失败（任意状态码、网络错误、中途失败）也要重拉，侧栏以服务端为准（AC10，2155 Q10）。
+    // 409 由 MutationCache.onSettled 整体重拉，401 交给全局登录处理，这里不重复。
+    onError: e => {
+      notifyError(e);
+      if (e instanceof ApiError && (e.status === 409 || e.status === 401)) return;
+      void queryClient.invalidateQueries({ queryKey: ['projects'] });
+    },
   });
 }
 
