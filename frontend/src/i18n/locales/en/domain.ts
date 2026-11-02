@@ -3,9 +3,9 @@ export default {
   status: {
     backlog: 'Backlog',
     todo: 'To Do',
-    progress: 'In progress',
-    review: 'In review',
-    done: 'Completed',
+    progress: 'In Progress',
+    review: 'Review',
+    done: 'Done',
   },
   priority: {
     urgent: 'Urgent',
