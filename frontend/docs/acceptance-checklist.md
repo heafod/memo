@@ -320,6 +320,10 @@
 - [ ] AC10 未登录时打开 `/projects/<id>?task=<id>`（「启动时打开」设成「收件箱」）：先到 `/login`，地址里带 `next`；登录后直接进 `/projects/<id>`，并打开这个任务，不进 `/inbox`；地址栏里没有 `next`；按浏览器后退不会回到登录页。`/calendar`、`/my-tasks#x` 这类地址同理，查询串和 hash 都保留。已经登录的会话过期（401）后重新登录，也回到过期时所在的地址。（PR-16，R7）
 - [ ] AC11 直接打开 `/login`、退出登录后再登录、未登录时打开 `/`：登录后都按「启动时打开」的偏好走（和 AC2 一致）。已经登录时打开 `/login?next=/calendar`，进 `/calendar`。（PR-16，R7）
 - [ ] AC12 防开放重定向：`next` 依次取 `https://evil.example`、`//evil.example`、`/\evil.example`、`javascript:alert(1)`、`%2F%2Fevil.example`、`evil.example`、`/login`，登录后都停在本站，按启动页偏好进入，不报错、不弹提示，也不会跳出本站或者重复回到登录页。（PR-16，R7）
+  - AC12 增补样例，原样和 URL 编码形式各测一遍，共 8 个：`/..//evil.example`、`/%2e%2e//evil.example`、`/.//evil.example`、`/%2E//evil.example`
+  - [ ] 上述每个 next 样例，登录成功后都进入启动页偏好对应的页面；地址栏里不再带 next；控制台没有 React Router 报错（包括 "External navigation is not allowed"）；整个过程不发生站外导航。补 11 的 `/%6Cogin` 和 `%2F%2Fevil.example` 也要复测，结果保持不变。
+  - [ ] `next=/projects/../board` 登录后落到 `/board`。
+  - GuestOnly（已登录时访问 /login?next=…）同样用这 8 个样例测一遍。
 
 ### R4 抽屉与菜单 / R26 评论表情回应 / R27 子任务清单写（PR-17）
 
