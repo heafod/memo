@@ -17,8 +17,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { ContextMenuItem, ContextMenuSeparator, ContextMenuSub, ContextMenuSubContent, ContextMenuSubTrigger } from '@/components/ui/context-menu';
 import { PRIORITIES, STATUSES, type Priority, type TaskStatus } from '@/lib/domain/constants';
+import { mergePrefs, type PrefsData } from '@/lib/domain/prefs';
 import type { Task } from '@/lib/query/entities';
-import { useMeId, useMembers } from '@/lib/query/entities';
+import { useMeId, useMembers, usePreferences } from '@/lib/query/entities';
 import { useDeleteTasks, useToggleFav, useUpdateTask } from '@/lib/query/mutations';
 
 /**
@@ -38,6 +39,14 @@ export function TaskContextItems({ task }: { task: Task }) {
   const priorityItems = usePriorityItems();
   const assigneeItems = useAssigneeItems(members, meId);
   const [confirmDel, setConfirmDel] = useState(false);
+  // R7「删除任务前确认」（PR-16；原型 actions.js:521）：只管单个任务删除，关掉时直接删除
+  const confirmDelete = mergePrefs(usePreferences() as PrefsData | null).confirmDelete !== false;
+  // 菜单关闭会卸载本组件，mutate 的单次回调随之丢失；用 Promise 保证成功提示（失败由 useDeleteTasks 统一提示）
+  const remove = () =>
+    void del
+      .mutateAsync([task.id])
+      .then(() => toast(t('write.bulk.deleted', { n: 1 })))
+      .catch(() => undefined);
 
   const open = () => void navigate(`?task=${task.id}`);
 
@@ -131,6 +140,7 @@ export function TaskContextItems({ task }: { task: Task }) {
       <ContextMenuItem
         variant="destructive"
         onSelect={e => {
+          if (!confirmDelete) return remove();
           e.preventDefault();
           setConfirmDel(true);
         }}
@@ -146,14 +156,7 @@ export function TaskContextItems({ task }: { task: Task }) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('write.cancel')}</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={() =>
-                del.mutate([task.id], {
-                  onSuccess: () => toast(t('write.bulk.deleted', { n: 1 })),
-                })
-              }
-            >
+            <AlertDialogAction variant="destructive" onClick={remove}>
               {t('write.taskMenu.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -486,7 +486,7 @@ function PreferencesSec() {
   return (
     <div>
       <Heading title={t('settings.preferences.heading')} desc={t('settings.preferences.desc')} />
-      <Srow title={t('settings.preferences.home')}>
+      <Srow title={t('settings.preferences.home')} desc={t('settings.preferences.homeDesc')}>
         <Select value={prefs.home ?? 'home'} onValueChange={v => patch({ home: v })}>
           <SelectTrigger className="w-44" data-pref="home">
             <SelectValue />
@@ -498,7 +498,7 @@ function PreferencesSec() {
           </SelectContent>
         </Select>
       </Srow>
-      <Srow title={t('settings.preferences.openTasks')}>
+      <Srow title={t('settings.preferences.openTasks')} desc={t('settings.preferences.openTasksDesc')}>
         <Seg
           value={(prefs.openTasks as string) ?? 'drawer'}
           options={[

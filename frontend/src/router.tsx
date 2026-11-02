@@ -1,7 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router';
 import { AppShell } from '@/components/app/app-shell';
 import { NotFoundState, RootErrorState, RouteErrorState } from '@/components/app/error-states';
-import { HomePage } from '@/pages/home-page';
 import { LoginPage } from '@/pages/login-page';
 import { MyTasksPage } from '@/pages/my-tasks-page';
 import { ProjectPage } from '@/pages/project-page';
@@ -18,7 +17,7 @@ import { MemberDetailPage } from '@/pages/member-detail-page';
 import { TeamDetailPage } from '@/pages/team-detail-page';
 import { ActivityPage } from '@/pages/activity-page';
 import { SettingsPage } from '@/pages/settings-page';
-import { GuestOnly, RequireAuth } from '@/routes/guards';
+import { GuestOnly, HomeRoute, RequireAuth } from '@/routes/guards';
 
 // History 模式（createBrowserRouter）；生产由 nginx try_files 回退 index.html，刷新深链不 404。
 // 路由顶层 errorElement（FRIDAY 裁定 #12 17:07 第 ⑤ 条）：外壳、守卫等页面以外的组件抛异常时显示整页中文出错页与刷新入口，
@@ -43,7 +42,7 @@ export const router = createBrowserRouter([
                 // 渲染兜底（错误状态 · 渲染出错）：页面渲染抛错时在外壳内显示错误页，不白屏
                 errorElement: <RouteErrorState />,
                 children: [
-                  { index: true, element: <HomePage /> },
+                  { index: true, element: <HomeRoute /> },
                   { path: 'my-tasks', element: <MyTasksPage /> },
                   { path: 'calendar', element: <CalendarPage /> },
                   { path: 'timeline', element: <TimelinePage /> },

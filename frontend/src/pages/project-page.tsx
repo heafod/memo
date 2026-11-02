@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
+import { Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { AvatarStack, ProjectIcon } from '@/components/app/domain-ui';
 import { ForbiddenState, NotFoundState } from '@/components/app/error-states';
 import { FavButton } from '@/components/app/fav-button';
@@ -58,6 +58,8 @@ import { ProjectOverview } from './project-overview';
  */
 export function ProjectPage() {
   const { projectId, tab } = useParams();
+  // 规范化到默认标签时保留查询串与 hash（深链 `/projects/<id>?task=` 仍打开任务，PR-16 AC10）
+  const { search, hash } = useLocation();
   const isHidden = useIsHiddenProject();
   const projects = useProjects();
   const members = useMembers();
@@ -68,14 +70,14 @@ export function ProjectPage() {
   if (isHidden(project)) return <ForbiddenState project={project} lead={members.find(m => m.id === project.lead_id)} />;
   // 已归档项目的地址回到项目列表（FRIDAY 18:10；归档后快照不再带它的任务）
   if (project.archived) return <Navigate to="/projects" replace />;
-  if (!tab) return <Navigate to={`/projects/${project.id}/${DEFAULT_PROJECT_TAB}`} replace />;
+  if (!tab) return <Navigate to={`/projects/${project.id}/${DEFAULT_PROJECT_TAB}${search}${hash}`} replace />;
 
   const isSaved = tab.startsWith('v:');
   const saved = isSaved ? savedViews.find(v => `v:${v.id}` === tab) : undefined;
 
   if (!isSaved) {
     if (!(ENABLED_PROJECT_TABS as readonly string[]).includes(tab) && (PROJECT_TABS as readonly string[]).includes(tab))
-      return <Navigate to={`/projects/${project.id}/${DEFAULT_PROJECT_TAB}`} replace />;
+      return <Navigate to={`/projects/${project.id}/${DEFAULT_PROJECT_TAB}${search}${hash}`} replace />;
   }
 
   const knownBuiltin = (ENABLED_PROJECT_TABS as readonly string[]).includes(tab);

@@ -98,7 +98,13 @@ export function useDeleteTasks() {
       ids.forEach(id => assertVisibleProject(taskProject(id)));
       for (const id of ids) await unwrap(api.DELETE('/api/tasks/{task_id}', { params: { path: { task_id: id } } }));
     },
-    onError: notifyError,
+    // 失败（含逐条删到一半）：提示服务端 detail，并重新拉取任务相关数据（R7 AC6）
+    onError: e => {
+      notifyError(e);
+      void Promise.all(
+        [['tasks'], ['subtasks'], ['comments'], ['files'], ['activity'], ['notifs']].map(queryKey => queryClient.invalidateQueries({ queryKey })),
+      );
+    },
   });
 }
 

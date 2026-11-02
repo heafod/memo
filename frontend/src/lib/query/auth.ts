@@ -37,17 +37,16 @@ export function handleUnauthorized(navigateToLogin: () => void): void {
   navigateToLogin();
 }
 
+/** 登录：成功后写入会话；跳转（`next` 或启动页）由 GuestOnly 统一处理。 */
 export function useLogin() {
-  const navigate = useNavigate();
   return useMutation({
     mutationFn: async (body: LoginInput): Promise<CurrentUser> => {
       const { data, error, response } = await api.POST('/api/auth/login', { body });
       if (data === undefined) throw new ApiError(response.status, error);
       return data;
     },
-    onSuccess: async user => {
+    onSuccess: user => {
       queryClient.setQueryData(authKeys.me, user);
-      await navigate('/', { replace: true });
     },
   });
 }
