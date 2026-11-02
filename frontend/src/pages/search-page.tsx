@@ -61,6 +61,13 @@ function SearchPageInner() {
   };
   const total = counts.tasks + counts.projects + counts.members + counts.files + counts.comments;
 
+  // 打开任务保留当前查询串（q 等），Link 默认 push：后退一次关掉抽屉、停在 /search?q（PR-18 AC5，2155 Q5 (a)）
+  const taskHref = (id: string) => {
+    const next = new URLSearchParams(params);
+    next.set('task', id);
+    return `?${next.toString()}`;
+  };
+
   const commit = (term: string) => {
     const nextQ = term.trim();
     setParams(prev => {
@@ -165,7 +172,7 @@ function SearchPageInner() {
               {showTasks && results.tasks.length > 0 && (
                 <Section title={t('search.tabs.tasks')} count={counts.tasks}>
                   {results.tasks.map(tk => (
-                    <Link key={tk.id} to={`?task=${tk.id}`} className="flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-accent/50" data-hit="task">
+                    <Link key={tk.id} to={taskHref(tk.id)} className="flex items-center gap-2 px-3 py-2 text-[13px] hover:bg-accent/50" data-hit="task">
                       <StatusIcon status={tk.status} />
                       <span className="font-mono text-[11px] text-muted-foreground">{tk.key}</span>
                       <span className="flex-1 truncate">{tk.title}</span>
@@ -222,7 +229,7 @@ function SearchPageInner() {
                     return (
                       <Link
                         key={c.id}
-                        to={tk ? `?task=${tk.id}` : '#'}
+                        to={tk ? taskHref(tk.id) : '#'}
                         className="flex items-start gap-2 px-3 py-2 text-[13px] hover:bg-accent/50"
                         data-hit="comment"
                       >
