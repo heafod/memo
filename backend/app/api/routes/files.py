@@ -224,9 +224,7 @@ def download_file(
     )
 
 
-@router.delete(
-    "/{file_id}", status_code=204, responses=visibility.ARCHIVED_409
-)
+@router.delete("/{file_id}", status_code=204, responses=visibility.ARCHIVED_409)
 def delete_file(
     file_id: uuid.UUID, session: SessionDep, current_user: CurrentUser
 ) -> None:

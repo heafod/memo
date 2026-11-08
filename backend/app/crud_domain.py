@@ -217,6 +217,10 @@ def duplicate_member_ids(
     if me_id is None:
         return []
     members = [me_id]
-    if lead_id is not None and lead_id != me_id and get_member(session, lead_id) is not None:
+    if (
+        lead_id is not None
+        and lead_id != me_id
+        and get_member(session, lead_id) is not None
+    ):
         members.append(lead_id)
     return members
