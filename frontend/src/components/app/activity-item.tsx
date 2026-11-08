@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import { MemberAvatar } from '@/components/app/domain-ui';
 import type activityLocale from '@/i18n/locales/zh/activity';
 import { PRIORITIES, STATUSES } from '@/lib/domain/constants';
-import { timeAgo } from '@/lib/domain/format';
+import { fmtDate, timeAgo } from '@/lib/domain/format';
 import type { Activity, Member, Project, Task } from '@/lib/query/entities';
 
 // 动态条目（映射表「动态流 .feed」行；原型 actHtml / actZh）。动词与 extra 为后端写入的英文数据，此处按句式匹配为中文。
@@ -81,6 +81,17 @@ function phrase(t: TFunction, a: Activity): Phrase {
       return e ? { key: 'activity.subReopened', values: { x: quoted(t, e) } } : { key: 'activity.updated' };
     case 'added subtask to':
       return e ? { key: 'activity.subAdded', values: { x: quoted(t, e) } } : { key: 'activity.updated' };
+    case 'assigned a subtask on':
+      if (e === '(unassigned)') return { key: 'activity.subUnassigned' };
+      return to ? { key: 'activity.subAssigned', values: { x: to } } : { key: 'activity.updated' };
+    case 'set a subtask due date on':
+      // 按查看者的日期格式显示（0515 Q2）
+      if (e === '(cleared)') return { key: 'activity.subDueCleared' };
+      return to ? { key: 'activity.subDue', values: { x: fmtDate(t, to) } } : { key: 'activity.updated' };
+    case 'converted a subtask of': {
+      const into = /^into ([\s\S]+)$/.exec(e)?.[1];
+      return into ? { key: 'activity.subConverted', values: { x: into } } : { key: 'activity.updated' };
+    }
     case 'archived':
       return { key: 'activity.archived' };
     default:

@@ -8,9 +8,12 @@ id，空列表的键删除；表情限原型 6 个或这条评论上已有的键
 R29（PR-13d）：不可见项目任务上的评论等同不存在（路径 404「评论不存在」，请求体
 任务 422「所属任务不存在」，``?task_id=`` 指向不可见任务时返回空列表）；已归档
 项目的评论不进列表，写入返回 409。
+
+PR-18 AC25：改 / 删评论只许作者（仓库第一个 403）；顺序 格式错 422 → 404 → 409 → 403。
 """
 
 import uuid
+from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from sqlmodel import select
@@ -24,6 +27,7 @@ from app.schemas import (
     CommentCreate,
     CommentPublic,
     CommentUpdate,
+    ErrorDetail,
     ReactionToggle,
 )
 
@@ -105,9 +109,20 @@ def create_comment(
     return serializers.comment_public(comment)
 
 
-@router.patch(
-    "/{comment_id}", response_model=CommentPublic, responses=visibility.ARCHIVED_409
-)
+def _require_author(comment: Comment, current_user: CurrentUser, detail: str) -> None:
+    """PR-18 AC25：只许作者改 / 删；排在 404 → 409 之后（不可见的评论永远 404）。"""
+    me = current_user.owner_member_id
+    if me is None or comment.by_id != me:
+        raise HTTPException(status_code=403, detail=detail)
+
+
+AUTHOR_403: dict[int | str, dict[str, Any]] = {
+    **visibility.ARCHIVED_409,
+    403: {"description": "非作者", "model": ErrorDetail},
+}
+
+
+@router.patch("/{comment_id}", response_model=CommentPublic, responses=AUTHOR_403)
 def update_comment(
     comment_id: uuid.UUID,
     payload: CommentUpdate,
@@ -115,6 +130,7 @@ def update_comment(
     current_user: CurrentUser,
 ) -> CommentPublic:
     comment, _project = _visible_comment(session, current_user, comment_id)
+    _require_author(comment, current_user, "只能修改自己的评论")
     comment.text = payload.text
     session.add(comment)
     session.commit()
@@ -122,11 +138,12 @@ def update_comment(
     return serializers.comment_public(comment)
 
 
-@router.delete("/{comment_id}", status_code=204, responses=visibility.ARCHIVED_409)
+@router.delete("/{comment_id}", status_code=204, responses=AUTHOR_403)
 def delete_comment(
     comment_id: uuid.UUID, session: SessionDep, current_user: CurrentUser
 ) -> None:
     comment, _project = _visible_comment(session, current_user, comment_id)
+    _require_author(comment, current_user, "只能删除自己的评论")
     session.delete(comment)
     session.commit()
 

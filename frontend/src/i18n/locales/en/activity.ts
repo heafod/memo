@@ -26,6 +26,11 @@ export default {
   subCompleted: '<who>{{who}}</who> <m>completed subtask {{x}} in</m> <obj>{{obj}}</obj>',
   subReopened: '<who>{{who}}</who> <m>reopened subtask {{x}} in</m> <obj>{{obj}}</obj>',
   subAdded: '<who>{{who}}</who> <m>added subtask {{x}} to</m> <obj>{{obj}}</obj>',
+  subAssigned: '<who>{{who}}</who> <m>assigned a subtask on</m> <obj>{{obj}}</obj> <m>to {{x}}</m>',
+  subUnassigned: '<who>{{who}}</who> <m>assigned a subtask on</m> <obj>{{obj}}</obj> <m>(unassigned)</m>',
+  subDue: '<who>{{who}}</who> <m>set a subtask due date on</m> <obj>{{obj}}</obj> <m>to {{x}}</m>',
+  subDueCleared: '<who>{{who}}</who> <m>set a subtask due date on</m> <obj>{{obj}}</obj> <m>(cleared)</m>',
+  subConverted: '<who>{{who}}</who> <m>converted a subtask of</m> <obj>{{obj}}</obj> <m>into {{x}}</m>',
   archived: '<who>{{who}}</who> <m>archived</m> <obj>{{obj}}</obj>',
   updated: '<who>{{who}}</who> <m>updated</m> <obj>{{obj}}</obj>',
 } as const;

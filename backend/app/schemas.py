@@ -14,6 +14,7 @@ from pydantic import (
     ConfigDict,
     Field,
     StrictBool,
+    StrictStr,
     StringConstraints,
     field_serializer,
     field_validator,
@@ -288,6 +289,9 @@ class CommentCreate(BaseModel):
 
 
 class CommentUpdate(BaseModel):
+    # 多余字段 422，排在 403 之前（0515 Q10）
+    model_config = ConfigDict(extra="forbid")
+
     text: str = Field(min_length=1, max_length=10000)
 
 
@@ -317,14 +321,18 @@ class SubtaskCreate(BaseModel):
 
 
 class SubtaskUpdate(BaseModel):
-    """改子任务（R27）：只允许 done / title。"""
+    """改子任务（R27）：done / title / assignee_id / due / note；assignee_id、due 可写 null 清除。"""
 
     model_config = ConfigDict(extra="forbid")
 
     title: _SubtaskTitle | None = None
     done: StrictBool | None = None
+    assignee_id: uuid.UUID | None = None
+    due: date | None = None
+    # 按字符（code point）计，最多 5000（0515 Q11）；不 trim，可写空串
+    note: StrictStr | None = Field(default=None, max_length=5000)
 
-    @field_validator("title", "done")
+    @field_validator("title", "done", "note")
     @classmethod
     def _not_null(cls, value: object) -> object:
         # 显式 null 不是合法改动（只能省略字段）

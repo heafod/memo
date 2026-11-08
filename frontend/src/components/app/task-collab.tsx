@@ -2,16 +2,21 @@
  * 抽屉里的协作写面（PR-17b）：评论表情回应（R26）、子任务清单与子任务详情（R27）。
  * 照原型 overlays/drawer.js 第 95–97、137–145 行、popovers.js 第 354 行、features/subtasks.js。
  */
-import { ArrowLeft, ChevronLeft, ChevronRight, Plus, SmilePlus, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Calendar, ChevronLeft, ChevronRight, Plus, SmilePlus, Trash2 } from 'lucide-react';
 import { type RefObject, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ProgressBar } from '@/components/app/domain-ui';
+import { useSearchParams } from 'react-router';
+import { toast } from 'sonner';
+import { MemberAvatar, ProgressBar } from '@/components/app/domain-ui';
+import { useAssigneeItems } from '@/components/app/pick-items';
+import { DatePick, PickList } from '@/components/app/pickers';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
-import type { Comment, Member, Subtask, Task } from '@/lib/query/entities';
-import { useCreateSubtask, useDeleteSubtask, useToggleReaction, useUpdateSubtask } from '@/lib/query/mutations';
+import { relDate } from '@/lib/domain/format';
+import { type Comment, type Member, type Subtask, type Task, useMeId, useMembers } from '@/lib/query/entities';
+import { useConvertSubtask, useCreateSubtask, useDeleteSubtask, useToggleReaction, useUpdateSubtask } from '@/lib/query/mutations';
 import { cn } from '@/lib/utils';
 
 const REACTION_EMOJIS = ['👍', '🎉', '❤️', '👀', '🚀', '✅'] as const;
@@ -146,7 +151,7 @@ export function SubtaskSection({ task, subs, onOpen }: { task: Task; subs: Subta
   );
 }
 
-/** 子任务详情（原型 features/subtasks.js，不含负责人 / 截止日期 / 备注 / 转为任务——归 PR-18）。 */
+/** 子任务详情（原型 features/subtasks.js 第 17–31 行；负责人 / 截止日期 / 备注 / 转为任务为 PR-18 AC16–AC22）。 */
 export function SubtaskDetail({
   task,
   subs,
@@ -163,8 +168,16 @@ export function SubtaskDetail({
   const { t } = useTranslation();
   const update = useUpdateSubtask();
   const del = useDeleteSubtask();
+  const convert = useConvertSubtask();
+  const members = useMembers();
+  const assignees = useAssigneeItems(members, useMeId());
+  const assignee = members.find(m => m.id === sub.assignee_id);
+  const [, setParams] = useSearchParams();
   const i = subs.findIndex(s => s.id === sub.id);
   const titleRef = useRef<HTMLTextAreaElement>(null);
+  // 连点守卫：必须在 click handler 里同步置位；仅靠 disabled={isPending} 不够——
+  // 第二次 click 常在 React 重渲之前就触发（EDITH #34：26/26 次发出 2 次 POST）。
+  const convertingRef = useRef(false);
   useEffect(() => titleRef.current?.focus(), [sub.id]);
   // Esc 先退出子任务详情回到抽屉（原型 keyboard.js 第 126–131 行），抢在 Sheet 的 Esc 关闭之前
   useEffect(() => {
@@ -199,7 +212,31 @@ export function SubtaskDetail({
       <div className="mt-1 ml-[26px] text-xs text-muted-foreground">
         {t('task.sub.ofN', { i: i + 1, n: subs.length })} · {sub.done ? t('task.sub.statusDone') : t('task.sub.statusOpen')}
       </div>
-      <dl className="mt-4 grid grid-cols-[112px_minmax(0,1fr)] items-center gap-x-3 text-[13px]">
+      <dl className="mt-4 grid grid-cols-[112px_minmax(0,1fr)] items-center gap-x-3 gap-y-1 text-[13px]">
+        <dt className="text-muted-foreground">{t('task.sub.assignee')}</dt>
+        <dd className="min-w-0">
+          <PickList
+            items={assignees}
+            value={sub.assignee_id ?? ''}
+            onPick={v => update.mutate({ sub, patch: { assignee_id: v || null } })}
+            search={t('task.sub.assignTo')}
+            ariaLabel={t('task.sub.assignee')}
+          >
+            <button type="button" data-sub-assignee="" className={cn(subPill, !assignee && 'text-muted-foreground')}>
+              {assignee && <MemberAvatar member={assignee} size="sm" />}
+              <span className="truncate">{assignee ? assignee.name : t('task.unassigned')}</span>
+            </button>
+          </PickList>
+        </dd>
+        <dt className="text-muted-foreground">{t('task.sub.due')}</dt>
+        <dd className="min-w-0">
+          <DatePick value={sub.due} onPick={v => update.mutate({ sub, patch: { due: v } })} ariaLabel={t('task.sub.due')}>
+            <button type="button" data-sub-due="" className={cn(subPill, !sub.due && 'text-muted-foreground')}>
+              <Calendar size={13} />
+              <span className="tabular-nums">{sub.due ? relDate(t, sub.due) : t('write.pick.setDate')}</span>
+            </button>
+          </DatePick>
+        </dd>
         <dt className="text-muted-foreground">{t('task.sub.parent')}</dt>
         <dd className="min-w-0">
           <button type="button" onClick={onClose} className="inline-flex max-w-full items-center gap-1.5 rounded-md px-2 -mx-2 h-7 hover:bg-accent">
@@ -208,7 +245,43 @@ export function SubtaskDetail({
           </button>
         </dd>
       </dl>
+      <SubtaskNote key={sub.id} sub={sub} onCommit={note => update.mutate({ sub, patch: { note } })} />
       <div className="mt-6 flex flex-wrap items-center gap-1.5">
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={convert.isPending}
+          onClick={() => {
+            // 同步锁：在 await / setState 之前拦截连点，保证只发出 1 次 POST（AC21 1344）
+            if (convertingRef.current) return;
+            convertingRef.current = true;
+            // 用 mutateAsync：成功后会重拉、本视图随子任务消失而卸载，mutate 级回调此时不再触发
+            void convert
+              .mutateAsync(sub)
+              .then(nt => {
+                // 成功后回到父任务抽屉主视图；「打开」按 AC5 push 历史（0515 Q6）
+                onClose();
+                toast(t('task.sub.converted', { key: nt.key }), {
+                  action: {
+                    label: t('task.sub.open'),
+                    onClick: () =>
+                      setParams(prev => {
+                        const next = new URLSearchParams(prev);
+                        next.set('task', nt.id);
+                        return next;
+                      }),
+                  },
+                });
+              })
+              .catch(() => {
+                // 失败才解锁，允许重试；成功路径随 onClose 卸载，不必复位
+                convertingRef.current = false;
+              });
+          }}
+        >
+          <ArrowUpRight size={13} />
+          {t('task.sub.convert')}
+        </Button>
         <span className="flex-1" />
         <Button variant="ghost" size="sm" disabled={i <= 0} aria-label={t('task.sub.previousSub')} onClick={() => onNav(subs[i - 1].id)}>
           <ChevronLeft size={14} />
@@ -224,6 +297,50 @@ export function SubtaskDetail({
         </Button>
       </div>
     </div>
+  );
+}
+
+const subPill = 'inline-flex max-w-full items-center gap-1.5 rounded-md px-2 -mx-2 h-7 hover:bg-accent';
+
+/** 有改动才发 note PATCH，并记下已存的值（防止失焦与卸载各发一次）。 */
+function commitLatest(cur: { note: string; saved: string; onCommit: (v: string) => void }, store = cur) {
+  if (cur.note === store.saved) return;
+  store.saved = cur.note;
+  cur.onCommit(cur.note);
+}
+
+/** 备注上限（code point 计，emoji 算 1 个；0515 Q11）。 */
+const NOTE_MAX = 5000;
+
+/** 子任务备注（原型 subNote）：失焦保存，没改不发；不 trim。 */
+function SubtaskNote({ sub, onCommit }: { sub: Subtask; onCommit: (v: string) => void }) {
+  const { t } = useTranslation();
+  const [note, setNote] = useState(sub.note);
+  // 关抽屉 / Esc 退出详情时组件直接卸载，不一定触发 blur：卸载时补存一次（AC19）
+  const latest = useRef({ note, saved: sub.note, onCommit });
+  useEffect(() => {
+    latest.current.note = note;
+    latest.current.onCommit = onCommit;
+  });
+  useEffect(() => () => commitLatest(latest.current), []);
+  return (
+    <section className="mt-5">
+      <h3 id="s-note-l" className="mb-2 text-[13px] font-semibold">
+        {t('task.sub.notes')}
+      </h3>
+      <Textarea
+        rows={4}
+        aria-labelledby="s-note-l"
+        data-sub-note=""
+        placeholder={t('task.sub.notesPlaceholder')}
+        value={note}
+        onChange={e => {
+          const cps = Array.from(e.target.value);
+          setNote(cps.length > NOTE_MAX ? cps.slice(0, NOTE_MAX).join('') : e.target.value);
+        }}
+        onBlur={() => commitLatest({ ...latest.current, note }, latest.current)}
+      />
+    </section>
   );
 }
 
