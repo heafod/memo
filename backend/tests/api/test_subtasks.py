@@ -534,7 +534,7 @@ def test_convert_creates_task(
         assert r2.status_code == 201, r2.text
         created.append(r2.json()["id"])
         prefix, n = t["key"].rsplit("-", 1)
-        assert r2.json()["key"] == f"{prefix}-{9000 + int(n) + 1}"
+        assert r2.json()["key"] == f"{prefix}-{int(n) + 1}"
         assert [n[0:2] for n in _notifs(t["id"])] == [
             n[0:2] for n in _notifs(r2.json()["id"])
         ]
@@ -621,3 +621,46 @@ def test_convert_concurrent(authed_client: TestClient, web: dict[str, str]) -> N
         == before_acts + 1
     )
     authed_client.delete(f"/api/tasks/{ok.json()['id']}")
+
+
+def test_next_task_key_max_plus_one(
+    authed_client: TestClient, web: dict[str, str]
+) -> None:  # R28
+    """AC30：已有 9001 时下一个是 9002；POST /api/tasks 与转为任务共用 next_task_key。"""
+    web_id = _project_id("WEB")
+    sid = web["subtasks"]
+    created: list[str] = []
+    forced_id: uuid.UUID | None = None
+    try:
+        with Session(engine) as session:
+            forced = Task(
+                key="WEB-9001",
+                project_id=web_id,
+                title="AC30 forced 9001",
+                order=0.0,
+                labels=[],
+            )
+            session.add(forced)
+            session.commit()
+            session.refresh(forced)
+            forced_id = forced.id
+        r = authed_client.post(
+            "/api/tasks", json={"project_id": str(web_id), "title": "AC30 create"}
+        )
+        assert r.status_code == 201, r.text
+        created.append(r.json()["id"])
+        assert r.json()["key"] == "WEB-9002"
+        r2 = authed_client.post(f"/api/subtasks/{sid}/convert")
+        assert r2.status_code == 201, r2.text
+        created.append(r2.json()["id"])
+        assert r2.json()["key"] == "WEB-9003"
+        assert _sub_exists(sid) == (False, False)
+    finally:
+        for task_id in created:
+            authed_client.delete(f"/api/tasks/{task_id}")
+        if forced_id is not None:
+            with Session(engine) as session:
+                row = session.get(Task, forced_id)
+                if row is not None:
+                    session.delete(row)
+                    session.commit()

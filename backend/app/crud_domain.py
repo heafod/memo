@@ -122,7 +122,7 @@ def next_task_order(session: Session) -> float:
 
 
 def next_task_key(session: Session, project: Project) -> str:
-    """生成下一个任务 key：``{PROJECT_KEY}-{9000+n}``（9000 段与种子步长 3 的自然键错开）。"""
+    """生成下一个任务 key：``{PROJECT_KEY}-{max+1}``（本项目已有数字后缀的最大号 + 1；PR-18 AC30 / R28）。"""
     existing = session.exec(
         select(Task.key).where(col(Task.key).like(f"{project.key}-%"))
     ).all()
@@ -131,7 +131,7 @@ def next_task_key(session: Session, project: Project) -> str:
         suffix = key.rsplit("-", 1)[-1]
         if suffix.isdigit():
             max_num = max(max_num, int(suffix))
-    return f"{project.key}-{9000 + max_num + 1}"
+    return f"{project.key}-{max_num + 1}"
 
 
 def delete_task_cascade(session: Session, task: Task) -> None:
