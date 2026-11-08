@@ -1,5 +1,5 @@
 import type { TFunction } from 'i18next';
-import { Check, CheckCircle2, CircleDot, FolderInput, Link as LinkIcon, PanelRightOpen, RotateCcw, SignalHigh, Star, Trash2, User } from 'lucide-react';
+import { Check, CheckCircle2, CircleDot, Copy, FolderInput, Link as LinkIcon, PanelRightOpen, RotateCcw, SignalHigh, Star, Trash2, User } from 'lucide-react';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router';
@@ -23,7 +23,7 @@ import { PRIORITIES, STATUSES, type Priority, type TaskStatus } from '@/lib/doma
 import { mergePrefs, type PrefsData } from '@/lib/domain/prefs';
 import type { Task } from '@/lib/query/entities';
 import { useMeId, useMembers, usePreferences } from '@/lib/query/entities';
-import { useDeleteTasks, useToggleFav, useUpdateTask } from '@/lib/query/mutations';
+import { useDeleteTasks, useDuplicateTask, useToggleFav, useUpdateTask } from '@/lib/query/mutations';
 import { useVisibleProjects } from '@/lib/query/visibility';
 
 // 同一套菜单项既放进右键菜单（ContextMenu），也放进列表行末 ⋯（DropdownMenu），保证两处逐项一致（PR-17a ⋯ AC）。
@@ -63,7 +63,7 @@ export function copyTaskLink(task: Pick<Task, 'id' | 'project_id'>, t: TFunction
  * 任务级上下文菜单（PR-9d；FRIDAY 2047）。
  * 子集：打开 / 完成 / 收藏 / 删除；另含状态·负责人·优先级（复用 9c 写能力，不阻塞）。
  * PR-17a：加「移至项目…」（带搜索，候选同抽屉「项目」属性）和「复制链接」（原型 context-menu.js:15–29 顺序）。
- * 不对齐原型全套；无编辑 / 复制任务 / 归档任务项（首版无 task.archived）。
+ * PR-18 AC28：加「复制」（原型 context-menu.js dupTask）；无编辑 / 归档任务项（首版无 task.archived）。
  */
 export function TaskContextItems({ task, kind = 'context' }: { task: Task; kind?: 'context' | 'dropdown' }) {
   const M = kind === 'dropdown' ? DROP : CTX;
@@ -120,6 +120,20 @@ export function TaskContextItems({ task, kind = 'context' }: { task: Task; kind?
   };
 
   const copyLink = () => copyTaskLink(task, t);
+  const dupTask = useDuplicateTask();
+  const duplicate = () => {
+    void dupTask
+      .mutateAsync(task.id)
+      .then(nt => {
+        toast(t('write.taskMenu.duplicated'), {
+          action: {
+            label: t('write.open'),
+            onClick: () => void navigate(`?task=${nt.id}`),
+          },
+        });
+      })
+      .catch(() => undefined);
+  };
 
   return (
     <>
@@ -219,6 +233,10 @@ export function TaskContextItems({ task, kind = 'context' }: { task: Task; kind?
       <M.Item onSelect={copyLink}>
         <LinkIcon />
         {t('write.taskMenu.copyLink')}
+      </M.Item>
+      <M.Item onSelect={duplicate} data-dup-task={task.id}>
+        <Copy />
+        {t('write.taskMenu.duplicate')}
       </M.Item>
       <M.Separator />
       <M.Item

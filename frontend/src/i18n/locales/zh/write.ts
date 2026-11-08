@@ -32,6 +32,9 @@ export default {
     deleteProject: '删除项目',
     typeToConfirm: '输入 <b>{{x}}</b> 以确认',
     deleted: '已删除 {{name}}',
+    // PR-18 AC28 / R28
+    duplicate: '复制',
+    duplicated: '已复制 {{name}}',
   },
   // 项目分享与设置（PR-15b，R25；原型 overlays/modals.js shareModal / projectModal、pages/project.js 页头、actions.js shareAdd / sharePerm / pstatus）
   projectShare: {
@@ -76,6 +79,9 @@ export default {
     copyLink: '复制链接',
     linkCopied: '链接已复制',
     copyUnavailable: '此处无法复制——{{link}}',
+    // PR-18 AC28 / R28
+    duplicate: '复制',
+    duplicated: '任务已复制',
     moreActions: '更多操作',
     open: '打开',
     markComplete: '标记完成',

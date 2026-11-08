@@ -4,6 +4,7 @@
 本模块只放跨路由复用的查询与变更函数。
 """
 
+import re
 import uuid
 
 from sqlmodel import Session, col, func, select
@@ -151,3 +152,71 @@ def delete_task_cascade(session: Session, task: Task) -> None:
     session.flush()
     session.delete(task)
     session.flush()
+
+
+def make_project_key(session: Session, name: str) -> str:
+    """按原型 ``makeKey``（actions.js 1258–1273）从项目名生成唯一 key；冲突时末尾加 X。"""
+    words = re.split(r"\s+", name.strip())
+    k = "".join((w[0] if w else "") for w in words).upper()
+    k = re.sub(r"[^A-Z]", "", k)[:3]
+    if len(k) < 2:
+        letters = re.sub(r"[^A-Za-z]", "", name)[:3].upper()
+        k = letters or "PRJ"
+    while session.exec(select(Project).where(Project.key == k)).first() is not None:
+        k += "X"
+    return k
+
+
+def next_project_order_top(session: Session) -> float:
+    """新项目排到侧栏最上面：当前最小 order - 1；库空则为 0。"""
+    min_order = session.exec(select(func.min(Project.order))).first()
+    if min_order is None:
+        return 0.0
+    return float(min_order) - 1.0
+
+
+def copy_subtasks_for_task(
+    session: Session, source_task_id: uuid.UUID, new_task_id: uuid.UUID
+) -> None:
+    """为副本任务新建子任务行（title / done / assignee_id / due / note），保留相对 order。"""
+    links = session.exec(
+        select(TaskSubtaskLink)
+        .where(TaskSubtaskLink.parent_task_id == source_task_id)
+        .order_by(col(TaskSubtaskLink.order))
+    ).all()
+    for link in links:
+        src = session.get(Subtask, link.subtask_id)
+        if src is None:
+            continue
+        sub = Subtask(
+            title=src.title,
+            done=src.done,
+            note=src.note,
+            assignee_id=src.assignee_id,
+            due=src.due,
+        )
+        session.add(sub)
+        session.flush()
+        session.add(
+            TaskSubtaskLink(
+                parent_task_id=new_task_id,
+                subtask_id=sub.id,
+                order=link.order,
+            )
+        )
+    session.flush()
+
+
+def duplicate_member_ids(
+    session: Session,
+    *,
+    me_id: uuid.UUID | None,
+    lead_id: uuid.UUID | None,
+) -> list[uuid.UUID]:
+    """项目复制成员：``[当前用户, lead]``；lead 空 / 无效 / 与当前用户相同则只留当前用户。"""
+    if me_id is None:
+        return []
+    members = [me_id]
+    if lead_id is not None and lead_id != me_id and get_member(session, lead_id) is not None:
+        members.append(lead_id)
+    return members

@@ -169,6 +169,28 @@ export interface paths {
         patch: operations["projects-update_project"];
         trace?: never;
     };
+    "/api/projects/{project_id}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Duplicate Project
+         * @description 复制项目（PR-18 AC28 / R28）：名加「 copy」，status=planning，milestones=[]，
+         *     private 继承，members=[我, lead]，key 由 makeKey 生成；任务全复制且 status=todo，
+         *     保留原 fav/created；一次事务（1 created project + 每任务 1 created）。
+         */
+        post: operations["projects-duplicate_project"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tasks": {
         parameters: {
             query?: never;
@@ -206,6 +228,27 @@ export interface paths {
         head?: never;
         /** Update Task */
         patch: operations["tasks-update_task"];
+        trace?: never;
+    };
+    "/api/tasks/{task_id}/duplicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Duplicate Task
+         * @description 复制任务（PR-18 AC28 / R28）：新 key，标题加「 (copy)」，fav=false，created 现时；
+         *     字段与 deps（仍指向原 id）照抄；新建子任务行；不复制评论 / 文件；一次事务一条 created。
+         */
+        post: operations["tasks-duplicate_task"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/members": {
@@ -1728,6 +1771,46 @@ export interface operations {
             };
         };
     };
+    "projects-duplicate_project": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectPublic"];
+                };
+            };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     "tasks-list_tasks": {
         parameters: {
             query?: never;
@@ -1845,6 +1928,46 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskPublic"];
+                };
+            };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "tasks-duplicate_task": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

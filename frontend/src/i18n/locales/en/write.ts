@@ -32,6 +32,8 @@ export default {
     deleteProject: 'Delete project',
     typeToConfirm: 'Type <b>{{x}}</b> to confirm',
     deleted: 'Deleted {{name}}',
+    duplicate: 'Duplicate',
+    duplicated: 'Duplicated {{name}}',
   },
   // Project share & settings (PR-15b, R25; prototype overlays/modals.js shareModal / projectModal, pages/project.js header, actions.js shareAdd / sharePerm / pstatus)
   projectShare: {
@@ -76,6 +78,8 @@ export default {
     copyLink: 'Copy link',
     linkCopied: 'Link copied',
     copyUnavailable: "Copy isn't available here — {{link}}",
+    duplicate: 'Duplicate',
+    duplicated: 'Task duplicated',
     moreActions: 'More actions',
     open: 'Open',
     markComplete: 'Mark complete',

@@ -351,6 +351,60 @@
         }
       }
     },
+    "/api/projects/{project_id}/duplicate": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Duplicate Project",
+        "description": "复制项目（PR-18 AC28 / R28）：名加「 copy」，status=planning，milestones=[]，\nprivate 继承，members=[我, lead]，key 由 makeKey 生成；任务全复制且 status=todo，\n保留原 fav/created；一次事务（1 created project + 每任务 1 created）。",
+        "operationId": "projects-duplicate_project",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectPublic"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/tasks": {
       "get": {
         "tags": [
@@ -509,6 +563,60 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tasks/{task_id}/duplicate": {
+      "post": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Duplicate Task",
+        "description": "复制任务（PR-18 AC28 / R28）：新 key，标题加「 (copy)」，fav=false，created 现时；\n字段与 deps（仍指向原 id）照抄；新建子任务行；不复制评论 / 文件；一次事务一条 created。",
+        "operationId": "tasks-duplicate_task",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskPublic"
+                }
+              }
+            }
           },
           "409": {
             "description": "项目已归档，无法修改",

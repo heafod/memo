@@ -235,3 +235,53 @@ def delete_task(
         visibility.raise_archived()
     crud_domain.delete_task_cascade(session, task)
     session.commit()
+
+
+@router.post(
+    "/{task_id}/duplicate",
+    response_model=TaskPublic,
+    status_code=201,
+    responses=visibility.ARCHIVED_409,
+)
+def duplicate_task(
+    task_id: uuid.UUID, session: SessionDep, current_user: CurrentUser
+) -> TaskPublic:
+    """复制任务（PR-18 AC28 / R28）：新 key，标题加「 (copy)」，fav=false，created 现时；
+    字段与 deps（仍指向原 id）照抄；新建子任务行；不复制评论 / 文件；一次事务一条 created。
+    """
+    found = visibility.visible_task(session, current_user, task_id)
+    if found is None:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    src, project = found
+    if project.archived:
+        visibility.raise_archived()
+    actor = current_user.owner_member_id
+    labels = list(src.labels) if src.labels is not None else []
+    task = Task(
+        project_id=src.project_id,
+        title=f"{src.title} (copy)",
+        status=src.status,
+        assignee_id=src.assignee_id,
+        priority=src.priority,
+        due=src.due,
+        start=src.start,
+        labels=labels,
+        desc=src.desc,
+        estimate=src.estimate,
+        order=crud_domain.next_task_order(session),
+        fav=False,
+        recur=src.recur,
+        key=crud_domain.next_task_key(session, project),
+        completed_at=src.completed_at if src.status == "done" else None,
+    )
+    session.add(task)
+    session.flush()
+    crud_domain.set_task_deps(
+        session, task.id, crud_domain.task_dep_ids(session, src.id)
+    )
+    crud_domain.copy_subtasks_for_task(session, src.id, task.id)
+    services.log_activity(session, "created", actor, task.project_id, task.id)
+    services.notify_assign(session, task, actor)
+    session.commit()
+    session.refresh(task)
+    return serializers.task_public(session, task)
