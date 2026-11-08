@@ -479,9 +479,7 @@ export function useDuplicateTask() {
         const task = (queryClient.getQueryData<Task[]>(['tasks']) ?? []).find(x => x.id === taskId);
         if (!task) throw new HiddenProjectError();
         assertVisibleProject(task.project_id);
-        return await unwrap(
-          api.POST('/api/tasks/{task_id}/duplicate', { params: { path: { task_id: taskId } } }),
-        );
+        return await unwrap(api.POST('/api/tasks/{task_id}/duplicate', { params: { path: { task_id: taskId } } }));
       } finally {
         duplicateInflight.delete(taskId);
       }
@@ -505,9 +503,7 @@ export function useDuplicateProject() {
       duplicateInflight.add(projectId);
       try {
         assertVisibleProject(projectId);
-        return await unwrap(
-          api.POST('/api/projects/{project_id}/duplicate', { params: { path: { project_id: projectId } } }),
-        );
+        return await unwrap(api.POST('/api/projects/{project_id}/duplicate', { params: { path: { project_id: projectId } } }));
       } finally {
         duplicateInflight.delete(projectId);
       }

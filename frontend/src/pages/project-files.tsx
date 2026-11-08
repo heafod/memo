@@ -167,10 +167,7 @@ export function FilesView({ projectId }: { projectId: string }) {
                   </button>
                 </ContextMenuTrigger>
                 <ContextMenuContent data-file-ctx={f.id}>
-                  <ContextMenuItem
-                    variant="destructive"
-                    onSelect={() => requestDelete(f)}
-                  >
+                  <ContextMenuItem variant="destructive" onSelect={() => requestDelete(f)}>
                     <Trash2 />
                     {t('write.upload.delete')}
                   </ContextMenuItem>
@@ -264,11 +261,7 @@ export function FilesView({ projectId }: { projectId: string }) {
               {typeName(preview)} · {t('project.files.meta', { size: fileSize(preview.size_bytes), by: byName(preview), when: timeAgo(t, preview.at) })}
             </p>
             <DialogFooter>
-              <Button
-                variant="destructive"
-                data-file-delete={preview.id}
-                onClick={() => requestDelete(preview)}
-              >
+              <Button variant="destructive" data-file-delete={preview.id} onClick={() => requestDelete(preview)}>
                 <Trash2 />
                 {t('write.upload.deleteFile')}
               </Button>
