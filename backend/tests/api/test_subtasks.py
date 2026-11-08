@@ -11,6 +11,7 @@
 
 import uuid
 from collections.abc import Generator
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import pytest
@@ -583,3 +584,40 @@ def test_convert_404_409(
     assert _tasks_in(web_id) == before
     assert _sub_exists(web["subtasks"]) == (True, True)
     assert [v for v, _ in _verbs(web["tasks"])] == []
+
+
+def test_convert_concurrent(authed_client: TestClient, web: dict[str, str]) -> None:
+    """同一子任务同时转两次：一个 201、一个 404（body 同不存在）；库里恰好 1 个新任务与 1 条动态；不得 500（AC24 1344）。"""
+    tid = web["tasks"]
+    web_id = _project_id("WEB")
+    created = authed_client.post(
+        "/api/subtasks", json={"task_id": tid, "title": "并发转换子任务"}
+    )
+    assert created.status_code == 201, created.text
+    sid = created.json()["id"]
+    before_tasks = _tasks_in(web_id)
+    before_acts = len(
+        [v for v, _ in _verbs(tid) if v == "converted a subtask of"]
+    )
+
+    def once():
+        return authed_client.post(f"/api/subtasks/{sid}/convert")
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        resps = list(pool.map(lambda _: once(), range(2)))
+
+    statuses = sorted(r.status_code for r in resps)
+    assert 500 not in statuses, [(r.status_code, r.text) for r in resps]
+    assert statuses == [201, 404], [(r.status_code, r.text) for r in resps]
+    ok = next(r for r in resps if r.status_code == 201)
+    miss_race = next(r for r in resps if r.status_code == 404)
+    assert miss_race.json() == {"detail": "子任务不存在"}
+    miss = authed_client.post(f"/api/subtasks/{_rand()}/convert")
+    _same(miss_race, miss)
+    assert _tasks_in(web_id) == before_tasks + 1
+    assert _sub_exists(sid) == (False, False)
+    assert (
+        len([v for v, _ in _verbs(tid) if v == "converted a subtask of"])
+        == before_acts + 1
+    )
+    authed_client.delete(f"/api/tasks/{ok.json()['id']}")

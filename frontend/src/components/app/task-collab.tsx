@@ -175,6 +175,9 @@ export function SubtaskDetail({
   const [, setParams] = useSearchParams();
   const i = subs.findIndex(s => s.id === sub.id);
   const titleRef = useRef<HTMLTextAreaElement>(null);
+  // 连点守卫：必须在 click handler 里同步置位；仅靠 disabled={isPending} 不够——
+  // 第二次 click 常在 React 重渲之前就触发（EDITH #34：26/26 次发出 2 次 POST）。
+  const convertingRef = useRef(false);
   useEffect(() => titleRef.current?.focus(), [sub.id]);
   // Esc 先退出子任务详情回到抽屉（原型 keyboard.js 第 126–131 行），抢在 Sheet 的 Esc 关闭之前
   useEffect(() => {
@@ -248,7 +251,10 @@ export function SubtaskDetail({
           variant="secondary"
           size="sm"
           disabled={convert.isPending}
-          onClick={() =>
+          onClick={() => {
+            // 同步锁：在 await / setState 之前拦截连点，保证只发出 1 次 POST（AC21 1344）
+            if (convertingRef.current) return;
+            convertingRef.current = true;
             // 用 mutateAsync：成功后会重拉、本视图随子任务消失而卸载，mutate 级回调此时不再触发
             void convert
               .mutateAsync(sub)
@@ -267,8 +273,11 @@ export function SubtaskDetail({
                   },
                 });
               })
-              .catch(() => undefined)
-          }
+              .catch(() => {
+                // 失败才解锁，允许重试；成功路径随 onClose 卸载，不必复位
+                convertingRef.current = false;
+              });
+          }}
         >
           <ArrowUpRight size={13} />
           {t('task.sub.convert')}

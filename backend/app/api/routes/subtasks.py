@@ -37,10 +37,22 @@ def _clean_title(raw: str) -> str:
 
 
 def _visible_subtask(
-    session: SessionDep, current_user: CurrentUser, subtask_id: uuid.UUID
+    session: SessionDep,
+    current_user: CurrentUser,
+    subtask_id: uuid.UUID,
+    *,
+    lock: bool = False,
 ) -> tuple[Subtask, TaskSubtaskLink, Task, Project]:
-    """路径子任务：不存在或父任务所属项目不可见 404；已归档 409。"""
-    subtask = session.get(Subtask, subtask_id)
+    """路径子任务：不存在或父任务所属项目不可见 404；已归档 409。
+
+    lock=True 时对子任务行 SELECT FOR UPDATE（AC21/AC22 1344：同一子任务并发转换时，
+    第二请求等锁后见行已删 → 与「子任务不存在」相同的 404，避免 ix_task_key 撞成 500）。
+    """
+    subtask = (
+        session.get(Subtask, subtask_id, with_for_update=True)
+        if lock
+        else session.get(Subtask, subtask_id)
+    )
     link = (
         session.exec(
             select(TaskSubtaskLink).where(TaskSubtaskLink.subtask_id == subtask_id)
@@ -189,7 +201,9 @@ def convert_subtask(
     新任务在父任务同一项目末尾，key / order 与 ``POST /api/tasks`` 同一函数；通知同新建任务；
     只记一条 converted a subtask of（不记 created）。
     """
-    subtask, link, parent, project = _visible_subtask(session, current_user, subtask_id)
+    subtask, link, parent, project = _visible_subtask(
+        session, current_user, subtask_id, lock=True
+    )
     actor = current_user.owner_member_id
     done = subtask.done
     task = Task(
