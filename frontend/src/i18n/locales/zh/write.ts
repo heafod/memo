@@ -218,6 +218,14 @@ export default {
     upload: '上传',
     dropzone: '将文件拖到此处或<browse>浏览</browse>，每个最大 {{size}}',
     uploaded: '已上传 {{name}}',
+    // PR-18 AC29 / R4b：删除文件（原型 core/zh/actions.js）
+    delete: '删除',
+    deleteFile: '删除文件',
+    deleteFileTitle: '删除文件？',
+    deleteFileBody: '将从项目中移除 <b>{{name}}</b>{{tail}}。',
+    deleteFileTail: '及其所属任务',
+    deleted: '已删除 {{name}}',
+    fileOptions: '文件选项',
   },
   newMember: {
     title: '新建成员',

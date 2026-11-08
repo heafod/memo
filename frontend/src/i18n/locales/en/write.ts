@@ -241,6 +241,13 @@ export default {
     upload: 'Upload',
     dropzone: 'Drop files here or <browse>browse</browse>, {{size}} max each',
     uploaded: 'Uploaded {{name}}',
+    delete: 'Delete',
+    deleteFile: 'Delete file',
+    deleteFileTitle: 'Delete file?',
+    deleteFileBody: '<b>{{name}}</b> will be removed from the project{{tail}}.',
+    deleteFileTail: ' and its task',
+    deleted: 'Deleted {{name}}',
+    fileOptions: 'File options',
   },
   newMember: {
     title: 'New member',

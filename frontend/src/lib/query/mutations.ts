@@ -449,6 +449,19 @@ export function useUploadFiles(projectId: string, taskId?: string) {
   };
 }
 
+/** 删除文件（PR-18 AC29 / R4b）：不做乐观更新，等 204；失败 toast detail 并重拉。 */
+export function useDeleteFile() {
+  return useMutation({
+    meta: { invalidates: [['files']] },
+    retry: 0,
+    mutationFn: async (file: FileItem) => {
+      assertVisibleProject(file.project_id);
+      await unwrap(api.DELETE('/api/files/{file_id}', { params: { path: { file_id: file.id } } }));
+    },
+    onError: e => failAndRefetch(e, [['files']]),
+  });
+}
+
 /** 偏好整体覆盖（R7；调用方须合并现有 preferences，保留 workspace 等键）。 */
 export function useUpdatePreferences() {
   return useMutation({

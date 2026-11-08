@@ -7,6 +7,8 @@
   每请求仅 1 个文件（多文件 422）；
 - ``GET /api/files/{id}/content``：内容下载（``Content-Disposition: attachment``
   + ``nosniff``，防 svg/html 被同源内联执行；``<img>`` 预览不受 attachment 影响）；
+- ``DELETE /api/files/{id}``：删除元数据并 unlink 盘文件（PR-18 AC29 / R4b）；先提交再删盘，
+  盘失败只记日志仍 204；不存在/不可见 404「文件不存在」，已归档 409；
 - 元数据读面由快照 ``files`` 承载（不设列表 GET，沿 PR-5 先例）；
 - 内容存卷 ``settings.FILES_DIR``（compose 卷 ``/data/files``），盘上文件名为记录
   UUID，与用户文件名解耦；任务关联在上传时经 ``task_id`` 指定，须存在且属同项目
@@ -18,6 +20,7 @@
   照常 200（只读）。
 """
 
+import logging
 import mimetypes
 import unicodedata
 import uuid
@@ -37,6 +40,7 @@ from app.models import File as FileRecord
 from app.schemas import FilePublic
 
 router = APIRouter(prefix="/files", tags=["files"])
+logger = logging.getLogger(__name__)
 
 MAX_FILE_BYTES = 10 * 1024 * 1024  # R4b：单文件 ≤10MB
 MAX_NAME_LENGTH = 200  # R4b：文件名长度 ≤200（与 file.name 列宽一致）
@@ -218,3 +222,29 @@ def download_file(
         content_disposition_type="attachment",
         headers={"X-Content-Type-Options": "nosniff"},
     )
+
+
+@router.delete(
+    "/{file_id}", status_code=204, responses=visibility.ARCHIVED_409
+)
+def delete_file(
+    file_id: uuid.UUID, session: SessionDep, current_user: CurrentUser
+) -> None:
+    """删除文件（PR-18 AC29 / R4b）：404 → 409；先提交元数据再 unlink，盘失败仍 204。"""
+    record = session.get(FileRecord, file_id)
+    if (
+        record is None
+        or visibility.visible_project(session, current_user, record.project_id) is None
+    ):
+        raise HTTPException(status_code=404, detail="文件不存在")
+    project = visibility.visible_project(session, current_user, record.project_id)
+    assert project is not None  # 上面已判可见
+    if project.archived:
+        visibility.raise_archived()
+    path = _content_path(record.id)
+    session.delete(record)
+    session.commit()
+    try:
+        path.unlink(missing_ok=True)
+    except OSError:
+        logger.exception("删除文件内容 %s 失败", file_id)
