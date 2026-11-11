@@ -16,7 +16,7 @@ import uuid
 from datetime import date
 
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import delete, or_
+from sqlalchemy import delete, or_, text
 from sqlmodel import col, select
 
 from app import crud_domain, services, visibility
@@ -35,6 +35,7 @@ from app.models import (
 from app.schemas import (
     ProjectCreate,
     ProjectHiddenPublic,
+    ProjectOrderIn,
     ProjectPublic,
     ProjectUpdate,
 )
@@ -101,6 +102,28 @@ def create_project(
     session.commit()
     session.refresh(project)
     return serializers.project_public(session, project)
+
+
+@router.put("/order", status_code=204)
+def reorder_projects(
+    payload: ProjectOrderIn, session: SessionDep, current_user: CurrentUser
+) -> None:
+    """侧栏上移 / 下移：一次请求、一个事务写 order（PR-19 P19-AC3 / R23）。
+
+    ``ids`` 必须恰好是当前可访问、未归档、未完成项目的一个排列；成功 204。
+    先锁表再算集合，避免与新建 / 归档并发导致半更新。
+    """
+    session.connection().execute(text("LOCK TABLE project IN SHARE ROW EXCLUSIVE MODE"))
+    current = visibility.orderable_projects(session, current_user)
+    current_ids = {p.id for p in current}
+    if len(payload.ids) != len(set(payload.ids)) or set(payload.ids) != current_ids:
+        raise HTTPException(status_code=422, detail="项目顺序无效")
+    by_id = {p.id: p for p in current}
+    for index, project_id in enumerate(payload.ids):
+        project = by_id[project_id]
+        project.order = float(index)
+        session.add(project)
+    session.commit()
 
 
 @router.patch(

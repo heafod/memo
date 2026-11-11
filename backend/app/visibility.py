@@ -46,6 +46,16 @@ def is_hidden(project: Project, mine: set[uuid.UUID]) -> bool:
     return project.private and project.id not in mine
 
 
+def orderable_projects(session: Session, user: User) -> list[Project]:
+    """侧栏上移 / 下移集合：可访问、未归档、未完成（P19-AC3 / 1920 Q2）。"""
+    mine = my_project_ids(session, user)
+    return [
+        p
+        for p in session.exec(select(Project)).all()
+        if not is_hidden(p, mine) and not p.archived and p.status != "complete"
+    ]
+
+
 def hidden_project_ids(session: Session, user: User) -> set[uuid.UUID]:
     mine = my_project_ids(session, user)
     return {p.id for p in session.exec(select(Project)).all() if is_hidden(p, mine)}

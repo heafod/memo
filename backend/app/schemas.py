@@ -177,6 +177,14 @@ class ProjectCreate(BaseModel):
     member_ids: list[uuid.UUID] = Field(default_factory=list)
 
 
+class ProjectOrderIn(BaseModel):
+    """侧栏重排（PR-19 P19-AC3 / R23）：可见、未归档、未完成项目 id 的完整排列。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    ids: list[uuid.UUID]
+
+
 class ProjectUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
     status: ProjectStatus | None = None

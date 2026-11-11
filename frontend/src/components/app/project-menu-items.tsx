@@ -7,7 +7,7 @@ import { useProjectLifecycle } from '@/components/app/project-lifecycle';
 import { useProjectShareEdit } from '@/components/app/project-share-edit';
 import { ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context-menu';
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { planStep } from '@/lib/domain/project-order';
+import { planStepIds } from '@/lib/domain/project-order';
 import type { Project } from '@/lib/query/entities';
 import { useDuplicateProject, useReorderProjects, useToggleFav } from '@/lib/query/mutations';
 
@@ -42,11 +42,11 @@ function useProjectMenuActions(project: Project, visibleOrdered: readonly Projec
   };
 
   const move = (dir: -1 | 1) => {
-    const plan = planStep(visibleOrdered, project.id, dir);
-    if (!plan) return;
-    // 需要时先重编再移动，逐个 PATCH；任一失败不提示成功，toast detail 并重新拉取，不回滚（AC10）
+    const ids = planStepIds(visibleOrdered, project.id, dir);
+    if (!ids) return;
+    // 一次 PUT 完整顺序；失败不提示成功，toast detail 并重新拉取（P19-AC3）
     reorder
-      .mutateAsync(plan)
+      .mutateAsync(ids)
       .then(() =>
         toast(dir < 0 ? t('write.sidebar.movedUp', { name: project.name }) : t('write.sidebar.movedDown', { name: project.name }), {
           duration: SIDEBAR_MOVE_TOAST_MS,
