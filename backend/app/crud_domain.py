@@ -154,17 +154,41 @@ def delete_task_cascade(session: Session, task: Task) -> None:
     session.flush()
 
 
-def make_project_key(session: Session, name: str) -> str:
-    """按原型 ``makeKey``（actions.js 1258–1273）从项目名生成唯一 key；冲突时末尾加 X。"""
+PROJECT_KEY_MAX_LEN = 16
+
+
+def project_key_base(name: str) -> str:
+    """原型 ``makeKey`` 的基础段：最长 3 个字母（actions.js 1258–1273）。"""
     words = re.split(r"\s+", name.strip())
     k = "".join((w[0] if w else "") for w in words).upper()
     k = re.sub(r"[^A-Z]", "", k)[:3]
     if len(k) < 2:
         letters = re.sub(r"[^A-Za-z]", "", name)[:3].upper()
         k = letters or "PRJ"
-    while session.exec(select(Project).where(Project.key == k)).first() is not None:
-        k += "X"
     return k
+
+
+def make_project_key(session: Session, name: str) -> str | None:
+    """按原型 ``makeKey`` 生成唯一项目 key（PR-18 AC28 / 1722 ①）。
+
+    候选依次为基础 key、末尾加 X、加 XX……，只取长度 ≤ 16 的；
+    X 用尽后改为「基础 key + 数字」（2、3……），长度仍 ≤ 16。
+    找不到可用 key 时返回 None（调用方 409「该项目标识已存在」）。
+    """
+    base = project_key_base(name)
+    k = base
+    while len(k) <= PROJECT_KEY_MAX_LEN:
+        if session.exec(select(Project).where(Project.key == k)).first() is None:
+            return k
+        k += "X"
+    n = 2
+    while True:
+        k = f"{base}{n}"
+        if len(k) > PROJECT_KEY_MAX_LEN:
+            return None
+        if session.exec(select(Project).where(Project.key == k)).first() is None:
+            return k
+        n += 1
 
 
 def next_project_order_top(session: Session) -> float:

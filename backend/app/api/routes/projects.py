@@ -202,8 +202,11 @@ def duplicate_project(
         visibility.raise_archived()
     actor = current_user.owner_member_id
     new_name = f"{src.name} copy"
+    key = crud_domain.make_project_key(session, new_name)
+    if key is None:
+        raise HTTPException(status_code=409, detail="该项目标识已存在")
     project = Project(
-        key=crud_domain.make_project_key(session, new_name),
+        key=key,
         name=new_name,
         status="planning",
         icon=src.icon,
@@ -211,7 +214,7 @@ def duplicate_project(
         team_id=src.team_id,
         lead_id=src.lead_id,
         due=src.due,
-        start=src.start,
+        start=date.today(),  # 1722 ②：复制当天，不沿用源 start；start > due 也放行
         fav=False,
         desc=src.desc,
         milestones=[],
@@ -243,7 +246,7 @@ def duplicate_project(
             labels=labels,
             desc=src_task.desc,
             estimate=src_task.estimate,
-            order=crud_domain.next_task_order(session),
+            order=src_task.order,  # 与 Q1 相同：任务 order 照抄
             fav=src_task.fav,
             recur=src_task.recur,
             key=crud_domain.next_task_key(session, project),

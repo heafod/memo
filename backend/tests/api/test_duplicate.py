@@ -67,8 +67,11 @@ def test_duplicate_task_success(authed_client: TestClient) -> None:
     assert src.status_code == 201, src.text
     src_t = src.json()
     # 标收藏
-    fav = authed_client.patch(f"/api/tasks/{src_t['id']}", json={"fav": True})
+    fav = authed_client.patch(
+        f"/api/tasks/{src_t['id']}", json={"fav": True, "order": 3121}
+    )
     assert fav.status_code == 200, fav.text
+    assert fav.json()["order"] == 3121
 
     sub = authed_client.post(
         "/api/subtasks",
@@ -103,6 +106,8 @@ def test_duplicate_task_success(authed_client: TestClient) -> None:
     assert copy["dep_ids"] == [dep_id]
     assert copy["key"].startswith("WEB-")
     assert copy["key"] != src_t["key"]
+    # AC28 / 1519 Q1：order 照抄，不用 next_task_order
+    assert copy["order"] == fav.json()["order"]
 
     # 原任务不变
     orig = next(t for t in _snap(authed_client)["tasks"] if t["id"] == src_t["id"])
@@ -110,7 +115,9 @@ def test_duplicate_task_success(authed_client: TestClient) -> None:
     assert orig["fav"] is True
 
     # 新子任务行
-    subs = [s for s in _snap(authed_client)["subtasks"] if s["parent_task_id"] == copy["id"]]
+    subs = [
+        s for s in _snap(authed_client)["subtasks"] if s["parent_task_id"] == copy["id"]
+    ]
     assert len(subs) == 1
     assert subs[0]["title"] == "sub A"
     assert subs[0]["done"] is True
@@ -165,7 +172,11 @@ def test_duplicate_project_success(authed_client: TestClient) -> None:
         private=True,
         lead_id=lead["id"],
         team_id=team["id"],
-        member_ids=[me, lead["id"], next(m["id"] for m in snap["members"] if m["id"] not in (me, lead["id"]))],
+        member_ids=[
+            me,
+            lead["id"],
+            next(m["id"] for m in snap["members"] if m["id"] not in (me, lead["id"])),
+        ],
         milestones=[{"name": "M1", "date": "2026-12-01"}],
         desc="desc",
         icon="rocket",
@@ -239,20 +250,16 @@ def test_duplicate_project_success(authed_client: TestClient) -> None:
     assert by_title["T1"]["labels"] == ["x"]
     assert by_title["T2"]["status"] == "todo"
     assert by_title["T2"]["dep_ids"] == [t1.json()["id"]]  # 原 id，不 remap
+    assert by_title["T1"]["order"] == t1b.json()["order"]
+    assert by_title["T2"]["order"] == dep_patch.json()["order"]
     # 子任务
     new_subs = [
-        s
-        for s in snap2["subtasks"]
-        if s["parent_task_id"] == by_title["T1"]["id"]
+        s for s in snap2["subtasks"] if s["parent_task_id"] == by_title["T1"]["id"]
     ]
     assert len(new_subs) == 1 and new_subs[0]["title"] == "S1"
 
     # 活动：1 created project + 2 created
-    new_acts = [
-        a
-        for a in snap2["activity"]
-        if a["project_id"] == copy["id"]
-    ]
+    new_acts = [a for a in snap2["activity"] if a["project_id"] == copy["id"]]
     verbs = [a["verb"] for a in new_acts]
     assert verbs.count("created project") == 1
     assert verbs.count("created") == 2
@@ -307,8 +314,85 @@ def test_make_project_key_collision(authed_client: TestClient) -> None:
     resp2 = authed_client.post(f"/api/projects/{src['id']}/duplicate")
     assert resp2.status_code == 201, resp2.text
     assert resp2.json()["key"] != resp.json()["key"]
-    assert resp2.json()["key"].startswith(resp.json()["key"]) or "X" in resp2.json()["key"]
+    assert (
+        resp2.json()["key"].startswith(resp.json()["key"]) or "X" in resp2.json()["key"]
+    )
     authed_client.delete(f"/api/projects/{resp2.json()['id']}")
     authed_client.delete(f"/api/projects/{resp.json()['id']}")
     authed_client.delete(f"/api/projects/{src['id']}")
     authed_client.delete(f"/api/projects/{a['id']}")
+
+
+def test_duplicate_project_start_today_even_if_due_past(
+    authed_client: TestClient,
+) -> None:
+    """AC28 / 1722 ②：副本 start = 今天，due 照抄；start > due 也 201，不 422。"""
+    from datetime import date
+
+    src = _create_project(
+        authed_client,
+        start="2020-01-01",
+        due="2020-01-10",
+    )
+    today = date.today().isoformat()
+    resp = authed_client.post(f"/api/projects/{src['id']}/duplicate")
+    assert resp.status_code == 201, resp.text
+    copy = resp.json()
+    assert copy["start"] == today
+    assert copy["due"] == "2020-01-10"
+    assert copy["start"] > copy["due"]
+    orig = authed_client.get("/api/snapshot").json()
+    row = next(p for p in orig["projects"] if p["id"] == src["id"])
+    assert row["start"] == "2020-01-01" and row["due"] == "2020-01-10"
+    authed_client.delete(f"/api/projects/{copy['id']}")
+    authed_client.delete(f"/api/projects/{src['id']}")
+
+
+def test_make_project_key_switches_to_numbers(authed_client: TestClient) -> None:
+    """AC28 / 1722 ①：X 候选（长度 ≤ 16）用尽后改为 base+2、base+3。"""
+    base = "QYZ"
+    occupied: list[str] = []
+    k = base
+    while len(k) <= 16:
+        p = _create_project(authed_client, key=k, name=f"occupy {k}")
+        occupied.append(p["id"])
+        k += "X"
+    # 「Qy Yz Zz copy」→ QYZ
+    src = _create_project(authed_client, name="Qy Yz Zz")
+    resp = authed_client.post(f"/api/projects/{src['id']}/duplicate")
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["key"] == "QYZ2"
+    resp2 = authed_client.post(f"/api/projects/{src['id']}/duplicate")
+    assert resp2.status_code == 201, resp2.text
+    assert resp2.json()["key"] == "QYZ3"
+    authed_client.delete(f"/api/projects/{resp2.json()['id']}")
+    authed_client.delete(f"/api/projects/{resp.json()['id']}")
+    authed_client.delete(f"/api/projects/{src['id']}")
+    for pid in occupied:
+        authed_client.delete(f"/api/projects/{pid}")
+
+
+def test_duplicate_project_20_times_keys_bounded(authed_client: TestClient) -> None:
+    """同一项目连续复制 20 次：全部 201，key 互异且 ≤ 16。
+
+    3 位基础 key：第 1–14 次为 base / baseX / … / base+13X（长 16），
+    第 15 次起为 base2、base3……（与「第 14 次起出现数字」差 1；以计算为准）。
+    """
+    src = _create_project(authed_client, name="Qy Yz Zz Twenty")
+    keys: list[str] = []
+    ids: list[str] = []
+    for _ in range(20):
+        resp = authed_client.post(f"/api/projects/{src['id']}/duplicate")
+        assert resp.status_code == 201, resp.text
+        k = resp.json()["key"]
+        assert len(k) <= 16
+        keys.append(k)
+        ids.append(resp.json()["id"])
+    assert len(set(keys)) == 20
+    assert keys[0] == "QYZ"
+    assert keys[13] == "QYZ" + "X" * 13 and len(keys[13]) == 16
+    assert keys[14] == "QYZ2"
+    assert keys[19] == "QYZ7"
+    for i in ids:
+        authed_client.delete(f"/api/projects/{i}")
+    authed_client.delete(f"/api/projects/{src['id']}")

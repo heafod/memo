@@ -268,7 +268,7 @@ def duplicate_task(
         labels=labels,
         desc=src.desc,
         estimate=src.estimate,
-        order=crud_domain.next_task_order(session),
+        order=src.order,
         fav=False,
         recur=src.recur,
         key=crud_domain.next_task_key(session, project),
