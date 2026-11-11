@@ -281,14 +281,7 @@ export function FilesView({ projectId }: { projectId: string }) {
             <AlertDialogTitle>{t('write.upload.deleteFileTitle')}</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div>
-                <Trans
-                  i18nKey="write.upload.deleteFileBody"
-                  values={{
-                    name: pendingDelete?.name ?? '',
-                    tail: pendingDelete?.task_id ? t('write.upload.deleteFileTail') : '',
-                  }}
-                  components={{ b: <b className="font-semibold text-foreground" /> }}
-                />
+                <DeleteFileBody name={pendingDelete?.name ?? ''} tail={pendingDelete?.task_id ? t('write.upload.deleteFileTail') : ''} />
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -311,6 +304,27 @@ export function FilesView({ projectId }: { projectId: string }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </>
+  );
+}
+
+/** AC29：只把文件名当文本插入 <b>，避免 Trans 把 {{name}} 当 HTML。文案 key 不变。 */
+function DeleteFileBody({ name, tail }: { name: string; tail: string }) {
+  const { t } = useTranslation();
+  const mark = '\0';
+  const raw = t('write.upload.deleteFileBody', { name: mark, tail, interpolation: { escapeValue: false } });
+  const i = raw.indexOf(mark);
+  const before = i === -1 ? raw : raw.slice(0, i);
+  const after = i === -1 ? '' : raw.slice(i + mark.length);
+  const open = before.lastIndexOf('<b>');
+  const close = after.indexOf('</b>');
+  const prefix = open >= 0 ? before.slice(0, open) : before;
+  const suffix = close >= 0 ? after.slice(close + 4) : after;
+  return (
+    <>
+      {prefix}
+      <b className="font-semibold text-foreground">{name}</b>
+      {suffix}
     </>
   );
 }
