@@ -231,7 +231,7 @@ export default {
     deleteFileBody: '将从项目中移除 <b>{{name}}</b>{{tail}}。',
     deleteFileTail: '及其所属任务',
     deleted: '已删除 {{name}}',
-    fileOptions: '文件选项',
+    fileOptions: '文件操作',
   },
   newMember: {
     title: '新建成员',

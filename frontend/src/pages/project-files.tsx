@@ -166,7 +166,7 @@ export function FilesView({ projectId }: { projectId: string }) {
                     </span>
                   </button>
                 </ContextMenuTrigger>
-                <ContextMenuContent data-file-ctx={f.id}>
+                <ContextMenuContent data-file-ctx={f.id} aria-label={t('write.upload.fileOptions')}>
                   <ContextMenuItem variant="destructive" onSelect={() => requestDelete(f)}>
                     <Trash2 />
                     {t('write.upload.delete')}
@@ -229,7 +229,7 @@ export function FilesView({ projectId }: { projectId: string }) {
                           </TableCell>
                         </TableRow>
                       </ContextMenuTrigger>
-                      <ContextMenuContent data-file-ctx={f.id}>
+                      <ContextMenuContent data-file-ctx={f.id} aria-label={t('write.upload.fileOptions')}>
                         <ContextMenuItem variant="destructive" onSelect={() => requestDelete(f)}>
                           <Trash2 />
                           {t('write.upload.delete')}
