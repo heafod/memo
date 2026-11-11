@@ -1,11 +1,23 @@
-import { CloudUpload, Download, FolderOpen, LayoutGrid, Link2, List, Search, SearchX } from 'lucide-react';
+import { CloudUpload, Download, FolderOpen, LayoutGrid, Link2, List, Search, SearchX, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
+import { toast } from 'sonner';
 import { FileTypeIcon, MemberAvatar } from '@/components/app/domain-ui';
 import { FileDropzone, FilePickButton } from '@/components/app/upload-ui';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Input } from '@/components/ui/input';
@@ -14,8 +26,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { asFileType, FILE_TYPE_COLOR, FILE_TYPES, type FileType } from '@/lib/domain/constants';
 import { fileSize, timeAgo } from '@/lib/domain/format';
-import { type FileItem, useMembers } from '@/lib/query/entities';
-import { useUploadFiles } from '@/lib/query/mutations';
+import { mergePrefs, type PrefsData } from '@/lib/domain/prefs';
+import { type FileItem, useMembers, usePreferences } from '@/lib/query/entities';
+import { useDeleteFile, useUploadFiles } from '@/lib/query/mutations';
 import { useVisibleFiles, useVisibleTasks } from '@/lib/query/visibility';
 
 const FILE_SORTS = ['date', 'name', 'type'] as const;
@@ -25,9 +38,10 @@ const UPLOAD_LIMIT = '10 MB';
 const contentUrl = (f: FileItem) => `/api/files/${f.id}/content`;
 
 /**
- * 文件视图（R4b；9a 读面、9c 上传；原型 views/files.js，视觉按 124_1-files.svg）：列表、按名称搜索、按类型筛选、按名称 / 类型 / 新近排序，
+ * 文件视图（R4b；9a 读面、9c 上传、18c 删除；原型 views/files.js，视觉按 124_1-files.svg）：列表、按名称搜索、按类型筛选、按名称 / 类型 / 新近排序，
  * 下载与预览走服务端 URL（GET /api/files/{id}/content）。9c：工具栏「上传」与拖放上传区（POST /api/files，multipart），
  * 超限 / 类型不符显示服务端 413 / 415 中文 detail；关联任务的上传入口在任务抽屉附件区。
+ * PR-18 AC29：右键「删除」复用 confirmDelete；不做乐观更新，等 204。
  */
 export function FilesView({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
@@ -39,7 +53,24 @@ export function FilesView({ projectId }: { projectId: string }) {
   const [sort, setSort] = useState<FileSort>('date');
   const [layout, setLayout] = useState<'grid' | 'list'>('grid');
   const [preview, setPreview] = useState<FileItem | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<FileItem | null>(null);
   const upload = useUploadFiles(projectId);
+  const delFile = useDeleteFile();
+  const confirmDelete = mergePrefs(usePreferences() as PrefsData | null).confirmDelete !== false;
+
+  const removeFile = (f: FileItem) => {
+    delFile
+      .mutateAsync(f)
+      .then(() => {
+        if (preview?.id === f.id) setPreview(null);
+        toast(t('write.upload.deleted', { name: f.name }));
+      })
+      .catch(() => {});
+  };
+  const requestDelete = (f: FileItem) => {
+    if (!confirmDelete) return removeFile(f);
+    setPendingDelete(f);
+  };
 
   const query = q.trim().toLowerCase();
   const fs = files
@@ -117,22 +148,31 @@ export function FilesView({ projectId }: { projectId: string }) {
         ) : layout === 'grid' ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {fs.map(f => (
-              <button
-                key={f.id}
-                type="button"
-                data-file-id={f.id}
-                onClick={() => setPreview(f)}
-                className="flex flex-col overflow-hidden rounded-xl border border-border bg-card text-left hover:shadow-[var(--shadow-card)]"
-                aria-label={t('project.files.previewTitle', { name: f.name })}
-              >
-                <FileArt type={f.type} />
-                <span className="flex flex-col gap-0.5 p-3">
-                  <span className="truncate text-[13px] font-medium">{f.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {t('project.files.meta', { size: fileSize(f.size_bytes), by: byName(f), when: timeAgo(t, f.at) })}
-                  </span>
-                </span>
-              </button>
+              <ContextMenu key={f.id}>
+                <ContextMenuTrigger asChild>
+                  <button
+                    type="button"
+                    data-file-id={f.id}
+                    onClick={() => setPreview(f)}
+                    className="flex flex-col overflow-hidden rounded-xl border border-border bg-card text-left hover:shadow-[var(--shadow-card)]"
+                    aria-label={t('project.files.previewTitle', { name: f.name })}
+                  >
+                    <FileArt type={f.type} />
+                    <span className="flex flex-col gap-0.5 p-3">
+                      <span className="truncate text-[13px] font-medium">{f.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {t('project.files.meta', { size: fileSize(f.size_bytes), by: byName(f), when: timeAgo(t, f.at) })}
+                      </span>
+                    </span>
+                  </button>
+                </ContextMenuTrigger>
+                <ContextMenuContent data-file-ctx={f.id} aria-label={t('write.upload.fileOptions')}>
+                  <ContextMenuItem variant="destructive" onSelect={() => requestDelete(f)}>
+                    <Trash2 />
+                    {t('write.upload.delete')}
+                  </ContextMenuItem>
+                </ContextMenuContent>
+              </ContextMenu>
             ))}
           </div>
         ) : (
@@ -152,40 +192,50 @@ export function FilesView({ projectId }: { projectId: string }) {
                 {fs.map(f => {
                   const task = f.task_id ? tasks.find(x => x.id === f.task_id) : undefined;
                   return (
-                    <TableRow key={f.id} data-file-id={f.id}>
-                      <TableCell className="pl-4">
-                        <span className="flex items-center gap-2">
-                          <button type="button" className="flex items-center gap-2 font-medium hover:underline" onClick={() => setPreview(f)}>
-                            <FileTypeIcon type={f.type} />
-                            {f.name}
-                          </button>
-                          {/* 关联任务徽标（原型 views/files.js:57 `<button class="badge">` + link 图标 + 任务 key），点击打开任务抽屉 */}
-                          {task && (
-                            <Badge variant="outline" asChild>
-                              <Link to={`?task=${task.id}`} data-file-task={task.id}>
-                                <Link2 />
-                                {task.key}
-                              </Link>
-                            </Badge>
-                          )}
-                        </span>
-                      </TableCell>
-                      <TableCell>{typeName(f)}</TableCell>
-                      <TableCell className="tabular-nums">{fileSize(f.size_bytes)}</TableCell>
-                      <TableCell>
-                        <span className="flex items-center gap-1.5">
-                          <MemberAvatar member={members.find(m => m.id === f.by_id)} />
-                          {byName(f)}
-                        </span>
-                      </TableCell>
-                      <TableCell>{timeAgo(t, f.at)}</TableCell>
-                      <TableCell className="pr-4 text-right">
-                        <a href={contentUrl(f)} download className="inline-flex items-center gap-1 text-xs hover:underline">
-                          <Download size={13} />
-                          {t('project.files.download')}
-                        </a>
-                      </TableCell>
-                    </TableRow>
+                    <ContextMenu key={f.id}>
+                      <ContextMenuTrigger asChild>
+                        <TableRow data-file-id={f.id}>
+                          <TableCell className="pl-4">
+                            <span className="flex items-center gap-2">
+                              <button type="button" className="flex items-center gap-2 font-medium hover:underline" onClick={() => setPreview(f)}>
+                                <FileTypeIcon type={f.type} />
+                                {f.name}
+                              </button>
+                              {/* 关联任务徽标（原型 views/files.js:57 `<button class="badge">` + link 图标 + 任务 key），点击打开任务抽屉 */}
+                              {task && (
+                                <Badge variant="outline" asChild>
+                                  <Link to={`?task=${task.id}`} data-file-task={task.id}>
+                                    <Link2 />
+                                    {task.key}
+                                  </Link>
+                                </Badge>
+                              )}
+                            </span>
+                          </TableCell>
+                          <TableCell>{typeName(f)}</TableCell>
+                          <TableCell className="tabular-nums">{fileSize(f.size_bytes)}</TableCell>
+                          <TableCell>
+                            <span className="flex items-center gap-1.5">
+                              <MemberAvatar member={members.find(m => m.id === f.by_id)} />
+                              {byName(f)}
+                            </span>
+                          </TableCell>
+                          <TableCell>{timeAgo(t, f.at)}</TableCell>
+                          <TableCell className="pr-4 text-right">
+                            <a href={contentUrl(f)} download className="inline-flex items-center gap-1 text-xs hover:underline">
+                              <Download size={13} />
+                              {t('project.files.download')}
+                            </a>
+                          </TableCell>
+                        </TableRow>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent data-file-ctx={f.id} aria-label={t('write.upload.fileOptions')}>
+                        <ContextMenuItem variant="destructive" onSelect={() => requestDelete(f)}>
+                          <Trash2 />
+                          {t('write.upload.delete')}
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
                   );
                 })}
               </TableBody>
@@ -211,6 +261,10 @@ export function FilesView({ projectId }: { projectId: string }) {
               {typeName(preview)} · {t('project.files.meta', { size: fileSize(preview.size_bytes), by: byName(preview), when: timeAgo(t, preview.at) })}
             </p>
             <DialogFooter>
+              <Button variant="destructive" data-file-delete={preview.id} onClick={() => requestDelete(preview)}>
+                <Trash2 />
+                {t('write.upload.deleteFile')}
+              </Button>
               <Button asChild>
                 <a href={contentUrl(preview)} download>
                   <Download />
@@ -221,6 +275,56 @@ export function FilesView({ projectId }: { projectId: string }) {
           </DialogContent>
         )}
       </Dialog>
+      <AlertDialog open={!!pendingDelete} onOpenChange={o => !o && setPendingDelete(null)}>
+        <AlertDialogContent data-delete-file-dialog="">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('write.upload.deleteFileTitle')}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                <DeleteFileBody name={pendingDelete?.name ?? ''} tail={pendingDelete?.task_id ? t('write.upload.deleteFileTail') : ''} />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('write.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              data-delete-file-confirm=""
+              disabled={!pendingDelete || delFile.isPending}
+              onClick={e => {
+                e.preventDefault();
+                if (!pendingDelete) return;
+                const f = pendingDelete;
+                setPendingDelete(null);
+                removeFile(f);
+              }}
+            >
+              {t('write.upload.deleteFile')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
+
+/** AC29：只把文件名当文本插入 <b>，避免 Trans 把 {{name}} 当 HTML。文案 key 不变。 */
+function DeleteFileBody({ name, tail }: { name: string; tail: string }) {
+  const { t } = useTranslation();
+  const mark = '\0';
+  const raw = t('write.upload.deleteFileBody', { name: mark, tail, interpolation: { escapeValue: false } });
+  const i = raw.indexOf(mark);
+  const before = i === -1 ? raw : raw.slice(0, i);
+  const after = i === -1 ? '' : raw.slice(i + mark.length);
+  const open = before.lastIndexOf('<b>');
+  const close = after.indexOf('</b>');
+  const prefix = open >= 0 ? before.slice(0, open) : before;
+  const suffix = close >= 0 ? after.slice(close + 4) : after;
+  return (
+    <>
+      {prefix}
+      <b className="font-semibold text-foreground">{name}</b>
+      {suffix}
     </>
   );
 }

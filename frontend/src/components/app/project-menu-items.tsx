@@ -1,5 +1,6 @@
-import { Archive, ArrowDown, ArrowUp, Pencil, Share2, Star, Trash2 } from 'lucide-react';
+import { Archive, ArrowDown, ArrowUp, Copy, Pencil, Share2, Star, Trash2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { FAV_TOAST_MS } from '@/components/app/fav-button';
 import { useProjectLifecycle } from '@/components/app/project-lifecycle';
@@ -8,19 +9,21 @@ import { ContextMenuItem, ContextMenuSeparator } from '@/components/ui/context-m
 import { DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { planStep } from '@/lib/domain/project-order';
 import type { Project } from '@/lib/query/entities';
-import { useReorderProjects, useToggleFav } from '@/lib/query/mutations';
+import { useDuplicateProject, useReorderProjects, useToggleFav } from '@/lib/query/mutations';
 
 /**
  * 侧栏 / 项目卡片 / 项目页头菜单共用：收藏（R19）、重命名与编辑和分享（PR-15b，R25）、上移 / 下移（R23），
  * 末尾分隔线后是归档与红色删除（PR-15a，R7；原型 overlays/context-menu.js 第 32–48 行，FRIDAY 18:35 ②⑤）。
- * 原型在分享后还有「复制链接」「复制项目」，本批不做（规格 r1-1045「不做的」，1115 ②归 PR-18）。不可见项目不渲染本组件；已归档项目不显示编辑和分享。
+ * PR-18 AC28：分享后加「复制」（原型 context-menu.js dupProject）；不可见项目不渲染本组件；已归档项目仍显示「复制」（点了 409）。
  */
 const SIDEBAR_MOVE_TOAST_MS = 1600;
 
 function useProjectMenuActions(project: Project, visibleOrdered: readonly Project[]) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const fav = useToggleFav();
   const reorder = useReorderProjects();
+  const dupProject = useDuplicateProject();
   const lifecycle = useProjectLifecycle();
   const shareEdit = useProjectShareEdit();
   const i = visibleOrdered.findIndex(p => p.id === project.id);
@@ -52,6 +55,21 @@ function useProjectMenuActions(project: Project, visibleOrdered: readonly Projec
       .catch(() => {});
   };
 
+  const duplicate = () => {
+    const originalName = project.name;
+    void dupProject
+      .mutateAsync(project.id)
+      .then(np => {
+        toast(t('write.projectLife.duplicated', { name: originalName }), {
+          action: {
+            label: t('write.open'),
+            onClick: () => void navigate(`/projects/${np.id}`),
+          },
+        });
+      })
+      .catch(() => undefined);
+  };
+
   return {
     canUp,
     canDown,
@@ -63,6 +81,7 @@ function useProjectMenuActions(project: Project, visibleOrdered: readonly Projec
     editable: !project.archived,
     edit: () => shareEdit.edit(project),
     share: () => shareEdit.share(project),
+    duplicate,
     archive: () => lifecycle.archive(project),
     remove: () => lifecycle.remove(project),
     // 原型 context-menu.js：已完成项目写「归档」，其余写「归档项目」
@@ -92,6 +111,10 @@ export function ProjectDropdownItems({ project, visibleOrdered }: { project: Pro
           </DropdownMenuItem>
         </>
       )}
+      <DropdownMenuItem onSelect={a.duplicate} data-dup-project={project.id}>
+        <Copy />
+        {t('write.projectLife.duplicate')}
+      </DropdownMenuItem>
       {(a.canUp || a.canDown) && <DropdownMenuSeparator />}
       {a.canUp && (
         <DropdownMenuItem onSelect={a.moveUp}>
@@ -140,6 +163,10 @@ export function ProjectContextItems({ project, visibleOrdered }: { project: Proj
           </ContextMenuItem>
         </>
       )}
+      <ContextMenuItem onSelect={a.duplicate} data-dup-project={project.id}>
+        <Copy />
+        {t('write.projectLife.duplicate')}
+      </ContextMenuItem>
       {(a.canUp || a.canDown) && <ContextMenuSeparator />}
       {a.canUp && (
         <ContextMenuItem onSelect={a.moveUp}>

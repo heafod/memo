@@ -91,3 +91,12 @@ def test_openapi_files_surface(client: TestClient) -> None:  # R4b
     assert "multipart/form-data" in upload["requestBody"]["content"]
     assert "get" in paths["/api/files/{file_id}/content"]
     assert "get" not in paths["/api/files"]
+
+    assert "delete" in paths["/api/files/{file_id}"]  # PR-18 AC29
+
+
+def test_openapi_duplicate_surface(client: TestClient) -> None:  # R28
+    """PR-18 AC28：任务 / 项目复制。"""
+    paths = app.openapi()["paths"]
+    assert "post" in paths["/api/tasks/{task_id}/duplicate"]
+    assert "post" in paths["/api/projects/{project_id}/duplicate"]

@@ -449,6 +449,72 @@ export function useUploadFiles(projectId: string, taskId?: string) {
   };
 }
 
+/** 删除文件（PR-18 AC29 / R4b）：不做乐观更新，等 204；失败 toast detail 并重拉。 */
+export function useDeleteFile() {
+  return useMutation({
+    meta: { invalidates: [['files']] },
+    retry: 0,
+    mutationFn: async (file: FileItem) => {
+      assertVisibleProject(file.project_id);
+      await unwrap(api.DELETE('/api/files/{file_id}', { params: { path: { file_id: file.id } } }));
+    },
+    onError: e => failAndRefetch(e, [['files']]),
+  });
+}
+
+/** 连点复制只发 1 次 POST（AC28 / Q12；与 convert convertingRef 同口径的同步锁）。 */
+const duplicateInflight = new Set<string>();
+
+/** 复制任务（PR-18 AC28 / R28）：不做乐观更新，等 201。 */
+export function useDuplicateTask() {
+  return useMutation({
+    meta: { invalidates: [['tasks'], ['subtasks'], ['activity'], ['notifs']] },
+    retry: 0,
+    mutationFn: async (taskId: string): Promise<Task> => {
+      if (duplicateInflight.has(taskId)) {
+        throw new DOMException('duplicate inflight', 'AbortError');
+      }
+      duplicateInflight.add(taskId);
+      try {
+        const task = (queryClient.getQueryData<Task[]>(['tasks']) ?? []).find(x => x.id === taskId);
+        if (!task) throw new HiddenProjectError();
+        assertVisibleProject(task.project_id);
+        return await unwrap(api.POST('/api/tasks/{task_id}/duplicate', { params: { path: { task_id: taskId } } }));
+      } finally {
+        duplicateInflight.delete(taskId);
+      }
+    },
+    onError: e => {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
+      failAndRefetch(e, [['tasks'], ['subtasks'], ['activity'], ['notifs']]);
+    },
+  });
+}
+
+/** 复制项目（PR-18 AC28 / R28）：不做乐观更新，等 201。 */
+export function useDuplicateProject() {
+  return useMutation({
+    meta: { invalidates: [['projects'], ['tasks'], ['subtasks'], ['activity'], ['notifs']] },
+    retry: 0,
+    mutationFn: async (projectId: string): Promise<Project> => {
+      if (duplicateInflight.has(projectId)) {
+        throw new DOMException('duplicate inflight', 'AbortError');
+      }
+      duplicateInflight.add(projectId);
+      try {
+        assertVisibleProject(projectId);
+        return await unwrap(api.POST('/api/projects/{project_id}/duplicate', { params: { path: { project_id: projectId } } }));
+      } finally {
+        duplicateInflight.delete(projectId);
+      }
+    },
+    onError: e => {
+      if (e instanceof DOMException && e.name === 'AbortError') return;
+      failAndRefetch(e, [['projects'], ['tasks'], ['subtasks'], ['activity'], ['notifs']]);
+    },
+  });
+}
+
 /** 偏好整体覆盖（R7；调用方须合并现有 preferences，保留 workspace 等键）。 */
 export function useUpdatePreferences() {
   return useMutation({

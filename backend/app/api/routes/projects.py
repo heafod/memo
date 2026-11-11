@@ -180,3 +180,89 @@ def delete_project(
             _content_path(file_id).unlink(missing_ok=True)
         except OSError:
             logger.exception("删除项目 %s 的文件内容 %s 失败", project_id, file_id)
+
+
+@router.post(
+    "/{project_id}/duplicate",
+    response_model=ProjectPublic,
+    status_code=201,
+    responses=visibility.ARCHIVED_409,
+)
+def duplicate_project(
+    project_id: uuid.UUID, session: SessionDep, current_user: CurrentUser
+) -> ProjectPublic:
+    """复制项目（PR-18 AC28 / R28）：名加「 copy」，status=planning，milestones=[]，
+    private 继承，members=[我, lead]，key 由 makeKey 生成；任务全复制且 status=todo，
+    保留原 fav/created；一次事务（1 created project + 每任务 1 created）。
+    """
+    src = visibility.visible_project(session, current_user, project_id)
+    if src is None:
+        raise HTTPException(status_code=404, detail="项目不存在")
+    if src.archived:
+        visibility.raise_archived()
+    actor = current_user.owner_member_id
+    new_name = f"{src.name} copy"
+    key = crud_domain.make_project_key(session, new_name)
+    if key is None:
+        raise HTTPException(status_code=409, detail="该项目标识已存在")
+    project = Project(
+        key=key,
+        name=new_name,
+        status="planning",
+        icon=src.icon,
+        color=src.color,
+        team_id=src.team_id,
+        lead_id=src.lead_id,
+        due=src.due,
+        start=date.today(),  # 1722 ②：复制当天，不沿用源 start；start > due 也放行
+        fav=False,
+        desc=src.desc,
+        milestones=[],
+        private=src.private,
+        archived=False,
+        order=crud_domain.next_project_order_top(session),
+    )
+    session.add(project)
+    session.flush()
+    member_ids = crud_domain.duplicate_member_ids(
+        session, me_id=actor, lead_id=src.lead_id
+    )
+    crud_domain.set_project_members(session, project.id, member_ids)
+    services.log_activity(session, "created project", actor, project.id)
+
+    src_tasks = session.exec(
+        select(Task).where(Task.project_id == src.id).order_by(col(Task.order))
+    ).all()
+    for src_task in src_tasks:
+        labels = list(src_task.labels) if src_task.labels is not None else []
+        task = Task(
+            project_id=project.id,
+            title=src_task.title,
+            status="todo",
+            assignee_id=src_task.assignee_id,
+            priority=src_task.priority,
+            due=src_task.due,
+            start=src_task.start,
+            labels=labels,
+            desc=src_task.desc,
+            estimate=src_task.estimate,
+            order=src_task.order,  # 与 Q1 相同：任务 order 照抄
+            fav=src_task.fav,
+            recur=src_task.recur,
+            key=crud_domain.next_task_key(session, project),
+            created_at=src_task.created_at,
+            completed_at=None,
+        )
+        session.add(task)
+        session.flush()
+        # deps 仍指向原任务 id（不 remap）
+        crud_domain.set_task_deps(
+            session, task.id, crud_domain.task_dep_ids(session, src_task.id)
+        )
+        crud_domain.copy_subtasks_for_task(session, src_task.id, task.id)
+        services.log_activity(session, "created", actor, task.project_id, task.id)
+        services.notify_assign(session, task, actor)
+
+    session.commit()
+    session.refresh(project)
+    return serializers.project_public(session, project)

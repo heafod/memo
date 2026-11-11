@@ -68,7 +68,7 @@ def project_public(session: Session, project: Project) -> ProjectPublic:
         start=project.start,
         fav=project.fav,
         desc=project.desc,
-        milestones=project.milestones,
+        milestones=project.milestones or [],  # AC31：JSONB JSON null → []
         private=project.private,
         archived=project.archived,
         last_active_at=project.last_active_at,

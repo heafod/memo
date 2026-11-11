@@ -434,3 +434,75 @@ def test_project_delete_disk_failure_still_204(
     assert resp.json()["detail"] == "文件不存在"  # R8
     assert file_id not in _snapshot_files(authed_client)
     real_path.unlink()  # 清理本测试留下的孤儿内容
+
+
+def test_delete_file_success_204(
+    authed_client: TestClient, project: dict
+) -> None:  # R4b
+    """AC29：删除成功 204，快照消失，GET content 404「文件不存在」。"""
+    up = _upload(authed_client, project["id"], "待删.txt", b"bye")
+    assert up.status_code == 201, up.text
+    fid = up.json()["id"]
+    path = _content_path(uuid.UUID(fid))
+    assert path.is_file()
+    resp = authed_client.delete(f"/api/files/{fid}")
+    assert resp.status_code == 204, resp.text
+    assert fid not in _snapshot_files(authed_client)
+    resp = authed_client.get(f"/api/files/{fid}/content")
+    assert resp.status_code == 404 and resp.json()["detail"] == "文件不存在"
+    assert not path.exists()
+
+
+def test_delete_file_missing_404(authed_client: TestClient) -> None:  # R4b / R29
+    """AC29：不存在 → 404「文件不存在」。"""
+    miss = authed_client.delete(f"/api/files/{uuid.uuid4()}")
+    assert miss.status_code == 404 and miss.json() == {"detail": "文件不存在"}
+
+
+def test_delete_file_archived_409(
+    authed_client: TestClient, project: dict
+) -> None:  # R4b / R29
+    up = _upload(authed_client, project["id"], "归档前.txt", b"x")
+    assert up.status_code == 201, up.text
+    fid = up.json()["id"]
+    arch = authed_client.patch(
+        f"/api/projects/{project['id']}", json={"archived": True}
+    )
+    assert arch.status_code == 200, arch.text
+    resp = authed_client.delete(f"/api/files/{fid}")
+    assert resp.status_code == 409 and resp.json() == {
+        "detail": "项目已归档，无法修改"
+    }
+    # 清理：取消归档再删
+    authed_client.patch(f"/api/projects/{project['id']}", json={"archived": False})
+    authed_client.delete(f"/api/files/{fid}")
+
+
+def test_delete_file_disk_failure_still_204(
+    authed_client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    project: dict,
+) -> None:  # R4b
+    """AC29 / 1758：盘删失败只记日志，接口仍 204，元数据已删。"""
+    import app.api.routes.files as files_routes
+
+    class _UnlinkFails:
+        def unlink(self, missing_ok: bool = False) -> None:  # noqa: ARG002
+            raise PermissionError("只读卷")
+
+        def is_file(self) -> bool:
+            return True
+
+    up = _upload(authed_client, project["id"], "盘失败.txt", b"z")
+    assert up.status_code == 201, up.text
+    fid = up.json()["id"]
+    real = _content_path(uuid.UUID(fid))
+    monkeypatch.setattr(files_routes, "_content_path", lambda _fid: _UnlinkFails())
+    monkeypatch.setattr(files_routes.logger, "disabled", False)
+    with caplog.at_level("ERROR", logger=files_routes.logger.name):
+        resp = authed_client.delete(f"/api/files/{fid}")
+    assert resp.status_code == 204, resp.text
+    assert any(fid in r.getMessage() for r in caplog.records)
+    assert fid not in _snapshot_files(authed_client)
+    real.unlink(missing_ok=True)

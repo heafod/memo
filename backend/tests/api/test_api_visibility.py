@@ -233,6 +233,10 @@ def _path_probes(ids: dict[str, str]) -> list[tuple[str, str, dict[str, Any] | N
         ("PATCH", f"/api/projects/{ids['project']}", {"name": "x"}),
         ("PATCH", f"/api/projects/{ids['project']}", {"archived": False}),
         ("DELETE", f"/api/projects/{ids['project']}", None),
+        # PR-18 AC28 / AC29：不可见与不存在的 404 body 相同，不泄露存在性
+        ("POST", f"/api/tasks/{ids['tasks']}/duplicate", None),
+        ("POST", f"/api/projects/{ids['project']}/duplicate", None),
+        ("DELETE", f"/api/files/{ids['files']}", None),
     ]
 
 

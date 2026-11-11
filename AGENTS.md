@@ -28,6 +28,17 @@
 - Lint：`uv run bash scripts/lint.sh`
 - 中文 detail 扫描：`bash backend/scripts/check-chinese-detail.sh`
 
+### main 分支保护（建议 required checks）
+
+以下名字与 `.github/workflows/ci.yml` 里各 job 的 `name` 逐字一致。由仓库管理员在 GitHub 的 main 分支保护里勾选为 required checks；本仓库的 PR 不改分支保护设置。
+
+1. `prototype lint / format / build`
+2. `backend lint / tests`
+3. `PR⊆plan / R# 存在性`
+4. `frontend lint / tsc / build / gen:api`
+5. `中文 detail 扫描`
+6. `compose 冒烟（R14）`
+
 ### 一键部署（仓库根）
 
 - 配置：`cp .env.example .env` 后填写管理员与密钥

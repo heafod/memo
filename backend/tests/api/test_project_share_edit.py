@@ -405,3 +405,32 @@ def test_legacy_inverted_dates(
     # 带了日期且合并后自洽 → 200
     resp = authed_client.patch(f"/api/projects/{pid}", json={"start": "2026-11-30"})
     assert resp.status_code == 200, resp.text
+
+
+def test_milestones_json_null_returns_empty_list(
+    authed_client: TestClient, proj: dict[str, Any]
+) -> None:  # R25
+    """AC31：库里 milestones 为 JSONB JSON null 时 /snapshot 与 /projects 200，值为 []。"""
+    from sqlalchemy import text
+
+    pid = proj["id"]
+    with Session(engine) as session:
+        session.execute(
+            text("UPDATE project SET milestones = 'null'::jsonb WHERE id = CAST(:id AS uuid)"),
+            {"id": pid},
+        )
+        session.commit()
+    try:
+        snap = authed_client.get("/api/snapshot")
+        assert snap.status_code == 200, snap.text
+        assert _row(snap.json(), pid)["milestones"] == []
+        projects = authed_client.get("/api/projects")
+        assert projects.status_code == 200, projects.text
+        assert next(p for p in projects.json() if p["id"] == pid)["milestones"] == []
+    finally:
+        with Session(engine) as session:
+            session.execute(
+                text("UPDATE project SET milestones = '[]'::jsonb WHERE id = CAST(:id AS uuid)"),
+                {"id": pid},
+            )
+            session.commit()
