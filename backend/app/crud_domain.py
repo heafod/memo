@@ -122,17 +122,29 @@ def next_task_order(session: Session) -> float:
     return (max_order or 0.0) + 1024.0
 
 
+def lock_project(session: Session, project_id: uuid.UUID) -> Project | None:
+    """对项目行 ``SELECT FOR UPDATE``（PR-19 P19-AC1 / R28）：同一项目的 key 分配串行化。"""
+    return session.exec(
+        select(Project).where(Project.id == project_id).with_for_update()
+    ).first()
+
+
 def next_task_key(session: Session, project: Project) -> str:
-    """生成下一个任务 key：``{PROJECT_KEY}-{max+1}``（本项目已有数字后缀的最大号 + 1；PR-18 AC30 / R28）。"""
+    """生成下一个任务 key：``{PROJECT_KEY}-{max+1}``（本项目已有数字后缀的最大号 + 1；PR-18 AC30 / R28）。
+
+    先锁定项目行，避免并发 ``POST /api/tasks`` / 复制 / 转为任务撞 ``ix_task_key`` 成 500（P19-AC1）。
+    """
+    locked = lock_project(session, project.id)
+    src = locked if locked is not None else project
     existing = session.exec(
-        select(Task.key).where(col(Task.key).like(f"{project.key}-%"))
+        select(Task.key).where(col(Task.key).like(f"{src.key}-%"))
     ).all()
     max_num = 0
     for key in existing:
         suffix = key.rsplit("-", 1)[-1]
         if suffix.isdigit():
             max_num = max(max_num, int(suffix))
-    return f"{project.key}-{max_num + 1}"
+    return f"{src.key}-{max_num + 1}"
 
 
 def delete_task_cascade(session: Session, task: Task) -> None:
