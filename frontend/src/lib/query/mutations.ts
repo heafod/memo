@@ -174,7 +174,7 @@ export function useReorderProjects() {
     },
     // meta.invalidates 只在成功时生效；失败（422 / 500 / 网络错误等）也要重拉。401 交给全局登录处理。
     onError: e => {
-      notifyError(e);
+      if (!(e instanceof HiddenProjectError)) toast.error(e instanceof ApiError ? errorMessage(e) : i18n.t('errors.networkShort'));
       if (e instanceof ApiError && (e.status === 409 || e.status === 401)) return;
       void queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
