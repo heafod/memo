@@ -13,6 +13,10 @@ from collections.abc import Iterable
 from typing import Any
 
 from fastapi.testclient import TestClient
+from sqlmodel import Session, col, select
+
+from app.core.db import engine
+from app.models import Activity, Notif
 
 
 def _snap(client: TestClient) -> dict[str, Any]:
@@ -66,6 +70,35 @@ def _create_project(client: TestClient, **extra: Any) -> dict[str, Any]:
     return resp.json()
 
 
+def _register_id(ids: list[str], resp: Any) -> Any:
+    """建完数据先登记 id，再让调用方断言，避免断言失败后无法清理（P19-AC4，1040）。"""
+    try:
+        body = resp.json()
+    except ValueError:
+        return None
+    if isinstance(body, dict) and body.get("id"):
+        ids.append(str(body["id"]))
+        return body
+    return None
+
+
+def _delete_task_side_effects(ids: Iterable[str]) -> None:
+    """删除任务前先清动态与通知（task_id 外键是 SET NULL，API 删任务不会带走这些行）。"""
+    uuids = [uuid.UUID(tid) for tid in ids]
+    if not uuids:
+        return
+    with Session(engine) as session:
+        for row in session.exec(
+            select(Activity).where(col(Activity.task_id).in_(uuids))
+        ).all():
+            session.delete(row)
+        for row in session.exec(
+            select(Notif).where(col(Notif.task_id).in_(uuids))
+        ).all():
+            session.delete(row)
+        session.commit()
+
+
 def _delete_projects(client: TestClient, ids: Iterable[str]) -> None:
     for pid in ids:
         client.patch(f"/api/projects/{pid}", json={"archived": False})
@@ -73,8 +106,11 @@ def _delete_projects(client: TestClient, ids: Iterable[str]) -> None:
 
 
 def _delete_tasks(client: TestClient, ids: Iterable[str]) -> None:
-    for tid in ids:
-        client.delete(f"/api/tasks/{tid}")
+    id_list = list(ids)
+    _delete_task_side_effects(id_list)
+    for tid in id_list:
+        resp = client.delete(f"/api/tasks/{tid}")
+        assert resp.status_code in (204, 404), resp.text
 
 
 def test_duplicate_task_success(authed_client: TestClient) -> None:
@@ -89,9 +125,9 @@ def test_duplicate_task_success(authed_client: TestClient) -> None:
             "/api/tasks",
             json={"project_id": web["id"], "title": "dep target"},
         )
+        dep_body = _register_id(task_ids, dep)
         assert dep.status_code == 201, dep.text
-        dep_id = dep.json()["id"]
-        task_ids.append(dep_id)
+        dep_id = dep_body["id"]
 
         src = authed_client.post(
             "/api/tasks",
@@ -108,9 +144,8 @@ def test_duplicate_task_success(authed_client: TestClient) -> None:
                 "dep_ids": [dep_id],
             },
         )
+        src_t = _register_id(task_ids, src)
         assert src.status_code == 201, src.text
-        src_t = src.json()
-        task_ids.append(src_t["id"])
         fav = authed_client.patch(
             f"/api/tasks/{src_t['id']}", json={"fav": True, "order": 3121}
         )
@@ -131,9 +166,8 @@ def test_duplicate_task_success(authed_client: TestClient) -> None:
 
         before_acts = len(_snap(authed_client)["activity"])
         resp = authed_client.post(f"/api/tasks/{src_t['id']}/duplicate")
+        copy = _register_id(task_ids, resp)
         assert resp.status_code == 201, resp.text
-        copy = resp.json()
-        task_ids.append(copy["id"])
         assert copy["id"] != src_t["id"]
         assert copy["title"] == "to copy (copy)"
         assert copy["fav"] is False
@@ -180,7 +214,9 @@ def test_duplicate_task_404_and_archived_409(authed_client: TestClient) -> None:
     assert miss.status_code == 404
     assert miss.json() == {"detail": "任务不存在"}
 
+    ids: list[str] = []
     p = _create_project(authed_client)
+    ids.append(p["id"])
     try:
         t = authed_client.post(
             "/api/tasks", json={"project_id": p["id"], "title": "arch-dup"}
@@ -190,10 +226,11 @@ def test_duplicate_task_404_and_archived_409(authed_client: TestClient) -> None:
         arch = authed_client.patch(f"/api/projects/{p['id']}", json={"archived": True})
         assert arch.status_code == 200, arch.text
         resp = authed_client.post(f"/api/tasks/{tid}/duplicate")
+        _register_id(ids, resp)
         assert resp.status_code == 409
         assert resp.json() == {"detail": "项目已归档，无法修改"}
     finally:
-        _delete_projects(authed_client, [p["id"]])
+        _delete_projects(authed_client, reversed(ids))
 
 
 def test_duplicate_project_success(authed_client: TestClient) -> None:
@@ -262,9 +299,8 @@ def test_duplicate_project_success(authed_client: TestClient) -> None:
         )
 
         resp = authed_client.post(f"/api/projects/{src['id']}/duplicate")
+        copy = _register_id(ids, resp)
         assert resp.status_code == 201, resp.text
-        copy = resp.json()
-        ids.append(copy["id"])
         assert copy["name"] == "Alpha Beta copy"
         assert copy["status"] == "planning"
         assert copy["milestones"] == []
@@ -317,9 +353,9 @@ def test_duplicate_project_lead_same_as_me(authed_client: TestClient) -> None:
         src = _create_project(authed_client, lead_id=me, member_ids=[me])
         ids.append(src["id"])
         resp = authed_client.post(f"/api/projects/{src['id']}/duplicate")
+        copy = _register_id(ids, resp)
         assert resp.status_code == 201, resp.text
-        assert resp.json()["member_ids"] == [me]
-        ids.append(resp.json()["id"])
+        assert copy["member_ids"] == [me]
     finally:
         _delete_projects(authed_client, reversed(ids))
 
@@ -329,15 +365,18 @@ def test_duplicate_project_404_and_archived_409(authed_client: TestClient) -> No
     assert miss.status_code == 404
     assert miss.json() == {"detail": "项目不存在"}
 
+    ids: list[str] = []
     p = _create_project(authed_client)
+    ids.append(p["id"])
     try:
         arch = authed_client.patch(f"/api/projects/{p['id']}", json={"archived": True})
         assert arch.status_code == 200
         resp = authed_client.post(f"/api/projects/{p['id']}/duplicate")
+        _register_id(ids, resp)
         assert resp.status_code == 409
         assert resp.json() == {"detail": "项目已归档，无法修改"}
     finally:
-        _delete_projects(authed_client, [p["id"]])
+        _delete_projects(authed_client, reversed(ids))
 
 
 def test_make_project_key_collision(authed_client: TestClient) -> None:
@@ -350,18 +389,15 @@ def test_make_project_key_collision(authed_client: TestClient) -> None:
         src = _create_project(authed_client, name=_name_for_base(base))
         ids.append(src["id"])
         resp = authed_client.post(f"/api/projects/{src['id']}/duplicate")
+        copy = _register_id(ids, resp)
         assert resp.status_code == 201, resp.text
         # 「… copy」基础 key 仍是 base，已被占用 → baseX
-        assert resp.json()["key"] == base + "X"
-        ids.append(resp.json()["id"])
+        assert copy["key"] == base + "X"
         resp2 = authed_client.post(f"/api/projects/{src['id']}/duplicate")
+        copy2 = _register_id(ids, resp2)
         assert resp2.status_code == 201, resp2.text
-        assert resp2.json()["key"] != resp.json()["key"]
-        assert (
-            resp2.json()["key"].startswith(resp.json()["key"])
-            or "X" in resp2.json()["key"]
-        )
-        ids.append(resp2.json()["id"])
+        assert copy2["key"] != copy["key"]
+        assert copy2["key"].startswith(copy["key"]) or "X" in copy2["key"]
     finally:
         _delete_projects(authed_client, reversed(ids))
 
@@ -382,9 +418,8 @@ def test_duplicate_project_start_today_even_if_due_past(
         ids.append(src["id"])
         today = date.today().isoformat()
         resp = authed_client.post(f"/api/projects/{src['id']}/duplicate")
+        copy = _register_id(ids, resp)
         assert resp.status_code == 201, resp.text
-        copy = resp.json()
-        ids.append(copy["id"])
         assert copy["start"] == today
         assert copy["due"] == "2020-01-10"
         assert copy["start"] > copy["due"]
@@ -408,13 +443,13 @@ def test_make_project_key_switches_to_numbers(authed_client: TestClient) -> None
         src = _create_project(authed_client, name=_name_for_base(base))
         ids.append(src["id"])
         resp = authed_client.post(f"/api/projects/{src['id']}/duplicate")
+        copy = _register_id(ids, resp)
         assert resp.status_code == 201, resp.text
-        assert resp.json()["key"] == f"{base}2"
-        ids.append(resp.json()["id"])
+        assert copy["key"] == f"{base}2"
         resp2 = authed_client.post(f"/api/projects/{src['id']}/duplicate")
+        copy2 = _register_id(ids, resp2)
         assert resp2.status_code == 201, resp2.text
-        assert resp2.json()["key"] == f"{base}3"
-        ids.append(resp2.json()["id"])
+        assert copy2["key"] == f"{base}3"
     finally:
         _delete_projects(authed_client, reversed(ids))
 
@@ -433,11 +468,11 @@ def test_duplicate_project_20_times_keys_bounded(authed_client: TestClient) -> N
         keys: list[str] = []
         for _ in range(20):
             resp = authed_client.post(f"/api/projects/{src['id']}/duplicate")
+            body = _register_id(ids, resp)
             assert resp.status_code == 201, resp.text
-            k = resp.json()["key"]
+            k = body["key"]
             assert len(k) <= 16
             keys.append(k)
-            ids.append(resp.json()["id"])
         assert len(set(keys)) == 20
         assert keys[0] == base
         assert keys[13] == base + "X" * 13 and len(keys[13]) == 16
