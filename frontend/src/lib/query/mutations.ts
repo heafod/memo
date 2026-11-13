@@ -1,7 +1,7 @@
 import { type QueryKey, useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import i18n from '@/i18n';
-import { api, ApiError } from '@/lib/api/client';
+import { api, ApiError, notifyUnauthorized } from '@/lib/api/client';
 import type { components } from '@/lib/api/schema';
 import { PROJECT_TREE_KEYS, queryClient } from './client';
 import type { Comment, FileItem, Member, Notif, Preferences, Project, Subtask, Task, Team } from './entities';
@@ -44,10 +44,7 @@ const notifyError = (e: unknown) => {
 function optimistic<T extends { id: string }>(key: QueryKey, id: string, patch: Partial<T>) {
   const prev = queryClient.getQueryData<T[]>(key);
   queryClient.setQueryData<T[]>(key, list => list?.map(x => (x.id === id ? { ...x, ...patch } : x)));
-  return () => {
-    window.__memo401?.push({ ev: 'rollback', t: performance.now() });
-    queryClient.setQueryData(key, prev);
-  };
+  return () => queryClient.setQueryData(key, prev);
 }
 
 const SUBTASK_KEYS: readonly QueryKey[] = [['subtasks'], ['tasks'], ['activity']];
@@ -207,7 +204,10 @@ export function useReorderProjects() {
  * 先直接查列表再写缓存：若直接重拉缓存，项目页会在跳转生效前先渲染成 404 / 403。
  */
 async function refetchAfterFailure(id: string, onGone?: (id: string) => void) {
-  const fresh = await unwrap(api.GET('/api/projects')).catch(() => null);
+  const fresh = await unwrap(api.GET('/api/projects')).catch(e => {
+    if (isUnauthorized(e)) notifyUnauthorized();
+    return null;
+  });
   if (!fresh) return;
   const p = fresh.find(x => x.id === id);
   const gone = !p || !isFullProject(p) || p.archived;
