@@ -156,9 +156,11 @@ export function useUpdateProject(opts?: { networkErrorShort?: boolean }) {
     },
     onError: (e, _v, ctx) => {
       ctx?.rollback();
-      // P19-AC13：侧栏拖拽断连用短文案「网络错误」；其它调用保持长文案
+      // P19-AC13（1545 Q3）：拖拽失败先回滚再 refetch，口径同 P19-AC3；401 走全局登录，409 由 MutationCache 处理
       if (opts?.networkErrorShort) {
         if (!(e instanceof HiddenProjectError)) toast.error(e instanceof ApiError ? errorMessage(e) : i18n.t('errors.networkShort'));
+        if (e instanceof ApiError && (e.status === 409 || e.status === 401)) return;
+        void queryClient.invalidateQueries({ queryKey: ['projects'] });
         return;
       }
       notifyError(e);
