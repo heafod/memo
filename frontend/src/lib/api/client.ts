@@ -20,7 +20,8 @@ const unauthorizedMiddleware: Middleware = {
   onResponse({ request, response }) {
     // 登录请求本身不触发跳转：口令错误为 400，且登录页自行展示后端 detail
     if (response.status === 401 && new URL(request.url).pathname !== LOGIN_PATH) {
-      onUnauthorized();
+      // P19-AC10：等 mutation onError 先把乐观状态回滚，再清缓存并跳 /login
+      setTimeout(() => onUnauthorized(), 0);
     }
     return response;
   },
