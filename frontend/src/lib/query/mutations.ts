@@ -459,6 +459,19 @@ export function useDeleteFile() {
   });
 }
 
+/** 重命名文件（PR-19 P19-AC5 / P19-AC6 / R4b）：不做乐观更新，等 200；失败 toast detail 并重拉。 */
+export function useRenameFile() {
+  return useMutation({
+    meta: { invalidates: [['files']] },
+    retry: 0,
+    mutationFn: async ({ file, name }: { file: FileItem; name: string }): Promise<FileItem> => {
+      assertVisibleProject(file.project_id);
+      return unwrap(api.PATCH('/api/files/{file_id}', { params: { path: { file_id: file.id } }, body: { name } }));
+    },
+    onError: e => failAndRefetch(e, [['files']]),
+  });
+}
+
 /** 连点复制只发 1 次 POST（AC28 / Q12；与 convert convertingRef 同口径的同步锁）。 */
 const duplicateInflight = new Set<string>();
 

@@ -252,6 +252,10 @@ export default {
     deleteFileTail: ' and its task',
     deleted: 'Deleted {{name}}',
     fileOptions: 'File options',
+    rename: 'Rename',
+    renameTitle: 'Rename file',
+    fileName: 'File name',
+    save: 'Save',
   },
   newMember: {
     title: 'New member',

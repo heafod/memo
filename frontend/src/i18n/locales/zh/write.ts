@@ -232,6 +232,11 @@ export default {
     deleteFileTail: '及其所属任务',
     deleted: '已删除 {{name}}',
     fileOptions: '文件操作',
+    // PR-19 P19-AC5 / R4b：重命名文件（原型 core/zh/core.js 第 50 行、actions.js 第 18–19 行）
+    rename: '重命名',
+    renameTitle: '重命名文件',
+    fileName: '文件名',
+    save: '保存',
   },
   newMember: {
     title: '新建成员',
