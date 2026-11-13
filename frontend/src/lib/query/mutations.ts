@@ -143,7 +143,7 @@ export function useCreateProject() {
 }
 
 /** 修改项目（R23 order；失败回滚并提示中文 detail）。 */
-export function useUpdateProject() {
+export function useUpdateProject(opts?: { networkErrorShort?: boolean }) {
   return useMutation({
     meta: { invalidates: [['projects']] },
     mutationFn: async ({ id, patch }: { id: string; patch: Schemas['ProjectUpdate'] }) => {
@@ -156,6 +156,11 @@ export function useUpdateProject() {
     },
     onError: (e, _v, ctx) => {
       ctx?.rollback();
+      // P19-AC13：侧栏拖拽断连用短文案「网络错误」；其它调用保持长文案
+      if (opts?.networkErrorShort) {
+        if (!(e instanceof HiddenProjectError)) toast.error(e instanceof ApiError ? errorMessage(e) : i18n.t('errors.networkShort'));
+        return;
+      }
       notifyError(e);
     },
   });
