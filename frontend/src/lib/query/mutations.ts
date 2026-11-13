@@ -137,8 +137,15 @@ export function useCreateProject() {
       const p = await unwrap(api.POST('/api/projects', { body }));
       if (others.length) {
         const order = Math.min(...others.map(x => x.order)) - 1;
-        // 补发失败：toast 服务端 detail，项目保留；mutation 结束时按 meta.invalidates 重新拉取，以服务端为准（清单第 289 行）
-        await unwrap(api.PATCH('/api/projects/{project_id}', { params: { path: { project_id: p.id } }, body: { order } })).catch(notifyError);
+        // 补发失败：非 401 toast 服务端 detail，项目保留；mutation 结束时按 meta.invalidates 重新拉取，以服务端为准（清单第 289 行）。
+        // 401 不可吞：中间件已不再跳登录；通知后重新抛出，避免 mutation 成功走 onSuccess 离开 /login。
+        await unwrap(api.PATCH('/api/projects/{project_id}', { params: { path: { project_id: p.id } }, body: { order } })).catch(e => {
+          if (isUnauthorized(e)) {
+            notifyUnauthorized();
+            throw e;
+          }
+          notifyError(e);
+        });
       }
       for (const t of tasks) await unwrap(api.POST('/api/tasks', { body: { ...t, project_id: p.id } }));
       return p;
