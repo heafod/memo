@@ -151,6 +151,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Reorder Projects
+         * @description 侧栏上移 / 下移：一次请求、一个事务写 order（PR-19 P19-AC3 / R23）。
+         *
+         *     ``ids`` 必须恰好是当前可访问、未归档、未完成项目的一个排列；成功 204。
+         *     先锁表再算集合，避免与新建 / 归档并发导致半更新。
+         */
+        put: operations["projects-reorder_projects"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}": {
         parameters: {
             query?: never;
@@ -1058,6 +1081,14 @@ export interface components {
             /** Member Ids */
             member_ids: string[];
         };
+        /**
+         * ProjectOrderIn
+         * @description 侧栏重排（PR-19 P19-AC3 / R23）：可见、未归档、未完成项目 id 的完整排列。
+         */
+        ProjectOrderIn: {
+            /** Ids */
+            ids: string[];
+        };
         /** ProjectPublic */
         ProjectPublic: {
             /**
@@ -1686,6 +1717,37 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ProjectPublic"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "projects-reorder_projects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectOrderIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

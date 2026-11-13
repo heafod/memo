@@ -45,14 +45,56 @@ def _visible_subtask(
 ) -> tuple[Subtask, TaskSubtaskLink, Task, Project]:
     """路径子任务：不存在或父任务所属项目不可见 404；已归档 409。
 
-    lock=True 时对子任务行 SELECT FOR UPDATE（AC21/AC22 1344：同一子任务并发转换时，
-    第二请求等锁后见行已删 → 与「子任务不存在」相同的 404，避免 ix_task_key 撞成 500）。
+    lock=True 时先锁项目行、再锁子任务行（P19-AC1：与 ``next_task_key`` 的项目行锁顺序一致，
+    避免和建任务死锁）。同一子任务并发转换时，第二请求等锁后见行已删 → 与「子任务不存在」
+    相同的 404（AC21/AC22 1344）。
     """
-    subtask = (
-        session.get(Subtask, subtask_id, with_for_update=True)
-        if lock
-        else session.get(Subtask, subtask_id)
+    if not lock:
+        subtask = session.get(Subtask, subtask_id)
+        link = (
+            session.exec(
+                select(TaskSubtaskLink).where(TaskSubtaskLink.subtask_id == subtask_id)
+            ).first()
+            if subtask is not None
+            else None
+        )
+        found = (
+            visibility.visible_task(session, current_user, link.parent_task_id)
+            if link is not None
+            else None
+        )
+        if subtask is None or link is None or found is None:
+            raise HTTPException(status_code=404, detail="子任务不存在")
+        task, project = found
+        if project.archived:
+            visibility.raise_archived()
+        return subtask, link, task, project
+
+    # 先无锁解析出项目，按「项目 → 子任务」加锁后再校验（行可能已在等待期间被删）。
+    preview = session.get(Subtask, subtask_id)
+    link = (
+        session.exec(
+            select(TaskSubtaskLink).where(TaskSubtaskLink.subtask_id == subtask_id)
+        ).first()
+        if preview is not None
+        else None
     )
+    found = (
+        visibility.visible_task(session, current_user, link.parent_task_id)
+        if link is not None
+        else None
+    )
+    if preview is None or link is None or found is None:
+        raise HTTPException(status_code=404, detail="子任务不存在")
+    _task, project = found
+    if project.archived:
+        visibility.raise_archived()
+    locked_project = crud_domain.lock_project(session, project.id)
+    if locked_project is None:
+        raise HTTPException(status_code=404, detail="子任务不存在")
+    if locked_project.archived:
+        visibility.raise_archived()
+    subtask = session.get(Subtask, subtask_id, with_for_update=True)
     link = (
         session.exec(
             select(TaskSubtaskLink).where(TaskSubtaskLink.subtask_id == subtask_id)
@@ -68,9 +110,9 @@ def _visible_subtask(
     if subtask is None or link is None or found is None:
         raise HTTPException(status_code=404, detail="子任务不存在")
     task, project = found
-    if project.archived:
+    if locked_project.archived or project.archived:
         visibility.raise_archived()
-    return subtask, link, task, project
+    return subtask, link, task, locked_project
 
 
 @router.post(

@@ -16,7 +16,7 @@
   删盘失败只记日志、删除仍 204；
 - 认证：未认证上传 / 下载内容 401，detail 中文。
 
-测试在自建项目 PR6F 内运行，模块结束删除项目（文件行随项目级联删除）。
+测试在自建项目内运行（项目 key 每次运行不同，P19-AC4 / R14），模块结束删除项目（文件行随项目级联删除）。
 """
 
 import uuid
@@ -48,12 +48,15 @@ WHITELIST = [
 
 @pytest.fixture(scope="module")
 def project(authed_client: TestClient) -> Generator[dict]:
+    key = "F" + uuid.uuid4().hex[:8].upper()
     resp = authed_client.post(
-        "/api/projects", json={"key": "PR6F", "name": "PR-6 文件验收项目"}
+        "/api/projects", json={"key": key, "name": "PR-6 文件验收项目"}
     )
     assert resp.status_code == 201, resp.text
     proj = resp.json()
     yield proj
+    # 若有用例把共享项目留在已归档，先恢复再删（P19-AC4）
+    authed_client.patch(f"/api/projects/{proj['id']}", json={"archived": False})
     assert authed_client.delete(f"/api/projects/{proj['id']}").status_code == 204
 
 
@@ -369,33 +372,40 @@ def test_project_delete_cascades_file_metadata(
 ) -> None:  # R4b, R10
     """删除项目级联删除文件元数据行：快照不再出现；提交后卷上内容也删掉（PR-15a）。"""
     resp = authed_client.post(
-        "/api/projects", json={"key": "PR6D", "name": "PR-6 级联删除项目"}
+        "/api/projects",
+        json={"key": "C" + uuid.uuid4().hex[:8].upper(), "name": "PR-6 级联删除项目"},
     )
     assert resp.status_code == 201, resp.text
     proj = resp.json()
-    resp = authed_client.post(
-        "/api/tasks", json={"project_id": proj["id"], "title": "PR-6 级联任务"}
-    )
-    assert resp.status_code == 201, resp.text
-    task_id = resp.json()["id"]
-    ids = []
-    for name, tid in (("级联一.txt", None), ("级联二.png", task_id)):
-        up = _upload(authed_client, proj["id"], name, task_id=tid)
-        assert up.status_code == 201, up.text
-        ids.append(up.json()["id"])
-    files = _snapshot_files(authed_client)
-    assert all(i in files for i in ids)
-    assert all(_content_path(uuid.UUID(i)).exists() for i in ids)
+    deleted = False
+    try:
+        resp = authed_client.post(
+            "/api/tasks", json={"project_id": proj["id"], "title": "PR-6 级联任务"}
+        )
+        assert resp.status_code == 201, resp.text
+        task_id = resp.json()["id"]
+        ids = []
+        for name, tid in (("级联一.txt", None), ("级联二.png", task_id)):
+            up = _upload(authed_client, proj["id"], name, task_id=tid)
+            assert up.status_code == 201, up.text
+            ids.append(up.json()["id"])
+        files = _snapshot_files(authed_client)
+        assert all(i in files for i in ids)
+        assert all(_content_path(uuid.UUID(i)).exists() for i in ids)
 
-    assert authed_client.delete(f"/api/projects/{proj['id']}").status_code == 204
-    files = _snapshot_files(authed_client)
-    assert not any(i in files for i in ids)  # R4b 元数据随项目删除
-    assert not any(f["project_id"] == proj["id"] for f in files.values())
-    for i in ids:
-        resp = authed_client.get(f"/api/files/{i}/content")
-        assert resp.status_code == 404
-        assert resp.json()["detail"] == "文件不存在"  # R8
-    assert not any(_content_path(uuid.UUID(i)).exists() for i in ids)  # PR-15a
+        assert authed_client.delete(f"/api/projects/{proj['id']}").status_code == 204
+        deleted = True
+        files = _snapshot_files(authed_client)
+        assert not any(i in files for i in ids)  # R4b 元数据随项目删除
+        assert not any(f["project_id"] == proj["id"] for f in files.values())
+        for i in ids:
+            resp = authed_client.get(f"/api/files/{i}/content")
+            assert resp.status_code == 404
+            assert resp.json()["detail"] == "文件不存在"  # R8
+        assert not any(_content_path(uuid.UUID(i)).exists() for i in ids)  # PR-15a
+    finally:
+        if not deleted:
+            authed_client.delete(f"/api/projects/{proj['id']}")
 
 
 class _UnlinkFails:
@@ -410,30 +420,41 @@ def test_project_delete_disk_failure_still_204(
 ) -> None:  # R4b
     """删盘失败只记日志：删除仍 204，库内记录已删，内容端点 404（PR-15a）。"""
     resp = authed_client.post(
-        "/api/projects", json={"key": "PR15F", "name": "PR-15a 删盘失败项目"}
+        "/api/projects",
+        json={"key": "D" + uuid.uuid4().hex[:8].upper(), "name": "PR-15a 删盘失败项目"},
     )
     assert resp.status_code == 201, resp.text
     proj = resp.json()
-    up = _upload(authed_client, proj["id"], "删盘失败.txt")
-    assert up.status_code == 201, up.text
-    file_id = up.json()["id"]
-    real_path = _content_path(uuid.UUID(file_id))
-    assert real_path.exists()
+    deleted = False
+    real_path = None
+    try:
+        up = _upload(authed_client, proj["id"], "删盘失败.txt")
+        assert up.status_code == 201, up.text
+        file_id = up.json()["id"]
+        real_path = _content_path(uuid.UUID(file_id))
+        assert real_path.exists()
 
-    monkeypatch.setattr(projects_routes, "_content_path", lambda _fid: _UnlinkFails())
-    # 测试会话里 alembic fileConfig 会把已建的模块 logger 置为 disabled；这里只为捕获日志而打开
-    monkeypatch.setattr(projects_routes.logger, "disabled", False)
-    with caplog.at_level("ERROR", logger=projects_routes.logger.name):
-        resp = authed_client.delete(f"/api/projects/{proj['id']}")
-    assert resp.status_code == 204, resp.text
-    assert any(file_id in r.getMessage() for r in caplog.records)
-    projects = authed_client.get("/api/projects").json()
-    assert all(p["id"] != proj["id"] for p in projects)
-    resp = authed_client.get(f"/api/files/{file_id}/content")
-    assert resp.status_code == 404
-    assert resp.json()["detail"] == "文件不存在"  # R8
-    assert file_id not in _snapshot_files(authed_client)
-    real_path.unlink()  # 清理本测试留下的孤儿内容
+        monkeypatch.setattr(
+            projects_routes, "_content_path", lambda _fid: _UnlinkFails()
+        )
+        # 测试会话里 alembic fileConfig 会把已建的模块 logger 置为 disabled；这里只为捕获日志而打开
+        monkeypatch.setattr(projects_routes.logger, "disabled", False)
+        with caplog.at_level("ERROR", logger=projects_routes.logger.name):
+            resp = authed_client.delete(f"/api/projects/{proj['id']}")
+        deleted = True
+        assert resp.status_code == 204, resp.text
+        assert any(file_id in r.getMessage() for r in caplog.records)
+        projects = authed_client.get("/api/projects").json()
+        assert all(p["id"] != proj["id"] for p in projects)
+        resp = authed_client.get(f"/api/files/{file_id}/content")
+        assert resp.status_code == 404
+        assert resp.json()["detail"] == "文件不存在"  # R8
+        assert file_id not in _snapshot_files(authed_client)
+    finally:
+        if not deleted:
+            authed_client.delete(f"/api/projects/{proj['id']}")
+        if real_path is not None:
+            real_path.unlink(missing_ok=True)
 
 
 def test_delete_file_success_204(
@@ -465,17 +486,18 @@ def test_delete_file_archived_409(
     up = _upload(authed_client, project["id"], "归档前.txt", b"x")
     assert up.status_code == 201, up.text
     fid = up.json()["id"]
-    arch = authed_client.patch(
-        f"/api/projects/{project['id']}", json={"archived": True}
-    )
-    assert arch.status_code == 200, arch.text
-    resp = authed_client.delete(f"/api/files/{fid}")
-    assert resp.status_code == 409 and resp.json() == {
-        "detail": "项目已归档，无法修改"
-    }
-    # 清理：取消归档再删
-    authed_client.patch(f"/api/projects/{project['id']}", json={"archived": False})
-    authed_client.delete(f"/api/files/{fid}")
+    try:
+        arch = authed_client.patch(
+            f"/api/projects/{project['id']}", json={"archived": True}
+        )
+        assert arch.status_code == 200, arch.text
+        resp = authed_client.delete(f"/api/files/{fid}")
+        assert resp.status_code == 409 and resp.json() == {
+            "detail": "项目已归档，无法修改"
+        }
+    finally:
+        authed_client.patch(f"/api/projects/{project['id']}", json={"archived": False})
+        authed_client.delete(f"/api/files/{fid}")
 
 
 def test_delete_file_disk_failure_still_204(

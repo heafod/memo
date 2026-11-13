@@ -49,3 +49,19 @@ export function planStep(visible: readonly Project[], id: string, dir: -1 | 1): 
   const patches = list.flatMap((p, k) => (p.id !== id && p.order !== k ? [{ id: p.id, order: k }] : []));
   return [...patches, { id, order: orderAmongVisible(renum, id, renum[j]!.id, edge) }];
 }
+
+/**
+ * 上移 / 下移后的完整可见 id 顺序，供一次 PUT /api/projects/order（P19-AC3）。
+ * 到头返回 null。
+ */
+export function planStepIds(visible: readonly Project[], id: string, dir: -1 | 1): string[] | null {
+  const list = [...visible].sort(compareProjects);
+  const i = list.findIndex(p => p.id === id);
+  if (i < 0) return null;
+  const j = i + dir;
+  if (j < 0 || j >= list.length) return null;
+  const next = [...list];
+  const [item] = next.splice(i, 1);
+  next.splice(j, 0, item!);
+  return next.map(p => p.id);
+}

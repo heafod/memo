@@ -254,6 +254,41 @@
         }
       }
     },
+    "/api/projects/order": {
+      "put": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Reorder Projects",
+        "description": "侧栏上移 / 下移：一次请求、一个事务写 order（PR-19 P19-AC3 / R23）。\n\n``ids`` 必须恰好是当前可访问、未归档、未完成项目的一个排列；成功 204。\n先锁表再算集合，避免与新建 / 归档并发导致半更新。",
+        "operationId": "projects-reorder_projects",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectOrderIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/projects/{project_id}": {
       "patch": {
         "tags": [
@@ -3147,6 +3182,25 @@
         ],
         "title": "ProjectHiddenPublic",
         "description": "快照中不可见项目的裁剪行（R24：canSee 为 false）。\n\n只保留 id、名称、图标与颜色、负责人，以及判断可见性所需的 ``private`` 与\n``member_ids``；``member_ids`` 恒为空列表（当前成员不在其中，不下发成员名单）。\n描述、状态、日期、进度、成员、里程碑等其余字段不出现在 JSON 中。"
+      },
+      "ProjectOrderIn": {
+        "properties": {
+          "ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "ids"
+        ],
+        "title": "ProjectOrderIn",
+        "description": "侧栏重排（PR-19 P19-AC3 / R23）：可见、未归档、未完成项目 id 的完整排列。"
       },
       "ProjectPublic": {
         "properties": {

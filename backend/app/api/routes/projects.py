@@ -16,7 +16,7 @@ import uuid
 from datetime import date
 
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import delete, or_
+from sqlalchemy import delete, or_, text
 from sqlmodel import col, select
 
 from app import crud_domain, services, visibility
@@ -35,6 +35,7 @@ from app.models import (
 from app.schemas import (
     ProjectCreate,
     ProjectHiddenPublic,
+    ProjectOrderIn,
     ProjectPublic,
     ProjectUpdate,
 )
@@ -86,8 +87,11 @@ def create_project(
     fields = payload.model_dump(exclude_unset=True)
     member_ids = fields.pop("member_ids", [])
     project = Project(**fields)
-    session.add(project)
-    session.flush()
+    try:
+        crud_domain.flush_new_project(session, project)
+    except crud_domain.ProjectKeyConflict:
+        # 并发下预检查通过后仍可能撞 ix_project_key（P19-AC2）
+        raise HTTPException(status_code=409, detail="该项目标识已存在") from None
     crud_domain.set_project_members(session, project.id, member_ids)
     services.log_activity(
         session,
@@ -98,6 +102,28 @@ def create_project(
     session.commit()
     session.refresh(project)
     return serializers.project_public(session, project)
+
+
+@router.put("/order", status_code=204)
+def reorder_projects(
+    payload: ProjectOrderIn, session: SessionDep, current_user: CurrentUser
+) -> None:
+    """侧栏上移 / 下移：一次请求、一个事务写 order（PR-19 P19-AC3 / R23）。
+
+    ``ids`` 必须恰好是当前可访问、未归档、未完成项目的一个排列；成功 204。
+    先锁表再算集合，避免与新建 / 归档并发导致半更新。
+    """
+    session.connection().execute(text("LOCK TABLE project IN SHARE ROW EXCLUSIVE MODE"))
+    current = visibility.orderable_projects(session, current_user)
+    current_ids = {p.id for p in current}
+    if len(payload.ids) != len(set(payload.ids)) or set(payload.ids) != current_ids:
+        raise HTTPException(status_code=422, detail="项目顺序无效")
+    by_id = {p.id: p for p in current}
+    for index, project_id in enumerate(payload.ids):
+        project = by_id[project_id]
+        project.order = float(index)
+        session.add(project)
+    session.commit()
 
 
 @router.patch(
@@ -202,28 +228,39 @@ def duplicate_project(
         visibility.raise_archived()
     actor = current_user.owner_member_id
     new_name = f"{src.name} copy"
-    key = crud_domain.make_project_key(session, new_name)
-    if key is None:
+    excluded: set[str] = set()
+    project: Project | None = None
+    # 并发复制可能撞到同一 makeKey 候选；SAVEPOINT 回滚后换下一个，用尽则 409（P19-AC2 / 1722）
+    for _ in range(64):
+        key = crud_domain.make_project_key(session, new_name, excluded=excluded)
+        if key is None:
+            raise HTTPException(status_code=409, detail="该项目标识已存在")
+        candidate = Project(
+            key=key,
+            name=new_name,
+            status="planning",
+            icon=src.icon,
+            color=src.color,
+            team_id=src.team_id,
+            lead_id=src.lead_id,
+            due=src.due,
+            start=date.today(),  # 1722 ②：复制当天，不沿用源 start；start > due 也放行
+            fav=False,
+            desc=src.desc,
+            milestones=[],
+            private=src.private,
+            archived=False,
+            order=crud_domain.next_project_order_top(session),
+        )
+        try:
+            crud_domain.flush_new_project(session, candidate)
+        except crud_domain.ProjectKeyConflict:
+            excluded.add(key)
+            continue
+        project = candidate
+        break
+    if project is None:
         raise HTTPException(status_code=409, detail="该项目标识已存在")
-    project = Project(
-        key=key,
-        name=new_name,
-        status="planning",
-        icon=src.icon,
-        color=src.color,
-        team_id=src.team_id,
-        lead_id=src.lead_id,
-        due=src.due,
-        start=date.today(),  # 1722 ②：复制当天，不沿用源 start；start > due 也放行
-        fav=False,
-        desc=src.desc,
-        milestones=[],
-        private=src.private,
-        archived=False,
-        order=crud_domain.next_project_order_top(session),
-    )
-    session.add(project)
-    session.flush()
     member_ids = crud_domain.duplicate_member_ids(
         session, me_id=actor, lead_id=src.lead_id
     )

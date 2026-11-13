@@ -7,6 +7,7 @@
 import re
 import uuid
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, col, func, select
 
 from app.models import (
@@ -122,17 +123,29 @@ def next_task_order(session: Session) -> float:
     return (max_order or 0.0) + 1024.0
 
 
+def lock_project(session: Session, project_id: uuid.UUID) -> Project | None:
+    """对项目行 ``SELECT FOR UPDATE``（PR-19 P19-AC1 / R28）：同一项目的 key 分配串行化。"""
+    return session.exec(
+        select(Project).where(Project.id == project_id).with_for_update()
+    ).first()
+
+
 def next_task_key(session: Session, project: Project) -> str:
-    """生成下一个任务 key：``{PROJECT_KEY}-{max+1}``（本项目已有数字后缀的最大号 + 1；PR-18 AC30 / R28）。"""
+    """生成下一个任务 key：``{PROJECT_KEY}-{max+1}``（本项目已有数字后缀的最大号 + 1；PR-18 AC30 / R28）。
+
+    先锁定项目行，避免并发 ``POST /api/tasks`` / 复制 / 转为任务撞 ``ix_task_key`` 成 500（P19-AC1）。
+    """
+    locked = lock_project(session, project.id)
+    src = locked if locked is not None else project
     existing = session.exec(
-        select(Task.key).where(col(Task.key).like(f"{project.key}-%"))
+        select(Task.key).where(col(Task.key).like(f"{src.key}-%"))
     ).all()
     max_num = 0
     for key in existing:
         suffix = key.rsplit("-", 1)[-1]
         if suffix.isdigit():
             max_num = max(max_num, int(suffix))
-    return f"{project.key}-{max_num + 1}"
+    return f"{src.key}-{max_num + 1}"
 
 
 def delete_task_cascade(session: Session, task: Task) -> None:
@@ -168,17 +181,56 @@ def project_key_base(name: str) -> str:
     return k
 
 
-def make_project_key(session: Session, name: str) -> str | None:
+def project_key_taken(
+    session: Session, key: str, excluded: set[str] | None = None
+) -> bool:
+    if excluded and key in excluded:
+        return True
+    return session.exec(select(Project).where(Project.key == key)).first() is not None
+
+
+def unique_violation(exc: BaseException, constraint: str) -> bool:
+    """是否为指定唯一约束的 ``IntegrityError``（P19-AC2 / R28）。"""
+    orig = getattr(exc, "orig", None)
+    name = getattr(getattr(orig, "diag", None), "constraint_name", None)
+    if name == constraint:
+        return True
+    return constraint in str(exc)
+
+
+class ProjectKeyConflict(Exception):
+    """``ix_project_key`` 冲突：调用方映射为 409「该项目标识已存在」。"""
+
+
+def flush_new_project(session: Session, project: Project) -> None:
+    """把新项目 flush 进当前事务；撞 ``ix_project_key`` 时抛 ``ProjectKeyConflict``。
+
+    使用 SAVEPOINT，避免 Postgres 约束冲突中止整个事务（P19-AC2）。
+    """
+    try:
+        with session.begin_nested():
+            session.add(project)
+            session.flush()
+    except IntegrityError as exc:
+        if unique_violation(exc, "ix_project_key"):
+            raise ProjectKeyConflict from exc
+        raise
+
+
+def make_project_key(
+    session: Session, name: str, *, excluded: set[str] | None = None
+) -> str | None:
     """按原型 ``makeKey`` 生成唯一项目 key（PR-18 AC28 / 1722 ①）。
 
     候选依次为基础 key、末尾加 X、加 XX……，只取长度 ≤ 16 的；
     X 用尽后改为「基础 key + 数字」（2、3……），长度仍 ≤ 16。
     找不到可用 key 时返回 None（调用方 409「该项目标识已存在」）。
+    ``excluded`` 为本请求已撞过、但可能尚未对其他事务可见的 key。
     """
     base = project_key_base(name)
     k = base
     while len(k) <= PROJECT_KEY_MAX_LEN:
-        if session.exec(select(Project).where(Project.key == k)).first() is None:
+        if not project_key_taken(session, k, excluded):
             return k
         k += "X"
     n = 2
@@ -186,7 +238,7 @@ def make_project_key(session: Session, name: str) -> str | None:
         k = f"{base}{n}"
         if len(k) > PROJECT_KEY_MAX_LEN:
             return None
-        if session.exec(select(Project).where(Project.key == k)).first() is None:
+        if not project_key_taken(session, k, excluded):
             return k
         n += 1
 
