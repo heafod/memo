@@ -52,7 +52,7 @@ export function SidebarProjectRow({
   const handleRef = useRef<HTMLSpanElement>(null);
   const [edge, setEdge] = useState<'top' | null>(null);
   const [dragging, setDragging] = useState(false);
-  const update = useUpdateProject();
+  const update = useUpdateProject({ networkErrorShort: true });
   const isHidden = useIsHiddenProject();
   // 可见项目才是完整行（R24）：状态点、星标、拖拽、上下文菜单都只读完整行
   const full = isHidden(project) ? null : project;

@@ -662,7 +662,11 @@ export interface paths {
         delete: operations["files-delete_file"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Rename File
+         * @description 重命名文件（PR-19 P19-AC6 / R4b、R29）：只改元数据，盘文件不动。
+         */
+        patch: operations["files-rename_file"];
         trace?: never;
     };
 }
@@ -846,6 +850,14 @@ export interface components {
              * Format: date-time
              */
             at: string;
+        };
+        /**
+         * FileUpdate
+         * @description 文件重命名（PR-19 P19-AC6 / R4b）：只改元数据 name，扩展名规则与上传相同。
+         */
+        FileUpdate: {
+            /** Name */
+            name: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -3147,6 +3159,50 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description 项目已归档，无法修改 */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "files-rename_file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FilePublic"];
+                };
             };
             /** @description 项目已归档，无法修改 */
             409: {

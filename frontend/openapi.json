@@ -2065,6 +2065,68 @@
       }
     },
     "/api/files/{file_id}": {
+      "patch": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Rename File",
+        "description": "重命名文件（PR-19 P19-AC6 / R4b、R29）：只改元数据，盘文件不动。",
+        "operationId": "files-rename_file",
+        "parameters": [
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "File Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FileUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilePublic"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "项目已归档，无法修改",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "tags": [
           "files"
@@ -2541,6 +2603,21 @@
           "at"
         ],
         "title": "FilePublic"
+      },
+      "FileUpdate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "FileUpdate",
+        "description": "文件重命名（PR-19 P19-AC6 / R4b）：只改元数据 name，扩展名规则与上传相同。"
       },
       "HTTPValidationError": {
         "properties": {

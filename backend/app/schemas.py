@@ -387,6 +387,14 @@ class FilePublic(BaseModel):
     at: datetime
 
 
+class FileUpdate(BaseModel):
+    """文件重命名（PR-19 P19-AC6 / R4b）：只改元数据 name，扩展名规则与上传相同。"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+
+
 class EventPublic(BaseModel):
     id: uuid.UUID
     title: str

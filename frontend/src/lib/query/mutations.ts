@@ -1,7 +1,7 @@
 import { type QueryKey, useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import i18n from '@/i18n';
-import { api, ApiError } from '@/lib/api/client';
+import { api, ApiError, notifyUnauthorized } from '@/lib/api/client';
 import type { components } from '@/lib/api/schema';
 import { PROJECT_TREE_KEYS, queryClient } from './client';
 import type { Comment, FileItem, Member, Notif, Preferences, Project, Subtask, Task, Team } from './entities';
@@ -32,8 +32,12 @@ export function errorMessage(e: unknown): string {
   if (e instanceof ApiError) return i18n.t('errors.generic');
   return i18n.t('errors.network');
 }
+const isUnauthorized = (e: unknown) => e instanceof ApiError && e.status === 401;
+
 const notifyError = (e: unknown) => {
-  if (!(e instanceof HiddenProjectError)) toast.error(errorMessage(e));
+  // 401 走全局登录，不新增 toast（P19-AC10 / 1810 Q2）
+  if (e instanceof HiddenProjectError || isUnauthorized(e)) return;
+  toast.error(errorMessage(e));
 };
 
 /** 乐观更新：先改缓存，失败回滚（服务端为 last-write-wins，成功后仍按 meta 失效拉回真值）。 */
@@ -133,8 +137,15 @@ export function useCreateProject() {
       const p = await unwrap(api.POST('/api/projects', { body }));
       if (others.length) {
         const order = Math.min(...others.map(x => x.order)) - 1;
-        // 补发失败：toast 服务端 detail，项目保留；mutation 结束时按 meta.invalidates 重新拉取，以服务端为准（清单第 289 行）
-        await unwrap(api.PATCH('/api/projects/{project_id}', { params: { path: { project_id: p.id } }, body: { order } })).catch(notifyError);
+        // 补发失败：非 401 toast 服务端 detail，项目保留；mutation 结束时按 meta.invalidates 重新拉取，以服务端为准（清单第 289 行）。
+        // 401 不可吞：中间件已不再跳登录；通知后重新抛出，避免 mutation 成功走 onSuccess 离开 /login。
+        await unwrap(api.PATCH('/api/projects/{project_id}', { params: { path: { project_id: p.id } }, body: { order } })).catch(e => {
+          if (isUnauthorized(e)) {
+            notifyUnauthorized();
+            throw e;
+          }
+          notifyError(e);
+        });
       }
       for (const t of tasks) await unwrap(api.POST('/api/tasks', { body: { ...t, project_id: p.id } }));
       return p;
@@ -143,7 +154,7 @@ export function useCreateProject() {
 }
 
 /** 修改项目（R23 order；失败回滚并提示中文 detail）。 */
-export function useUpdateProject() {
+export function useUpdateProject(opts?: { networkErrorShort?: boolean }) {
   return useMutation({
     meta: { invalidates: [['projects']] },
     mutationFn: async ({ id, patch }: { id: string; patch: Schemas['ProjectUpdate'] }) => {
@@ -156,6 +167,16 @@ export function useUpdateProject() {
     },
     onError: (e, _v, ctx) => {
       ctx?.rollback();
+      // P19-AC13（1545 Q3）：拖拽失败先回滚再 refetch，口径同 P19-AC3；401 走全局登录，409 由 MutationCache 处理
+      if (opts?.networkErrorShort) {
+        // 401 不 toast、不 refetch（P19-AC10 / P19-AC13 1810 Q1）
+        if (!(e instanceof HiddenProjectError) && !isUnauthorized(e)) {
+          toast.error(e instanceof ApiError ? errorMessage(e) : i18n.t('errors.networkShort'));
+        }
+        if (e instanceof ApiError && (e.status === 409 || e.status === 401)) return;
+        void queryClient.invalidateQueries({ queryKey: ['projects'] });
+        return;
+      }
       notifyError(e);
     },
   });
@@ -174,7 +195,9 @@ export function useReorderProjects() {
     },
     // meta.invalidates 只在成功时生效；失败（422 / 500 / 网络错误等）也要重拉。401 交给全局登录处理。
     onError: e => {
-      if (!(e instanceof HiddenProjectError)) toast.error(e instanceof ApiError ? errorMessage(e) : i18n.t('errors.networkShort'));
+      if (!(e instanceof HiddenProjectError) && !isUnauthorized(e)) {
+        toast.error(e instanceof ApiError ? errorMessage(e) : i18n.t('errors.networkShort'));
+      }
       if (e instanceof ApiError && (e.status === 409 || e.status === 401)) return;
       void queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
@@ -188,7 +211,10 @@ export function useReorderProjects() {
  * 先直接查列表再写缓存：若直接重拉缓存，项目页会在跳转生效前先渲染成 404 / 403。
  */
 async function refetchAfterFailure(id: string, onGone?: (id: string) => void) {
-  const fresh = await unwrap(api.GET('/api/projects')).catch(() => null);
+  const fresh = await unwrap(api.GET('/api/projects')).catch(e => {
+    if (isUnauthorized(e)) notifyUnauthorized();
+    return null;
+  });
   if (!fresh) return;
   const p = fresh.find(x => x.id === id);
   const gone = !p || !isFullProject(p) || p.archived;
@@ -312,9 +338,9 @@ export function useDeleteComment() {
  * 再在回滚之后重拉受影响的数据。409 由 MutationCache.onSettled 整体重拉，401 交给全局登录处理，这里都不重复。
  */
 function failAndRefetch(e: unknown, keys: readonly QueryKey[]) {
-  if (e instanceof HiddenProjectError) return;
+  if (e instanceof HiddenProjectError || isUnauthorized(e)) return;
   toast.error(e instanceof ApiError ? errorMessage(e) : i18n.t('errors.networkShort'));
-  if (e instanceof ApiError && (e.status === 409 || e.status === 401)) return;
+  if (e instanceof ApiError && e.status === 409) return;
   void Promise.all(keys.map(queryKey => queryClient.invalidateQueries({ queryKey })));
 }
 
@@ -454,6 +480,19 @@ export function useDeleteFile() {
     mutationFn: async (file: FileItem) => {
       assertVisibleProject(file.project_id);
       await unwrap(api.DELETE('/api/files/{file_id}', { params: { path: { file_id: file.id } } }));
+    },
+    onError: e => failAndRefetch(e, [['files']]),
+  });
+}
+
+/** 重命名文件（PR-19 P19-AC5 / P19-AC6 / R4b）：不做乐观更新，等 200；失败 toast detail 并重拉。 */
+export function useRenameFile() {
+  return useMutation({
+    meta: { invalidates: [['files']] },
+    retry: 0,
+    mutationFn: async ({ file, name }: { file: FileItem; name: string }): Promise<FileItem> => {
+      assertVisibleProject(file.project_id);
+      return unwrap(api.PATCH('/api/files/{file_id}', { params: { path: { file_id: file.id } }, body: { name } }));
     },
     onError: e => failAndRefetch(e, [['files']]),
   });
