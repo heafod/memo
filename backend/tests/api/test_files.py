@@ -14,7 +14,9 @@
 - 任务关联：上传时 ``task_id`` 落库；任务不存在或跨项目 422；
 - 级联：删除项目后其文件元数据不再出现在快照，卷上内容一并删除（PR-15a）；
   删盘失败只记日志、删除仍 204；
-- 认证：未认证上传 / 下载内容 401，detail 中文。
+- 认证：未认证上传 / 下载内容 / 重命名 401，detail 中文；
+- 重命名（PR-19 P19-AC6）：PATCH 200、改扩展名并重算 type、415、空名 422、
+  重名加 (1) 且不和自己比、404 不泄露、已归档 409；格式错误先于 404/409。
 
 测试在自建项目内运行（项目 key 每次运行不同，P19-AC4 / R14），模块结束删除项目（文件行随项目级联删除）。
 """
@@ -98,6 +100,9 @@ def test_files_require_auth(
         assert resp.status_code == 401
         assert resp.json()["detail"] == "未认证"  # R8
         resp = fresh.get(f"/api/files/{file_id}/content")
+        assert resp.status_code == 401
+        assert resp.json()["detail"] == "未认证"  # R8
+        resp = fresh.patch(f"/api/files/{file_id}", json={"name": "匿名.txt"})
         assert resp.status_code == 401
         assert resp.json()["detail"] == "未认证"  # R8
 
@@ -528,3 +533,151 @@ def test_delete_file_disk_failure_still_204(
     assert any(fid in r.getMessage() for r in caplog.records)
     assert fid not in _snapshot_files(authed_client)
     real.unlink(missing_ok=True)
+
+
+# ---------- PATCH 重命名（PR-19 P19-AC6 / R4b、R29） ----------
+
+
+def test_rename_file_success_200(
+    authed_client: TestClient, project: dict
+) -> None:  # R4b
+    """成功 200：只改元数据，盘文件字节不变；下载名与 MIME 按新名。"""
+    up = _upload(authed_client, project["id"], "原名.txt", b"hello-rename")
+    assert up.status_code == 201, up.text
+    body = up.json()
+    fid = body["id"]
+    at = body["at"]
+    path = _content_path(uuid.UUID(fid))
+    before = path.read_bytes()
+    resp = authed_client.patch(f"/api/files/{fid}", json={"name": "新名.txt"})
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert data["id"] == fid
+    assert data["name"] == "新名.txt"
+    assert data["type"] == "doc"
+    assert data["size_bytes"] == body["size_bytes"]
+    assert data["at"] == at
+    assert path.read_bytes() == before
+    snap = _snapshot_files(authed_client)[fid]
+    assert snap["name"] == "新名.txt"
+    dl = authed_client.get(f"/api/files/{fid}/content")
+    assert dl.status_code == 200, dl.text
+    assert dl.content == b"hello-rename"
+    cd = dl.headers.get("content-disposition", "")
+    assert "新名.txt" in cd or "filename" in cd.lower()
+    ctype = dl.headers.get("content-type", "")
+    assert "text/plain" in ctype or "octet-stream" in ctype
+
+
+def test_rename_changes_extension_and_type(
+    authed_client: TestClient, project: dict
+) -> None:  # R4b
+    up = _upload(authed_client, project["id"], "类型.txt", b"x")
+    assert up.status_code == 201, up.text
+    fid = up.json()["id"]
+    assert up.json()["type"] == "doc"
+    resp = authed_client.patch(f"/api/files/{fid}", json={"name": "类型.png"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["name"] == "类型.png"
+    assert resp.json()["type"] == "img"
+
+
+def test_rename_disallowed_extension_415(
+    authed_client: TestClient, project: dict
+) -> None:  # R4b
+    up = _upload(authed_client, project["id"], "白名单.txt", b"x")
+    assert up.status_code == 201, up.text
+    fid = up.json()["id"]
+    resp = authed_client.patch(f"/api/files/{fid}", json={"name": "白名单.exe"})
+    assert resp.status_code == 415
+    assert resp.json()["detail"] == "不支持的文件类型"
+    assert _snapshot_files(authed_client)[fid]["name"] == "白名单.txt"
+
+
+def test_rename_empty_name_422(
+    authed_client: TestClient, project: dict
+) -> None:  # R4b
+    up = _upload(authed_client, project["id"], "空名.txt", b"x")
+    assert up.status_code == 201, up.text
+    fid = up.json()["id"]
+    for raw in ("", "   ", "///", "\t"):
+        resp = authed_client.patch(f"/api/files/{fid}", json={"name": raw})
+        assert resp.status_code == 422, (raw, resp.text)
+        assert resp.json()["detail"] == "文件名无效"
+    assert _snapshot_files(authed_client)[fid]["name"] == "空名.txt"
+
+
+def test_rename_dedupe_excludes_self(
+    authed_client: TestClient, project: dict
+) -> None:  # R4b
+    a = _upload(authed_client, project["id"], "同名.txt", b"a")
+    b = _upload(authed_client, project["id"], "另一个.txt", b"b")
+    assert a.status_code == 201 and b.status_code == 201, (a.text, b.text)
+    aid, bid = a.json()["id"], b.json()["id"]
+    # 不和自己比：改成原名仍是原名，不加 (1)
+    same = authed_client.patch(f"/api/files/{aid}", json={"name": "同名.txt"})
+    assert same.status_code == 200, same.text
+    assert same.json()["name"] == "同名.txt"
+    # 与另一文件重名：自动加 (1)
+    clash = authed_client.patch(f"/api/files/{bid}", json={"name": "同名.txt"})
+    assert clash.status_code == 200, clash.text
+    assert clash.json()["name"] == "同名 (1).txt"
+
+
+def test_rename_file_missing_404(authed_client: TestClient) -> None:  # R4b / R29
+    """不存在 → 404「文件不存在」，与随机 id 的 body 相同。"""
+    miss = str(uuid.uuid4())
+    other = str(uuid.uuid4())
+    r1 = authed_client.patch(f"/api/files/{miss}", json={"name": "x.txt"})
+    r2 = authed_client.patch(f"/api/files/{other}", json={"name": "x.txt"})
+    assert r1.status_code == 404 and r1.json() == {"detail": "文件不存在"}
+    assert r1.status_code == r2.status_code and r1.json() == r2.json()
+
+
+def test_rename_file_archived_409(
+    authed_client: TestClient, project: dict
+) -> None:  # R4b / R29
+    up = _upload(authed_client, project["id"], "归档改名.txt", b"x")
+    assert up.status_code == 201, up.text
+    fid = up.json()["id"]
+    try:
+        arch = authed_client.patch(
+            f"/api/projects/{project['id']}", json={"archived": True}
+        )
+        assert arch.status_code == 200, arch.text
+        resp = authed_client.patch(f"/api/files/{fid}", json={"name": "新.txt"})
+        assert resp.status_code == 409 and resp.json() == {
+            "detail": "项目已归档，无法修改"
+        }
+        # 顺序：已归档时，空名 / 非法扩展名仍先 409，而不是 422/415
+        empty = authed_client.patch(f"/api/files/{fid}", json={"name": "   "})
+        assert empty.status_code == 409 and empty.json() == {
+            "detail": "项目已归档，无法修改"
+        }
+        bad = authed_client.patch(f"/api/files/{fid}", json={"name": "x.exe"})
+        assert bad.status_code == 409 and bad.json() == {
+            "detail": "项目已归档，无法修改"
+        }
+    finally:
+        authed_client.patch(f"/api/projects/{project['id']}", json={"archived": False})
+        authed_client.delete(f"/api/files/{fid}")
+
+
+def test_rename_format_422_before_lookup(
+    authed_client: TestClient, project: dict
+) -> None:  # R4b
+    """多余字段 / 缺 name 为格式 422，先于 404（即使 id 不存在）。"""
+    missing = str(uuid.uuid4())
+    extra = authed_client.patch(
+        f"/api/files/{missing}", json={"name": "x.txt", "type": "img"}
+    )
+    assert extra.status_code == 422
+    assert "detail" in extra.json()
+    # 业务 422「文件名无效」不会在格式错误或 404 之前出现：id 不存在 + 空名 → 404
+    empty_missing = authed_client.patch(
+        f"/api/files/{missing}", json={"name": "   "}
+    )
+    assert empty_missing.status_code == 404
+    assert empty_missing.json() == {"detail": "文件不存在"}
+    no_name = authed_client.patch(f"/api/files/{missing}", json={})
+    assert no_name.status_code == 422
