@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
-import { zhCN } from 'react-day-picker/locale';
+import { enUS, zhCN } from 'react-day-picker/locale';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -153,7 +153,8 @@ export function DatePick({
   children: ReactNode;
   ariaLabel: string;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isEn = i18n.language === 'en';
   const [open, setOpen] = useState(false);
   const pick = (v: string | null) => {
     setOpen(false);
@@ -179,7 +180,12 @@ export function DatePick({
           )}
         </div>
         <Calendar
-          locale={zhCN}
+          locale={isEn ? enUS : zhCN}
+          weekStartsOn={1} /* P19-AC8：周起始日照现状（周一），本批不接 weekStart 偏好 */
+          formatters={{
+            // 默认 cccccc 在 en 是 Mo，在 zh 是「一」；原型 / P19-AC7 要「周一」
+            formatWeekdayName: d => t(`write.pick.${['wdSu', 'wdMo', 'wdTu', 'wdWe', 'wdTh', 'wdFr', 'wdSa'][d.getDay()]}`),
+          }}
           mode="single"
           selected={parseDate(value) ?? undefined}
           defaultMonth={parseDate(value) ?? undefined}
