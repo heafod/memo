@@ -4,6 +4,13 @@ import { api, ApiError } from '@/lib/api/client';
 import type { components } from '@/lib/api/schema';
 import { queryClient } from './client';
 
+declare global {
+  interface Window {
+    /** P19-AC10 探针：仅测试赋值时记录 clear / rollback 顺序。 */
+    __memo401?: { ev: string; t: number }[];
+  }
+}
+
 export type CurrentUser = components['schemas']['UserPublic'];
 export type LoginInput = components['schemas']['LoginIn'];
 
@@ -32,6 +39,8 @@ export const useMe = () => useQuery(meQueryOptions);
 /** 全局 401：清空查询缓存、会话置空并回登录页；已在登录页时不做任何事（防跳转循环）。 */
 export function handleUnauthorized(navigateToLogin: () => void): void {
   if (window.location.pathname === '/login') return;
+  // 测试探针可设 window.__memo401 = []，记录清缓存相对回滚的顺序（P19-AC10）。
+  window.__memo401?.push({ ev: 'clear', t: performance.now() });
   queryClient.clear();
   queryClient.setQueryData(authKeys.me, null);
   navigateToLogin();

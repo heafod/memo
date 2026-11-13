@@ -1,12 +1,10 @@
-import createClient, { type Middleware } from 'openapi-fetch';
+import createClient from 'openapi-fetch';
 import type { paths } from './schema';
 
 // API 客户端：openapi-fetch + openapi-typescript 生成的 paths 类型（src/lib/api/schema.d.ts，
 // 由 npm run gen:api 自 backend 导出的 openapi.json 生成；前端不手写任何 API 类型）。
 // 同源请求（baseUrl 为空）：生产经 nginx /api 反代，开发经 Vite 代理，会话 Cookie 随请求携带。
 export const api = createClient<paths>({ baseUrl: '', credentials: 'same-origin' });
-
-const LOGIN_PATH = '/api/auth/login';
 
 type UnauthorizedHandler = () => void;
 let onUnauthorized: UnauthorizedHandler = () => {};
@@ -16,17 +14,15 @@ export function setUnauthorizedHandler(handler: UnauthorizedHandler): void {
   onUnauthorized = handler;
 }
 
-const unauthorizedMiddleware: Middleware = {
-  onResponse({ request, response }) {
-    // 登录请求本身不触发跳转：口令错误为 400，且登录页自行展示后端 detail
-    if (response.status === 401 && new URL(request.url).pathname !== LOGIN_PATH) {
-      // P19-AC10：等 mutation onError 先把乐观状态回滚，再清缓存并跳 /login
-      setTimeout(() => onUnauthorized(), 0);
-    }
-    return response;
-  },
-};
-api.use(unauthorizedMiddleware);
+/**
+ * 触发全局 401 处理（清缓存、跳 /login）。
+ * 不在 fetch 中间件里直接调用：中间件的 setTimeout(0) 会先于 mutation onError 回滚
+ *（P19-AC10，见 query/client.ts）。查询由 QueryCache.onError、mutation 由
+ * MutationCache.onSettled（options.onError 回滚之后）调用本函数。登录请求本身不走这里。
+ */
+export function notifyUnauthorized(): void {
+  onUnauthorized();
+}
 
 /** 从错误响应体提取后端 detail（R8：服务端 detail 首版固定中文）；非字符串 detail 返回 undefined。 */
 export function errorDetail(error: unknown): string | undefined {

@@ -32,15 +32,22 @@ export function errorMessage(e: unknown): string {
   if (e instanceof ApiError) return i18n.t('errors.generic');
   return i18n.t('errors.network');
 }
+const isUnauthorized = (e: unknown) => e instanceof ApiError && e.status === 401;
+
 const notifyError = (e: unknown) => {
-  if (!(e instanceof HiddenProjectError)) toast.error(errorMessage(e));
+  // 401 走全局登录，不新增 toast（P19-AC10 / 1810 Q2）
+  if (e instanceof HiddenProjectError || isUnauthorized(e)) return;
+  toast.error(errorMessage(e));
 };
 
 /** 乐观更新：先改缓存，失败回滚（服务端为 last-write-wins，成功后仍按 meta 失效拉回真值）。 */
 function optimistic<T extends { id: string }>(key: QueryKey, id: string, patch: Partial<T>) {
   const prev = queryClient.getQueryData<T[]>(key);
   queryClient.setQueryData<T[]>(key, list => list?.map(x => (x.id === id ? { ...x, ...patch } : x)));
-  return () => queryClient.setQueryData(key, prev);
+  return () => {
+    window.__memo401?.push({ ev: 'rollback', t: performance.now() });
+    queryClient.setQueryData(key, prev);
+  };
 }
 
 const SUBTASK_KEYS: readonly QueryKey[] = [['subtasks'], ['tasks'], ['activity']];
@@ -158,7 +165,10 @@ export function useUpdateProject(opts?: { networkErrorShort?: boolean }) {
       ctx?.rollback();
       // P19-AC13（1545 Q3）：拖拽失败先回滚再 refetch，口径同 P19-AC3；401 走全局登录，409 由 MutationCache 处理
       if (opts?.networkErrorShort) {
-        if (!(e instanceof HiddenProjectError)) toast.error(e instanceof ApiError ? errorMessage(e) : i18n.t('errors.networkShort'));
+        // 401 不 toast、不 refetch（P19-AC10 / P19-AC13 1810 Q1）
+        if (!(e instanceof HiddenProjectError) && !isUnauthorized(e)) {
+          toast.error(e instanceof ApiError ? errorMessage(e) : i18n.t('errors.networkShort'));
+        }
         if (e instanceof ApiError && (e.status === 409 || e.status === 401)) return;
         void queryClient.invalidateQueries({ queryKey: ['projects'] });
         return;
@@ -181,7 +191,9 @@ export function useReorderProjects() {
     },
     // meta.invalidates 只在成功时生效；失败（422 / 500 / 网络错误等）也要重拉。401 交给全局登录处理。
     onError: e => {
-      if (!(e instanceof HiddenProjectError)) toast.error(e instanceof ApiError ? errorMessage(e) : i18n.t('errors.networkShort'));
+      if (!(e instanceof HiddenProjectError) && !isUnauthorized(e)) {
+        toast.error(e instanceof ApiError ? errorMessage(e) : i18n.t('errors.networkShort'));
+      }
       if (e instanceof ApiError && (e.status === 409 || e.status === 401)) return;
       void queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
@@ -319,9 +331,9 @@ export function useDeleteComment() {
  * 再在回滚之后重拉受影响的数据。409 由 MutationCache.onSettled 整体重拉，401 交给全局登录处理，这里都不重复。
  */
 function failAndRefetch(e: unknown, keys: readonly QueryKey[]) {
-  if (e instanceof HiddenProjectError) return;
+  if (e instanceof HiddenProjectError || isUnauthorized(e)) return;
   toast.error(e instanceof ApiError ? errorMessage(e) : i18n.t('errors.networkShort'));
-  if (e instanceof ApiError && (e.status === 409 || e.status === 401)) return;
+  if (e instanceof ApiError && e.status === 409) return;
   void Promise.all(keys.map(queryKey => queryClient.invalidateQueries({ queryKey })));
 }
 
