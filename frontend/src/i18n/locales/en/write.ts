@@ -69,6 +69,7 @@ export default {
     milestones: 'Milestones',
     addMilestone: 'Add milestone',
     milestoneName: 'Milestone name',
+    milestoneNameMax: 'Milestone name can be at most 80 characters',
     removeMilestone: 'Remove milestone',
     startAfterDue: "Start date can't be after the target date",
     milestoneIncomplete: 'A milestone needs a name and a date',

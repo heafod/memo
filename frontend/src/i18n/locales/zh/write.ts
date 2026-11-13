@@ -70,6 +70,7 @@ export default {
     milestones: '里程碑',
     addMilestone: '添加里程碑',
     milestoneName: '里程碑名称',
+    milestoneNameMax: '里程碑名称最多 80 个字',
     removeMilestone: '移除里程碑',
     startAfterDue: '开始日期不能晚于目标日期',
     milestoneIncomplete: '里程碑需要名称和日期',
