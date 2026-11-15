@@ -142,6 +142,8 @@ function NewTaskDialog({ defaults, onClose }: { defaults: NewTaskDefaults; onClo
           });
         },
         onError: e => {
+          // 401 由全局登录处理，不在此 toast（P19-AC10 / 2135 Q1）
+          if (e instanceof ApiError && e.status === 401) return;
           const fe = fieldErrors(e);
           if (Object.keys(fe).length) setErrs(fe);
           else toast.error(errorMessage(e));
@@ -555,6 +557,8 @@ function NewMemberDialog({ onClose }: { onClose: () => void }) {
           onClose();
         },
         onError: e => {
+          // 401 由全局登录处理，不在此 toast（P19-AC10 / 2135 Q1）
+          if (e instanceof ApiError && e.status === 401) return;
           const fe = fieldErrors(e);
           if (Object.keys(fe).length) setErrs(fe);
           else toast.error(errorMessage(e));
@@ -646,6 +650,8 @@ function NewTeamDialog({ onClose }: { onClose: () => void }) {
           onClose();
         },
         onError: e => {
+          // 401 由全局登录处理，不在此 toast（P19-AC10 / 2135 Q1）
+          if (e instanceof ApiError && e.status === 401) return;
           const fe = fieldErrors(e);
           if (Object.keys(fe).length) setErrs(fe);
           else toast.error(errorMessage(e));

@@ -440,7 +440,7 @@ export function useUploadFile() {
     meta: { invalidates: [['files'], ['activity']] },
     mutationFn: async ({ file, projectId, taskId }: { file: File; projectId: string; taskId?: string }): Promise<FileItem> => {
       assertVisibleProject(projectId);
-      // 经 openapi-fetch 发送（保留全局 401 中间件）；body 序列化为 multipart FormData
+      // 经 openapi-fetch 发送；body 序列化为 multipart FormData。401 由 MutationCache 走全局登录。
       return unwrap(
         api.POST('/api/files', {
           body: { file: '', project_id: projectId, task_id: taskId ?? null },
