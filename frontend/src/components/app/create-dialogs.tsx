@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { fieldErrors } from '@/lib/api/client';
+import { ApiError, fieldErrors } from '@/lib/api/client';
 import {
   DEFAULT_PROJECT_TAB,
   type Priority,
@@ -142,6 +142,8 @@ function NewTaskDialog({ defaults, onClose }: { defaults: NewTaskDefaults; onClo
           });
         },
         onError: e => {
+          // 401 由全局登录处理，不在此 toast（P19-AC10 / 2135 Q1）
+          if (e instanceof ApiError && e.status === 401) return;
           const fe = fieldErrors(e);
           if (Object.keys(fe).length) setErrs(fe);
           else toast.error(errorMessage(e));
@@ -334,6 +336,8 @@ function NewProjectDialog({ onClose }: { onClose: () => void }) {
           toast(t('write.newProject.created', { name: p.name, tail: tasks.length ? t('write.newProject.createdTail', { n: tasks.length }) : '' }));
         },
         onError: e => {
+          // 401 由全局登录处理，不在此 toast（P19-AC10 / 1810 Q2）；order PATCH 会重新抛出 401
+          if (e instanceof ApiError && e.status === 401) return;
           if (e instanceof Error && 'status' in e && e.status === 409 && extra.length < 3) return submit(extra + 'X');
           const fe = fieldErrors(e);
           if (fe.key && !fe.name) fe.name = fe.key;
@@ -553,6 +557,8 @@ function NewMemberDialog({ onClose }: { onClose: () => void }) {
           onClose();
         },
         onError: e => {
+          // 401 由全局登录处理，不在此 toast（P19-AC10 / 2135 Q1）
+          if (e instanceof ApiError && e.status === 401) return;
           const fe = fieldErrors(e);
           if (Object.keys(fe).length) setErrs(fe);
           else toast.error(errorMessage(e));
@@ -644,6 +650,8 @@ function NewTeamDialog({ onClose }: { onClose: () => void }) {
           onClose();
         },
         onError: e => {
+          // 401 由全局登录处理，不在此 toast（P19-AC10 / 2135 Q1）
+          if (e instanceof ApiError && e.status === 401) return;
           const fe = fieldErrors(e);
           if (Object.keys(fe).length) setErrs(fe);
           else toast.error(errorMessage(e));

@@ -1,4 +1,4 @@
-import { CloudUpload, Download, FolderOpen, LayoutGrid, Link2, List, Search, SearchX, Trash2 } from 'lucide-react';
+import { CloudUpload, Download, FolderOpen, LayoutGrid, Link2, List, Pencil, Search, SearchX, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
@@ -18,7 +18,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from '@/components/ui/empty';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -28,7 +29,7 @@ import { asFileType, FILE_TYPE_COLOR, FILE_TYPES, type FileType } from '@/lib/do
 import { fileSize, timeAgo } from '@/lib/domain/format';
 import { mergePrefs, type PrefsData } from '@/lib/domain/prefs';
 import { type FileItem, useMembers, usePreferences } from '@/lib/query/entities';
-import { useDeleteFile, useUploadFiles } from '@/lib/query/mutations';
+import { useDeleteFile, useRenameFile, useUploadFiles } from '@/lib/query/mutations';
 import { useVisibleFiles, useVisibleTasks } from '@/lib/query/visibility';
 
 const FILE_SORTS = ['date', 'name', 'type'] as const;
@@ -42,6 +43,7 @@ const contentUrl = (f: FileItem) => `/api/files/${f.id}/content`;
  * 下载与预览走服务端 URL（GET /api/files/{id}/content）。9c：工具栏「上传」与拖放上传区（POST /api/files，multipart），
  * 超限 / 类型不符显示服务端 413 / 415 中文 detail；关联任务的上传入口在任务抽屉附件区。
  * PR-18 AC29：右键「删除」复用 confirmDelete；不做乐观更新，等 204。
+ * PR-19 P19-AC5：右键「重命名」在「删除」上方；prompt 弹窗；不做乐观更新，等 200。
  */
 export function FilesView({ projectId }: { projectId: string }) {
   const { t } = useTranslation();
@@ -54,8 +56,11 @@ export function FilesView({ projectId }: { projectId: string }) {
   const [layout, setLayout] = useState<'grid' | 'list'>('grid');
   const [preview, setPreview] = useState<FileItem | null>(null);
   const [pendingDelete, setPendingDelete] = useState<FileItem | null>(null);
+  const [pendingRename, setPendingRename] = useState<FileItem | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   const upload = useUploadFiles(projectId);
   const delFile = useDeleteFile();
+  const renameFile = useRenameFile();
   const confirmDelete = mergePrefs(usePreferences() as PrefsData | null).confirmDelete !== false;
 
   const removeFile = (f: FileItem) => {
@@ -70,6 +75,23 @@ export function FilesView({ projectId }: { projectId: string }) {
   const requestDelete = (f: FileItem) => {
     if (!confirmDelete) return removeFile(f);
     setPendingDelete(f);
+  };
+  const requestRename = (f: FileItem) => {
+    setPendingRename(f);
+    setRenameValue(f.name);
+  };
+  const submitRename = () => {
+    const f = pendingRename;
+    if (!f) return;
+    const name = renameValue.trim();
+    setPendingRename(null);
+    if (!name || name === f.name) return;
+    renameFile
+      .mutateAsync({ file: f, name })
+      .then(updated => {
+        if (preview?.id === updated.id) setPreview(updated);
+      })
+      .catch(() => {});
   };
 
   const query = q.trim().toLowerCase();
@@ -167,6 +189,10 @@ export function FilesView({ projectId }: { projectId: string }) {
                   </button>
                 </ContextMenuTrigger>
                 <ContextMenuContent data-file-ctx={f.id} aria-label={t('write.upload.fileOptions')}>
+                  <ContextMenuItem onSelect={() => requestRename(f)} data-file-rename="">
+                    <Pencil />
+                    {t('write.upload.rename')}
+                  </ContextMenuItem>
                   <ContextMenuItem variant="destructive" onSelect={() => requestDelete(f)}>
                     <Trash2 />
                     {t('write.upload.delete')}
@@ -230,6 +256,10 @@ export function FilesView({ projectId }: { projectId: string }) {
                         </TableRow>
                       </ContextMenuTrigger>
                       <ContextMenuContent data-file-ctx={f.id} aria-label={t('write.upload.fileOptions')}>
+                        <ContextMenuItem onSelect={() => requestRename(f)} data-file-rename="">
+                          <Pencil />
+                          {t('write.upload.rename')}
+                        </ContextMenuItem>
                         <ContextMenuItem variant="destructive" onSelect={() => requestDelete(f)}>
                           <Trash2 />
                           {t('write.upload.delete')}
@@ -274,6 +304,39 @@ export function FilesView({ projectId }: { projectId: string }) {
             </DialogFooter>
           </DialogContent>
         )}
+      </Dialog>
+      <Dialog
+        open={!!pendingRename}
+        onOpenChange={o => {
+          if (!o) setPendingRename(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md" data-rename-file-dialog="" aria-describedby={undefined}>
+          <DialogHeader>
+            <DialogTitle>{t('write.upload.renameTitle')}</DialogTitle>
+            <DialogDescription className="sr-only">{t('write.upload.renameTitle')}</DialogDescription>
+          </DialogHeader>
+          <form
+            className="flex flex-col gap-3"
+            onSubmit={e => {
+              e.preventDefault();
+              submitRename();
+            }}
+          >
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="file-rename">{t('write.upload.fileName')}</Label>
+              <Input id="file-rename" value={renameValue} onChange={e => setRenameValue(e.target.value)} autoFocus data-file-rename-input="" />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="secondary" onClick={() => setPendingRename(null)}>
+                {t('write.cancel')}
+              </Button>
+              <Button type="submit" disabled={renameFile.isPending} data-file-rename-save="">
+                {t('write.upload.save')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
       </Dialog>
       <AlertDialog open={!!pendingDelete} onOpenChange={o => !o && setPendingDelete(null)}>
         <AlertDialogContent data-delete-file-dialog="">

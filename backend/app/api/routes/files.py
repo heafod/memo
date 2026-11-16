@@ -9,6 +9,9 @@
   + ``nosniff``，防 svg/html 被同源内联执行；``<img>`` 预览不受 attachment 影响）；
 - ``DELETE /api/files/{id}``：删除元数据并 unlink 盘文件（PR-18 AC29 / R4b）；先提交再删盘，
   盘失败只记日志仍 204；不存在/不可见 404「文件不存在」，已归档 409；
+- ``PATCH /api/files/{id}``：重命名（PR-19 P19-AC6 / R4b、R29），请求体 ``{name}``，只改元数据、
+  盘文件不动；清洗与去重同上传（不和自己比）；允许改扩展名并重算 ``type``，白名单外 415；
+  不存在/不可见 404「文件不存在」，已归档 409；顺序：格式 422 → 404 → 409 → 422 文件名无效 → 415；
 - 元数据读面由快照 ``files`` 承载（不设列表 GET，沿 PR-5 先例）；
 - 内容存卷 ``settings.FILES_DIR``（compose 卷 ``/data/files``），盘上文件名为记录
   UUID，与用户文件名解耦；任务关联在上传时经 ``task_id`` 指定，须存在且属同项目
@@ -37,7 +40,7 @@ from app.api import serializers
 from app.api.deps import CurrentUser, SessionDep
 from app.core.config import settings
 from app.models import File as FileRecord
-from app.schemas import FilePublic
+from app.schemas import FilePublic, FileUpdate
 
 router = APIRouter(prefix="/files", tags=["files"])
 logger = logging.getLogger(__name__)
@@ -222,6 +225,50 @@ def download_file(
         content_disposition_type="attachment",
         headers={"X-Content-Type-Options": "nosniff"},
     )
+
+
+@router.patch(
+    "/{file_id}", response_model=FilePublic, responses=visibility.ARCHIVED_409
+)
+def rename_file(
+    file_id: uuid.UUID,
+    body: FileUpdate,
+    session: SessionDep,
+    current_user: CurrentUser,
+) -> FilePublic:
+    """重命名文件（PR-19 P19-AC6 / R4b、R29）：只改元数据，盘文件不动。"""
+    record = session.get(FileRecord, file_id)
+    if (
+        record is None
+        or visibility.visible_project(session, current_user, record.project_id) is None
+    ):
+        raise HTTPException(status_code=404, detail="文件不存在")
+    project = visibility.visible_project(session, current_user, record.project_id)
+    assert project is not None  # 上面已判可见
+    if project.archived:
+        visibility.raise_archived()
+
+    name = sanitize_filename(body.name)
+    if not name:
+        raise HTTPException(status_code=422, detail="文件名无效")
+    ext = file_extension(name)
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=415, detail="不支持的文件类型")
+
+    existing = set(
+        session.exec(
+            select(FileRecord.name).where(
+                FileRecord.project_id == record.project_id,
+                FileRecord.id != record.id,
+            )
+        ).all()
+    )
+    record.name = dedupe_filename(name, existing)
+    record.type = _EXT_TYPES[ext]
+    session.add(record)
+    session.commit()
+    session.refresh(record)
+    return serializers.file_public(record)
 
 
 @router.delete("/{file_id}", status_code=204, responses=visibility.ARCHIVED_409)

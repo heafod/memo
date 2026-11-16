@@ -318,7 +318,10 @@ function EditProjectForm({ p, onGone, onClose }: { p: Project; onGone: (id: stri
   };
   const removeMs = (key: number) => setF(s => ({ ...s, milestones: s.milestones.filter(m => m.key !== key) }));
 
+  const hasOverlongMs = f.milestones.some(m => [...m.name].length > MS_NAME_MAX);
+
   const submit = () => {
+    if (hasOverlongMs) return; // P19-AC9：超长名时不发请求
     const e: Record<string, string> = {};
     const name = f.name.trim();
     if (!name) e.name = t('write.projectEdit.nameRequired');
@@ -512,8 +515,9 @@ function EditProjectForm({ p, onGone, onClose }: { p: Project; onGone: (id: stri
                       onChange={e => setMsName(m.key, m.name, e.target.value)}
                       placeholder={t('write.projectEdit.milestoneName')}
                       aria-label={t('write.projectEdit.milestoneName')}
-                      aria-invalid={!!errs[`ms-${m.key}`]}
+                      aria-invalid={!!errs[`ms-${m.key}`] || [...m.name].length > MS_NAME_MAX}
                       data-ms-name=""
+                      data-ms-overlong={[...m.name].length > MS_NAME_MAX ? '' : undefined}
                     />
                     <Input
                       type="date"
@@ -536,6 +540,11 @@ function EditProjectForm({ p, onGone, onClose }: { p: Project; onGone: (id: stri
                       <X />
                     </Button>
                   </div>
+                  {[...m.name].length > MS_NAME_MAX && (
+                    <p className="text-sm text-destructive" data-ms-overlong-hint="">
+                      {t('write.projectEdit.milestoneNameMax')}
+                    </p>
+                  )}
                   <FieldError msg={errs[`ms-${m.key}`]} name="milestone" />
                 </div>
               ))
@@ -556,7 +565,7 @@ function EditProjectForm({ p, onGone, onClose }: { p: Project; onGone: (id: stri
           <Button type="button" variant="secondary" onClick={onClose}>
             {t('write.cancel')}
           </Button>
-          <Button type="submit" form="edit-project-form" disabled={patch.isPending} data-edit-save="">
+          <Button type="submit" form="edit-project-form" disabled={patch.isPending || hasOverlongMs} data-edit-save="">
             {t('write.projectEdit.save')}
           </Button>
         </DialogFooter>

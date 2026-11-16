@@ -237,6 +237,8 @@ def _path_probes(ids: dict[str, str]) -> list[tuple[str, str, dict[str, Any] | N
         ("POST", f"/api/tasks/{ids['tasks']}/duplicate", None),
         ("POST", f"/api/projects/{ids['project']}/duplicate", None),
         ("DELETE", f"/api/files/{ids['files']}", None),
+        # PR-19 P19-AC6：PATCH 重命名，不可见与不存在的 404 body 相同
+        ("PATCH", f"/api/files/{ids['files']}", {"name": "x.txt"}),
     ]
 
 
