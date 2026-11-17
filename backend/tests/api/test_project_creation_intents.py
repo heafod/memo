@@ -489,13 +489,30 @@ def test_http_contract_and_unauthenticated_no_writes(owner: User, authed_client)
         )
 
 
+@pytest.fixture
+def other_account():
+    from app import crud
+
+    username = f"batch-a-{uuid.uuid4().hex}@example.com"
+    with Session(engine) as session:
+        user = crud.create_user(session, username, "isolated-test-account-1")
+        user_id = user.id
+    try:
+        yield username
+    finally:
+        with Session(engine) as session:
+            user = session.get(User, user_id)
+            if user is not None:
+                session.delete(user)
+                session.commit()
+
+
 def test_http_other_account_cannot_distinguish_foreign_identifiers(
-    owner: User, authed_client
+    owner: User, authed_client, other_account
 ):
     """R12 A-AC8: authenticated account B sees identical results for known/unknown A ids."""
     from fastapi.testclient import TestClient
 
-    from app import crud
     from app.main import app
 
     payload, key = request_for(), intent(owner)
@@ -505,9 +522,7 @@ def test_http_other_account_cannot_distinguish_foreign_identifiers(
         ).status_code
         == 200
     )
-    username = f"batch-a-{uuid.uuid4().hex}@example.com"
-    with Session(engine) as session:
-        crud.create_user(session, username, "isolated-test-account-1")
+    username = other_account
     with TestClient(app) as other:
         assert (
             other.post(

@@ -12,8 +12,13 @@ router = APIRouter(prefix="/project-creations", tags=["project-creations"])
 
 @router.post("/{intent_id}", response_model=CreationResult)
 def create(
-    intent_id: str, payload: ProjectCreationInput, current_user: CurrentUser
+    intent_id: str,
+    payload: ProjectCreationInput,
+    session: SessionDep,
+    current_user: CurrentUser,
 ) -> CreationResult:
+    session.expunge(current_user)
+    session.rollback()
     return project_creation.create_or_retry(engine, current_user, intent_id, payload)
 
 
@@ -26,6 +31,11 @@ def read(
 
 @router.patch("/{intent_id}/order", status_code=204)
 def order(
-    intent_id: str, payload: CreationOrderInput, current_user: CurrentUser
+    intent_id: str,
+    payload: CreationOrderInput,
+    session: SessionDep,
+    current_user: CurrentUser,
 ) -> None:
+    session.expunge(current_user)
+    session.rollback()
     project_creation.order_creation(engine, current_user, intent_id, payload)

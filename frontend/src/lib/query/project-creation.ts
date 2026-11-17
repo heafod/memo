@@ -170,26 +170,38 @@ export function canContinueCreation(account: string, session: ReturnType<typeof 
 const detail = (e: unknown) =>
   e instanceof ApiError ? (e.detail ?? (Object.values(fieldErrors(e)).join('；') || i18n.t('errors.generic'))) : i18n.t('errors.network');
 function apply(journal: CreationJournalV1, result: CreationResult): CreationJournalV1 {
+  if (journal.creation.state === 'succeeded_deleted') return journal;
   if (result.state === 'succeeded') return { ...journal, creation: { state: 'succeeded', projectId: result.project_id, taskCount: result.task_count } };
   if (result.state === 'succeeded_deleted') return { ...journal, creation: { state: 'succeeded_deleted', projectId: result.project_id } };
   // A stale/read-empty response cannot cancel an already confirmed success.
-  if (journal.creation.state === 'succeeded' || journal.creation.state === 'succeeded_deleted') return journal;
+  if (journal.creation.state === 'succeeded') return journal;
   return { ...journal, creation: result };
 }
 async function confirm(account: string, journal: CreationJournalV1, session: ReturnType<typeof creationSession>) {
-  const { data, error, response } = await api.GET('/api/project-creations/{intent_id}', { params: { path: { intent_id: journal.intentId } } });
+  const { data, error, response } = await api.GET('/api/project-creations/{intent_id}', {
+    params: { path: { intent_id: journal.intentId } },
+    signal: AbortSignal.timeout(30_000),
+  });
   active(account, session);
   if (!data) throw new ApiError(response.status, error);
-  save(account, apply(currentJournal(account, journal.intentId, session), data));
-  if (data.state === 'succeeded' && data.project) {
+  const confirmed = apply(currentJournal(account, journal.intentId, session), data);
+  save(account, confirmed);
+  if (confirmed.creation.state === 'succeeded' && data.state === 'succeeded' && data.project) {
     queryClient.setQueryData<Project[]>(['projects'], previous =>
       previous?.some(p => p.id === data.project_id) ? previous : [...(previous ?? []), data.project].filter((p): p is Project => p !== null),
     );
   }
-  return data;
+  if (data.state === 'succeeded' || data.state === 'succeeded_deleted') {
+    await Promise.all(['projects', 'tasks', 'activity', 'notifs'].map(key => queryClient.invalidateQueries({ queryKey: [key] })));
+  }
+  const latest = currentJournal(account, journal.intentId, session);
+  return latest.creation.state === 'succeeded_deleted'
+    ? ({ state: 'succeeded_deleted', project_id: latest.creation.projectId } satisfies CreationResult)
+    : data;
 }
 async function sort(account: string, journal: CreationJournalV1, session: ReturnType<typeof creationSession>, mode: 'automatic' | 'explicit') {
   journal = currentJournal(account, journal.intentId, session);
+  if (journal.creation.state !== 'succeeded') return;
   if (journal.targetOrder === null) {
     save(account, { ...journal, order: { state: 'none' } });
     return;
@@ -204,16 +216,17 @@ async function sort(account: string, journal: CreationJournalV1, session: Return
     });
     currentJournal(account, journal.intentId, session);
     if (!response.ok) throw new ApiError(response.status, error);
-    save(account, { ...attempted, order: { state: 'done' } });
+    save(account, { ...currentJournal(account, journal.intentId, session), order: { state: 'done' } });
   } catch (e) {
     currentJournal(account, journal.intentId, session);
-    save(account, { ...attempted, order: { state: 'failed', detail: detail(e) } });
+    save(account, { ...currentJournal(account, journal.intentId, session), order: { state: 'failed', detail: detail(e) } });
     if (e instanceof ApiError && e.status === 401) throw e;
     toast.error(detail(e));
   }
 }
 async function submit(account: string, journal: CreationJournalV1, session: ReturnType<typeof creationSession>, mode: 'initial' | 'retry') {
-  active(account, session);
+  journal = currentJournal(account, journal.intentId, session);
+  if (journal.creation.state === 'succeeded' || journal.creation.state === 'succeeded_deleted') return confirm(account, journal, session);
   const submitting = { ...journal, creation: { state: 'submitting' } } satisfies CreationJournalV1;
   save(account, submitting);
   let result: CreationResult;
@@ -228,7 +241,7 @@ async function submit(account: string, journal: CreationJournalV1, session: Retu
     result = data;
   } catch (e) {
     currentJournal(account, journal.intentId, session);
-    const uncertain = { ...journal, creation: { state: 'unknown' } } satisfies CreationJournalV1;
+    const uncertain = apply(currentJournal(account, journal.intentId, session), { state: 'unknown' });
     save(account, uncertain);
     if (e instanceof ApiError && e.status === 401) throw e;
     if (e instanceof ApiError && (e.status === 422 || e.status === 409)) throw e;
@@ -238,11 +251,14 @@ async function submit(account: string, journal: CreationJournalV1, session: Retu
   }
   const confirmed = apply(currentJournal(account, journal.intentId, session), result);
   save(account, confirmed);
-  if (result.state === 'succeeded' && result.may_auto_order && confirmed.order.state === 'unattempted') await sort(account, confirmed, session, 'automatic');
+  if (result.state === 'succeeded' && confirmed.creation.state === 'succeeded' && result.may_auto_order && confirmed.order.state === 'unattempted')
+    await sort(account, confirmed, session, 'automatic');
   active(account, session);
   await Promise.all(['projects', 'tasks', 'activity', 'notifs'].map(key => queryClient.invalidateQueries({ queryKey: [key] })));
-  active(account, session);
-  return result;
+  const latest = currentJournal(account, journal.intentId, session);
+  return latest.creation.state === 'succeeded_deleted'
+    ? ({ state: 'succeeded_deleted', project_id: latest.creation.projectId } satisfies CreationResult)
+    : result;
 }
 export function useProjectCreation(recover = false) {
   const account = useMe().data?.id;
