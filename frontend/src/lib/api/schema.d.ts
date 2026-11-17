@@ -214,6 +214,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/project-creations/{intent_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read */
+        get: operations["project-creations-read"];
+        put?: never;
+        /** Create */
+        post: operations["project-creations-create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/project-creations/{intent_id}/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Order */
+        patch: operations["project-creations-order"];
+        trace?: never;
+    };
     "/api/tasks": {
         parameters: {
             query?: never;
@@ -762,6 +797,114 @@ export interface components {
             /** Text */
             text: string;
         };
+        /** CreationChoices */
+        CreationChoices: {
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /**
+             * Desc
+             * @default
+             */
+            desc: string;
+            /**
+             * Icon
+             * @default folder
+             */
+            icon: string | null;
+            /**
+             * Color
+             * @default indigo
+             */
+            color: string | null;
+            /** Team Id */
+            team_id?: string | null;
+            /** Lead Id */
+            lead_id?: string | null;
+            /** Start */
+            start?: components["schemas"]["DefaultCreationDate"] | components["schemas"]["SelectedCreationDate"] | components["schemas"]["NoCreationDate"];
+            /** Due */
+            due?: components["schemas"]["DefaultCreationDate"] | components["schemas"]["SelectedCreationDate"] | components["schemas"]["NoCreationDate"];
+        };
+        /** CreationDeleted */
+        CreationDeleted: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            state: "succeeded_deleted";
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+        };
+        /** CreationFailed */
+        CreationFailed: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            state: "failed";
+            /** Detail */
+            detail: string;
+        };
+        /** CreationOrderInput */
+        CreationOrderInput: {
+            /** Order */
+            order: number;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "automatic" | "explicit";
+        };
+        /** CreationProcessing */
+        CreationProcessing: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            state: "processing";
+        };
+        /** CreationSucceeded */
+        CreationSucceeded: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            state: "succeeded";
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            project: components["schemas"]["ProjectPublic"] | null;
+            /** Task Count */
+            task_count: number;
+            /**
+             * May Auto Order
+             * @default false
+             */
+            may_auto_order: boolean;
+        };
+        /** CreationUnknown */
+        CreationUnknown: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            state: "unknown";
+        };
+        /** DefaultCreationDate */
+        DefaultCreationDate: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "default";
+        };
         /**
          * ErrorDetail
          * @description 错误响应体（中文 detail，R8）；OpenAPI 声明 409 等错误响应用（R29）。
@@ -968,6 +1111,14 @@ export interface components {
              */
             date: string;
         };
+        /** NoCreationDate */
+        NoCreationDate: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "none";
+        };
         /** NotifPublic */
         NotifPublic: {
             /**
@@ -1062,6 +1213,31 @@ export interface components {
             private: boolean;
             /** Member Ids */
             member_ids?: string[];
+        };
+        /** ProjectCreationInput */
+        ProjectCreationInput: {
+            project: components["schemas"]["CreationChoices"];
+            /**
+             * Template Id
+             * @enum {string}
+             */
+            template_id: "blank" | "product" | "web" | "mkt" | "design" | "software" | "personal";
+            /**
+             * Content Language
+             * @enum {string}
+             */
+            content_language: "zh" | "en";
+            /**
+             * Calendar Base Date
+             * Format: date
+             */
+            calendar_base_date: string;
+            /**
+             * Mode
+             * @default initial
+             * @enum {string}
+             */
+            mode: "initial" | "retry";
         };
         /**
          * ProjectHiddenPublic
@@ -1248,6 +1424,19 @@ export interface components {
             filters?: {
                 [key: string]: unknown;
             }[];
+        };
+        /** SelectedCreationDate */
+        SelectedCreationDate: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "selected";
+            /**
+             * Value
+             * Format: date
+             */
+            value: string;
         };
         /**
          * Snapshot
@@ -1873,6 +2062,105 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ErrorDetail"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "project-creations-read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                intent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreationUnknown"] | components["schemas"]["CreationProcessing"] | components["schemas"]["CreationFailed"] | components["schemas"]["CreationSucceeded"] | components["schemas"]["CreationDeleted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "project-creations-create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                intent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectCreationInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreationUnknown"] | components["schemas"]["CreationProcessing"] | components["schemas"]["CreationFailed"] | components["schemas"]["CreationSucceeded"] | components["schemas"]["CreationDeleted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    "project-creations-order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                intent_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreationOrderInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

@@ -27,7 +27,10 @@ import { fmtDate } from '@/lib/domain/format';
 import { activeProjects } from '@/lib/domain/tasks';
 import { type Project, useMeId, useMembers, useTeams } from '@/lib/query/entities';
 import { ROLES } from '@/lib/domain/constants';
-import { errorMessage, useCreateMember, useCreateProject, useCreateTask, useCreateTeam } from '@/lib/query/mutations';
+import { errorMessage, useCreateMember, useCreateTask, useCreateTeam } from '@/lib/query/mutations';
+import { canContinueCreation, useProjectCreation, type CreationInput } from '@/lib/query/project-creation';
+import { creationSession } from '@/lib/query/creation-session';
+import { useMe } from '@/lib/query/auth';
 import { useVisibleProjects } from '@/lib/query/visibility';
 import { cn } from '@/lib/utils';
 
@@ -65,6 +68,8 @@ function useTargetProjects(): Project[] {
 export function CreateDialogsProvider({ children }: { children: ReactNode }) {
   const [task, setTask] = useState<NewTaskDefaults | null>(null);
   const [project, setProject] = useState(false);
+  const recovery = useProjectCreation(true);
+  const { t } = useTranslation();
   const [member, setMember] = useState(false);
   const [team, setTeam] = useState(false);
   return (
@@ -77,6 +82,15 @@ export function CreateDialogsProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
+      {recovery.snapshot.kind === 'available' &&
+        (recovery.snapshot.previous.length > 0 ||
+          (recovery.snapshot.journal &&
+            recovery.snapshot.journal.creation.state !== 'succeeded' &&
+            recovery.snapshot.journal.creation.state !== 'succeeded_deleted')) && (
+          <Button className="fixed bottom-4 right-4 z-40" variant="secondary" onClick={() => setProject(true)}>
+            {t('write.newProject.recovery.pending')}
+          </Button>
+        )}
       {task && <NewTaskDialog defaults={task} onClose={() => setTask(null)} />}
       {project && <NewProjectDialog onClose={() => setProject(false)} />}
       {member && <NewMemberDialog onClose={() => setMember(false)} />}
@@ -274,15 +288,26 @@ function makeKey(name: string, taken: ReadonlySet<string>): string {
 }
 
 function NewProjectDialog({ onClose }: { onClose: () => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const meId = useMeId();
   const members = useMembers();
   const teams = useTeams();
   const visibleProjects = useVisibleProjects();
-  const create = useCreateProject();
+  const create = useProjectCreation();
+  const account = useMe().data?.id;
   const me = members.find(m => m.id === meId);
-  const [f, setF] = useState({
+  const [f, setF] = useState<{
+    name: string;
+    desc: string;
+    icon: string;
+    color: string;
+    team: string;
+    lead: string;
+    due: string;
+    dueChoice: NonNullable<CreationInput['project']['due']>;
+    tmpl: ProjectTemplateId;
+  }>({
     name: '',
     desc: '',
     icon: 'folder',
@@ -290,63 +315,119 @@ function NewProjectDialog({ onClose }: { onClose: () => void }) {
     team: me?.team_id ?? teams[0]?.id ?? '',
     lead: meId ?? '',
     due: dOff(30),
-    tmpl: 'blank' as ProjectTemplateId,
+    dueChoice: { kind: 'default' } satisfies NonNullable<CreationInput['project']['due']>,
+    tmpl: 'blank',
   });
   const [errs, setErrs] = useState<Record<string, string>>({});
-  // 标识去重只看可见项目（不可见项目只暴露名称、图标、负责人，不参与任何计算）；服务端 409 时再追加 X 重试
+  // 只在首次提交时生成 key；持久意图重试沿用冻结的 key，不在 409 后自动换 key。
   const taken = new Set(visibleProjects.map(p => p.key));
 
-  const submit = (extra = '') => {
+  const submit = () => {
+    if (!account) return;
+    const session = creationSession();
     setErrs({});
     const name = f.name.trim();
-    const tasks = starterTitles(t(`write.newProject.templates.${f.tmpl}.tasks`)).map((title, i) => ({
-      title,
-      desc: '',
-      fav: false,
-      status: (i === 0 ? 'todo' : 'backlog') as TaskStatus,
-      assignee_id: i === 0 ? meId : null,
-      priority: (i === 0 ? 'high' : 'medium') as Priority,
-      due: dOff(5 + i * 5),
-      start: dOff(i * 5),
-    }));
     create.mutate(
       {
-        body: {
-          key: name ? makeKey(name, taken) + extra : '',
-          name,
-          desc: f.desc,
-          icon: f.icon,
-          color: f.color,
-          team_id: f.team || null,
-          lead_id: f.lead || null,
-          due: f.due || dOff(30),
-          start: dOff(0),
-          status: 'planning',
-          fav: false,
-          private: false,
-          member_ids: [...new Set([meId, f.lead].filter((x): x is string => !!x))],
+        kind: 'start',
+        input: {
+          project: {
+            key: name ? makeKey(name, taken) : '',
+            name,
+            desc: f.desc,
+            icon: f.icon,
+            color: f.color,
+            team_id: f.team || null,
+            lead_id: f.lead || null,
+            start: { kind: 'default' },
+            due: f.dueChoice,
+          },
+          template_id: f.tmpl,
+          content_language: i18n.resolvedLanguage?.startsWith('en') ? 'en' : 'zh',
+          calendar_base_date: dOff(0),
+          mode: 'initial',
         },
-        tasks,
       },
       {
-        onSuccess: p => {
+        onSuccess: result => {
+          if (!canContinueCreation(account, session) || result?.state !== 'succeeded' || !result.project) return;
           onClose();
-          // 原型 actions.js:1351：空白模板跳概览 tab，其余模板跳默认 tab（FRIDAY PR-9c 18:18 Q14：PR-10 起按原型）
-          void navigate(`/projects/${p.id}/${f.tmpl === 'blank' ? 'overview' : DEFAULT_PROJECT_TAB}`);
-          toast(t('write.newProject.created', { name: p.name, tail: tasks.length ? t('write.newProject.createdTail', { n: tasks.length }) : '' }));
+          void navigate(`/projects/${result.project_id}/${f.tmpl === 'blank' ? 'overview' : DEFAULT_PROJECT_TAB}`);
+          toast(
+            t('write.newProject.created', {
+              name: result.project.name,
+              tail: result.task_count ? t('write.newProject.createdTail', { n: result.task_count }) : '',
+            }),
+          );
         },
         onError: e => {
-          // 401 由全局登录处理，不在此 toast（P19-AC10 / 1810 Q2）；order PATCH 会重新抛出 401
           if (e instanceof ApiError && e.status === 401) return;
-          if (e instanceof Error && 'status' in e && e.status === 409 && extra.length < 3) return submit(extra + 'X');
           const fe = fieldErrors(e);
           if (fe.key && !fe.name) fe.name = fe.key;
-          if (Object.keys(fe).length) setErrs(fe);
-          else toast.error(errorMessage(e));
+          setErrs(fe);
         },
       },
     );
   };
+  const saved = create.snapshot.kind === 'available' ? create.snapshot.journal : null;
+  const previous = create.snapshot.kind === 'available' ? create.snapshot.previous : [];
+  const previousPicker = previous.map(entry => (
+    <Button key={entry.intentId} variant="secondary" disabled={create.isPending} onClick={() => create.resume(entry.intentId)}>
+      {t('write.newProject.recovery.previous', { name: entry.input.project.name })}
+    </Button>
+  ));
+  if (create.snapshot.kind === 'unavailable' || saved) {
+    return (
+      <Dialog open onOpenChange={o => !o && onClose()}>
+        <DialogContent data-dialog="project-creation-recovery">
+          <DialogHeader>
+            <DialogTitle>{t('write.newProject.title')}</DialogTitle>
+            <DialogDescription>{t('write.newProject.recovery.pending')}</DialogDescription>
+          </DialogHeader>
+          {create.snapshot.kind === 'unavailable' ? (
+            <p role="alert">{t('write.newProject.recovery.storage')}</p>
+          ) : (
+            saved && (
+              <>
+                <p role="status" data-creation-state={saved.creation.state}>
+                  {t(`write.newProject.recovery.${saved.creation.state}`)}
+                </p>
+                {previousPicker}
+                {saved.creation.state === 'failed' && <p role="alert">{saved.creation.detail}</p>}
+                {saved.order.state === 'failed' && <p role="alert">{saved.order.detail}</p>}
+                <Button disabled={create.isPending} onClick={() => create.mutate({ kind: 'confirm' })}>
+                  {t('write.newProject.recovery.confirm')}
+                </Button>
+                {saved.creation.state !== 'succeeded' && saved.creation.state !== 'succeeded_deleted' && (
+                  <Button disabled={create.isPending} onClick={() => create.mutate({ kind: 'retry' })}>
+                    {t('write.newProject.recovery.retry')}
+                  </Button>
+                )}
+                {saved.creation.state === 'succeeded' && (
+                  <>
+                    <Button disabled={create.isPending} onClick={() => create.mutate({ kind: 'sort' })}>
+                      {t('write.newProject.recovery.sort')}
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        onClose();
+                        void navigate(`/projects/${saved.creation.state === 'succeeded' ? saved.creation.projectId : ''}/overview`);
+                      }}
+                    >
+                      {t('write.open')}
+                    </Button>
+                  </>
+                )}
+                <Button variant="secondary" disabled={create.isPending} onClick={create.another}>
+                  {t('write.newProject.recovery.another')}
+                </Button>
+              </>
+            )
+          )}
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open onOpenChange={o => !o && onClose()}>
@@ -355,6 +436,7 @@ function NewProjectDialog({ onClose }: { onClose: () => void }) {
           <DialogTitle>{t('write.newProject.title')}</DialogTitle>
           <DialogDescription>{t('write.newProject.subtitle')}</DialogDescription>
         </DialogHeader>
+        {previousPicker}
         <form
           id="new-project-form"
           className="flex flex-col gap-3.5"
@@ -472,7 +554,12 @@ function NewProjectDialog({ onClose }: { onClose: () => void }) {
             </div>
             <div className="flex min-w-[150px] flex-1 flex-col gap-1.5">
               <Label htmlFor="p-due">{t('write.newProject.due')}</Label>
-              <Input id="p-due" type="date" value={f.due} onChange={e => setF({ ...f, due: e.target.value })} />
+              <Input
+                id="p-due"
+                type="date"
+                value={f.due}
+                onChange={e => setF({ ...f, due: e.target.value, dueChoice: e.target.value ? { kind: 'selected', value: e.target.value } : { kind: 'none' } })}
+              />
               <FieldError errs={errs} name="due" />
             </div>
           </div>

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { api, ApiError } from '@/lib/api/client';
 import type { components } from '@/lib/api/schema';
 import { queryClient } from './client';
+import { endCreationSession } from './creation-session';
 
 export type CurrentUser = components['schemas']['UserPublic'];
 export type LoginInput = components['schemas']['LoginIn'];
@@ -31,6 +32,7 @@ export const useMe = () => useQuery(meQueryOptions);
 
 /** 全局 401：清空查询缓存、会话置空并回登录页；已在登录页时不做任何事（防跳转循环）。 */
 export function handleUnauthorized(navigateToLogin: () => void): void {
+  endCreationSession();
   if (window.location.pathname === '/login') return;
   queryClient.clear();
   queryClient.setQueryData(authKeys.me, null);
@@ -46,6 +48,7 @@ export function useLogin() {
       return data;
     },
     onSuccess: user => {
+      endCreationSession();
       queryClient.setQueryData(authKeys.me, user);
     },
   });
@@ -54,6 +57,7 @@ export function useLogin() {
 export function useLogout() {
   const navigate = useNavigate();
   return useMutation({
+    onMutate: endCreationSession,
     mutationFn: async (): Promise<void> => {
       const { response } = await api.POST('/api/auth/logout');
       if (!response.ok) throw new ApiError(response.status, undefined);

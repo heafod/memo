@@ -440,6 +440,197 @@
         }
       }
     },
+    "/api/project-creations/{intent_id}": {
+      "post": {
+        "tags": [
+          "project-creations"
+        ],
+        "summary": "Create",
+        "operationId": "project-creations-create",
+        "parameters": [
+          {
+            "name": "intent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Intent Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreationInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CreationUnknown"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CreationProcessing"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CreationFailed"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CreationSucceeded"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CreationDeleted"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "state",
+                    "mapping": {
+                      "unknown": "#/components/schemas/CreationUnknown",
+                      "processing": "#/components/schemas/CreationProcessing",
+                      "failed": "#/components/schemas/CreationFailed",
+                      "succeeded": "#/components/schemas/CreationSucceeded",
+                      "succeeded_deleted": "#/components/schemas/CreationDeleted"
+                    }
+                  },
+                  "title": "Response Project-Creations-Create"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "project-creations"
+        ],
+        "summary": "Read",
+        "operationId": "project-creations-read",
+        "parameters": [
+          {
+            "name": "intent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Intent Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/CreationUnknown"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CreationProcessing"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CreationFailed"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CreationSucceeded"
+                    },
+                    {
+                      "$ref": "#/components/schemas/CreationDeleted"
+                    }
+                  ],
+                  "discriminator": {
+                    "propertyName": "state",
+                    "mapping": {
+                      "unknown": "#/components/schemas/CreationUnknown",
+                      "processing": "#/components/schemas/CreationProcessing",
+                      "failed": "#/components/schemas/CreationFailed",
+                      "succeeded": "#/components/schemas/CreationSucceeded",
+                      "succeeded_deleted": "#/components/schemas/CreationDeleted"
+                    }
+                  },
+                  "title": "Response Project-Creations-Read"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-creations/{intent_id}/order": {
+      "patch": {
+        "tags": [
+          "project-creations"
+        ],
+        "summary": "Order",
+        "operationId": "project-creations-order",
+        "parameters": [
+          {
+            "name": "intent_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Intent Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreationOrderInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/tasks": {
       "get": {
         "tags": [
@@ -2381,6 +2572,269 @@
         ],
         "title": "CommentUpdate"
       },
+      "CreationChoices": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 1,
+            "title": "Key"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "desc": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Desc",
+            "default": ""
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon",
+            "default": "folder"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color",
+            "default": "indigo"
+          },
+          "team_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Team Id"
+          },
+          "lead_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lead Id"
+          },
+          "start": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DefaultCreationDate"
+              },
+              {
+                "$ref": "#/components/schemas/SelectedCreationDate"
+              },
+              {
+                "$ref": "#/components/schemas/NoCreationDate"
+              }
+            ],
+            "title": "Start",
+            "discriminator": {
+              "propertyName": "kind",
+              "mapping": {
+                "default": "#/components/schemas/DefaultCreationDate",
+                "none": "#/components/schemas/NoCreationDate",
+                "selected": "#/components/schemas/SelectedCreationDate"
+              }
+            }
+          },
+          "due": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DefaultCreationDate"
+              },
+              {
+                "$ref": "#/components/schemas/SelectedCreationDate"
+              },
+              {
+                "$ref": "#/components/schemas/NoCreationDate"
+              }
+            ],
+            "title": "Due",
+            "discriminator": {
+              "propertyName": "kind",
+              "mapping": {
+                "default": "#/components/schemas/DefaultCreationDate",
+                "none": "#/components/schemas/NoCreationDate",
+                "selected": "#/components/schemas/SelectedCreationDate"
+              }
+            }
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "name"
+        ],
+        "title": "CreationChoices"
+      },
+      "CreationDeleted": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "const": "succeeded_deleted",
+            "title": "State",
+            "default": "succeeded_deleted"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id"
+        ],
+        "title": "CreationDeleted"
+      },
+      "CreationFailed": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "const": "failed",
+            "title": "State",
+            "default": "failed"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "CreationFailed"
+      },
+      "CreationOrderInput": {
+        "properties": {
+          "order": {
+            "type": "number",
+            "title": "Order"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "automatic",
+              "explicit"
+            ],
+            "title": "Mode"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "order",
+          "mode"
+        ],
+        "title": "CreationOrderInput"
+      },
+      "CreationProcessing": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "const": "processing",
+            "title": "State",
+            "default": "processing"
+          }
+        },
+        "type": "object",
+        "title": "CreationProcessing"
+      },
+      "CreationSucceeded": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "const": "succeeded",
+            "title": "State",
+            "default": "succeeded"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProjectPublic"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "task_count": {
+            "type": "integer",
+            "title": "Task Count"
+          },
+          "may_auto_order": {
+            "type": "boolean",
+            "title": "May Auto Order",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "project",
+          "task_count"
+        ],
+        "title": "CreationSucceeded"
+      },
+      "CreationUnknown": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "const": "unknown",
+            "title": "State",
+            "default": "unknown"
+          }
+        },
+        "type": "object",
+        "title": "CreationUnknown"
+      },
+      "DefaultCreationDate": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "default",
+            "title": "Kind",
+            "default": "default"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "DefaultCreationDate"
+      },
       "ErrorDetail": {
         "properties": {
           "detail": {
@@ -2926,6 +3380,21 @@
         "title": "MilestoneIn",
         "description": "里程碑入参（PR-15b，R25）：只有名称与日期两个字段，不允许额外字段。\n\n名称去掉首尾空格后 1–80 字；日期按 ISO 字符串落 JSONB，与现有数据\n``{name, date}`` 同形，``ProjectPublic.milestones`` 输出形状不变。"
       },
+      "NoCreationDate": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "none",
+            "title": "Kind"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "title": "NoCreationDate"
+      },
       "NotifPublic": {
         "properties": {
           "id": {
@@ -3186,6 +3655,57 @@
           "name"
         ],
         "title": "ProjectCreate"
+      },
+      "ProjectCreationInput": {
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/CreationChoices"
+          },
+          "template_id": {
+            "type": "string",
+            "enum": [
+              "blank",
+              "product",
+              "web",
+              "mkt",
+              "design",
+              "software",
+              "personal"
+            ],
+            "title": "Template Id"
+          },
+          "content_language": {
+            "type": "string",
+            "enum": [
+              "zh",
+              "en"
+            ],
+            "title": "Content Language"
+          },
+          "calendar_base_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Calendar Base Date"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "initial",
+              "retry"
+            ],
+            "title": "Mode",
+            "default": "initial"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project",
+          "template_id",
+          "content_language",
+          "calendar_base_date"
+        ],
+        "title": "ProjectCreationInput"
       },
       "ProjectHiddenPublic": {
         "properties": {
@@ -3759,6 +4279,27 @@
         ],
         "title": "SavedViewPut",
         "description": "保存视图 PUT 全量替换载荷（重命名 + 布局/过滤整体替换；project 不可改）。"
+      },
+      "SelectedCreationDate": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "const": "selected",
+            "title": "Kind"
+          },
+          "value": {
+            "type": "string",
+            "format": "date",
+            "title": "Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "kind",
+          "value"
+        ],
+        "title": "SelectedCreationDate"
       },
       "Snapshot": {
         "properties": {
