@@ -216,7 +216,13 @@ async function sort(account: string, journal: CreationJournalV1, session: Return
     });
     currentJournal(account, journal.intentId, session);
     if (!response.ok) throw new ApiError(response.status, error);
-    save(account, { ...currentJournal(account, journal.intentId, session), order: { state: 'done' } });
+    const latest = currentJournal(account, journal.intentId, session);
+    save(account, { ...latest, order: { state: 'done' } });
+    if (latest.creation.state === 'succeeded') {
+      const projectId = latest.creation.projectId;
+      const order = journal.targetOrder;
+      queryClient.setQueryData<Project[]>(['projects'], previous => previous?.map(project => (project.id === projectId ? { ...project, order } : project)));
+    }
   } catch (e) {
     currentJournal(account, journal.intentId, session);
     save(account, { ...currentJournal(account, journal.intentId, session), order: { state: 'failed', detail: detail(e) } });
