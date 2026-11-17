@@ -25,7 +25,7 @@ import uuid
 from datetime import UTC, date, datetime
 from typing import Any
 
-from sqlalchemy import Column, Double, UniqueConstraint, text
+from sqlalchemy import CheckConstraint, Column, Double, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, SQLModel
 
@@ -353,3 +353,27 @@ class TaskSubtaskLink(SQLModel, table=True):
         foreign_key="subtask.id", ondelete="CASCADE", primary_key=True
     )
     order: float = Field(sa_column=Column(Double, nullable=False, default=0))
+
+
+class ProjectCreationIntent(SQLModel, table=True):
+    """Account-owned durable creation result; identifiers are never recycled."""
+
+    __tablename__ = "project_creation_intent"
+    __table_args__ = (
+        CheckConstraint("state IN ('processing', 'succeeded', 'failed')"),
+        CheckConstraint("(state = 'succeeded') = (original_project_id IS NOT NULL)"),
+        CheckConstraint("project_id IS NULL OR state = 'succeeded'"),
+    )
+    user_id: uuid.UUID = Field(primary_key=True)
+    nonce: uuid.UUID = Field(primary_key=True)
+    request: dict[str, Any] = Field(sa_column=_jsonb_object_column())
+    resolved: dict[str, Any] = Field(sa_column=_jsonb_object_column())
+    state: str = Field(default="processing", max_length=16)
+    original_project_id: uuid.UUID | None = Field(default=None)
+    project_id: uuid.UUID | None = Field(
+        default=None, foreign_key="project.id", ondelete="SET NULL", index=True
+    )
+    failure_detail: str | None = Field(default=None)
+    automatic_order_attempted: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=get_datetime_utc)
+    updated_at: datetime = Field(default_factory=get_datetime_utc)

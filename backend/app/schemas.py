@@ -474,3 +474,93 @@ class Snapshot(BaseModel):
     events: list[EventPublic]
     savedViews: list[SavedViewPublic]
     preferences: dict[str, Any]
+
+
+class DefaultCreationDate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["default"] = "default"
+
+
+class SelectedCreationDate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["selected"]
+    value: date
+
+
+class NoCreationDate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["none"]
+
+
+CreationDate = Annotated[
+    DefaultCreationDate | SelectedCreationDate | NoCreationDate,
+    Field(discriminator="kind"),
+]
+
+
+class CreationChoices(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    key: str = Field(min_length=1, max_length=16)
+    name: Annotated[
+        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)
+    ]
+    desc: str = Field(default="", max_length=4000)
+    icon: str | None = Field(default="folder", max_length=64)
+    color: str | None = Field(default="indigo", max_length=32)
+    team_id: uuid.UUID | None = None
+    lead_id: uuid.UUID | None = None
+    start: CreationDate = Field(default_factory=DefaultCreationDate)
+    due: CreationDate = Field(default_factory=DefaultCreationDate)
+
+
+class ProjectCreationInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    project: CreationChoices
+    template_id: Literal[
+        "blank", "product", "web", "mkt", "design", "software", "personal"
+    ]
+    content_language: Literal["zh", "en"]
+    calendar_base_date: date
+    mode: Literal["initial", "retry"] = "initial"
+
+
+class CreationUnknown(BaseModel):
+    state: Literal["unknown"] = "unknown"
+
+
+class CreationProcessing(BaseModel):
+    state: Literal["processing"] = "processing"
+
+
+class CreationFailed(BaseModel):
+    state: Literal["failed"] = "failed"
+    detail: str
+
+
+class CreationSucceeded(BaseModel):
+    state: Literal["succeeded"] = "succeeded"
+    project_id: uuid.UUID
+    project: ProjectPublic | None
+    task_count: int
+    may_auto_order: bool = False
+
+
+class CreationDeleted(BaseModel):
+    state: Literal["succeeded_deleted"] = "succeeded_deleted"
+    project_id: uuid.UUID
+
+
+CreationResult = Annotated[
+    CreationUnknown
+    | CreationProcessing
+    | CreationFailed
+    | CreationSucceeded
+    | CreationDeleted,
+    Field(discriminator="state"),
+]
+
+
+class CreationOrderInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    order: float = Field(allow_inf_nan=False)
+    mode: Literal["automatic", "explicit"]
