@@ -7,6 +7,7 @@ from app.api.routes import (
     members,
     notifs,
     preferences,
+    project_creations,
     projects,
     saved_views,
     snapshot,
@@ -22,6 +23,7 @@ from app.api.routes import (
 api_router = APIRouter()
 api_router.include_router(snapshot.router)
 api_router.include_router(projects.router)
+api_router.include_router(project_creations.router)
 api_router.include_router(tasks.router)
 api_router.include_router(members.router)
 api_router.include_router(teams.router)

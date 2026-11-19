@@ -9,7 +9,7 @@
 
   1. 领域实体表 + 账号 / 偏好 / 关联表齐备：team、member、project、task、subtask、comment、
      activity、notif、file、event、saved_view、user、preference、
-     project_member_link、task_dep_link、task_subtask_link（共 16 张）；
+     project_member_link、task_dep_link、task_subtask_link（另增账号隔离的 project_creation_intent，共 17 张）；
   2. 关系字段用关联表：project_member_link（项目↔成员）、task_dep_link（任务↔被依赖任务）、
      task_subtask_link（父任务↔子任务清单项，含顺序列，子任务唯一挂一个父任务）；
   3. 弱结构数组用 JSONB：task.labels、project.milestones、comment.reactions、
@@ -25,18 +25,30 @@
 与 R2「系统类通知仅种子」一致；对「同一任务多次评论」的折叠语义由 PR-4 投递口径验证承接。
 """
 
+import sys
+import uuid
 from pathlib import Path
 
+import psycopg
+import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import inspect
+from psycopg import sql
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.engine import make_url
+from sqlmodel import Session, select
 
+from app import initial_data, project_creation
+from app.core.config import settings
 from app.core.db import engine
+from app.models import Project, ProjectCreationIntent, User
+from app.schemas import ProjectCreationInput
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 
 DOMAIN_TABLES = {
+    "project_creation_intent",
     "team",
     "member",
     "project",
@@ -54,6 +66,30 @@ DOMAIN_TABLES = {
     "task_dep_link",
     "task_subtask_link",
 }
+
+
+@pytest.fixture(autouse=True)
+def _migration_database(monkeypatch):
+    """Destructive migration exercises use a fresh database, never the suite's business rows."""
+    name = "memo_migration_" + uuid.uuid4().hex
+    source = make_url(str(settings.DATABASE_URL))
+    with psycopg.connect(
+        source.set(drivername="postgresql").render_as_string(hide_password=False),
+        autocommit=True,
+    ) as admin:
+        admin.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name)))
+        target = source.set(database=name)
+        isolated = create_engine(target)
+        monkeypatch.setattr(
+            settings, "DATABASE_URL", target.render_as_string(hide_password=False)
+        )
+        monkeypatch.setattr(sys.modules[__name__], "engine", isolated)
+        monkeypatch.setattr(initial_data, "engine", isolated)
+        try:
+            yield
+        finally:
+            isolated.dispose()
+            admin.execute(sql.SQL("DROP DATABASE {}").format(sql.Identifier(name)))
 
 
 def _alembic_config() -> Config:
@@ -173,3 +209,57 @@ def test_schema_structure_audit() -> None:  # R10
             constraint["column_names"] == ["subtask_id"]
             for constraint in inspector.get_unique_constraints("task_subtask_link")
         )
+
+
+def test_upgrade_preserves_business_and_nonempty_downgrade_refuses():
+    """R10/R15 A-AC11/12: compare every historical business table across the additive upgrade."""
+    config = _alembic_config()
+    command.upgrade(config, "53e615ae0aa6")
+    initial_data.init()
+    with Session(engine) as session:
+        old_empty = Project(key="LEGACY-EMPTY", name="来源不明空项目", order=-123)
+        session.add(old_empty)
+        session.commit()
+        old_id = old_empty.id
+
+    def business_snapshot():
+        with engine.connect() as connection:
+            return {
+                name: connection.execute(
+                    text(
+                        f'SELECT to_jsonb(t) FROM "{name}" t ORDER BY to_jsonb(t)::text'
+                    )
+                )
+                .scalars()
+                .all()
+                for name in DOMAIN_TABLES - {"project_creation_intent"}
+            }
+
+    before = business_snapshot()
+    command.upgrade(config, "head")
+    assert business_snapshot() == before
+    with Session(engine) as session:
+        assert session.exec(select(ProjectCreationIntent)).first() is None
+        user = session.exec(select(User)).first()
+        assert user is not None
+        session.expunge(user)
+    payload = ProjectCreationInput.model_validate(
+        {
+            "project": {"key": "AFTER-UPGRADE", "name": "after"},
+            "template_id": "product",
+            "content_language": "en",
+            "calendar_base_date": "2026-11-17",
+        }
+    )
+    result = project_creation.create_or_retry(
+        engine, user, f"{user.id}.{uuid.uuid4()}", payload
+    )
+    assert result.state == "succeeded"
+    after_create = business_snapshot()
+    with pytest.raises(RuntimeError, match="禁止降级"):
+        command.downgrade(config, "53e615ae0aa6")
+    assert business_snapshot() == after_create
+    with Session(engine) as session:
+        assert session.get(Project, old_id) is not None
+        assert session.get(Project, result.project_id) is not None
+        assert session.exec(select(ProjectCreationIntent)).first() is not None
