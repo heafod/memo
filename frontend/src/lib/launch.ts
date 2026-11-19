@@ -23,9 +23,9 @@ export function launchPath(prefs: PrefsData | null | undefined): string {
   return '/';
 }
 
-/** 去登录页的地址：带上原地址（路径 + 查询串 + hash）；原地址正好是 `/` 或本身就是登录页时不带。 */
+/** 去登录页的地址：带上原地址（路径 + 查询串 + hash）；包括 `/`；本身就是登录页时不带，以免循环。 */
 export function loginPath(l: { pathname: string; search: string; hash: string }): string {
-  if (isBareRoot(l) || isLoginPath(l.pathname)) return '/login';
+  if (isLoginPath(l.pathname)) return '/login';
   return `/login?next=${encodeURIComponent(l.pathname + l.search + l.hash)}`;
 }
 
